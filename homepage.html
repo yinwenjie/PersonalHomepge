@@ -1,73 +1,609 @@
-<html>
-
+<!doctype html>
+<html lang="zh-CN">
 <head>
-    <title>
-        My HomePage
-    </title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #f6f7f9;
+            --surface: #ffffff;
+            --surface-soft: #f0f4f8;
+            --text: #1d2633;
+            --muted: #657181;
+            --quiet: #8a95a5;
+            --line: #dfe5ec;
+            --line-strong: #c9d3df;
+            --accent: #246bfe;
+            --accent-soft: #e8f0ff;
+            --shadow: 0 18px 48px rgba(29, 38, 51, 0.08);
+            --radius: 8px;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            min-height: 100%;
+        }
+
+        body {
+            min-height: 100vh;
+            margin: 0;
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(246, 247, 249, 0) 220px),
+                var(--bg);
+            color: var(--text);
+            font-family:
+                Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+                "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+            font-size: 15px;
+            line-height: 1.5;
+            letter-spacing: 0;
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        [hidden] {
+            display: none !important;
+        }
+
+        .page {
+            width: min(960px, calc(100% - 40px));
+            margin: 0 auto;
+            padding: 48px 0 56px;
+        }
+
+        .masthead {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 24px;
+            margin-bottom: 28px;
+        }
+
+        .eyebrow {
+            margin: 0 0 6px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 56px;
+            font-weight: 680;
+            line-height: 1;
+            letter-spacing: 0;
+        }
+
+        .today {
+            min-width: 168px;
+            padding-bottom: 4px;
+            color: var(--muted);
+            font-size: 14px;
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .search-panel {
+            margin-bottom: 34px;
+        }
+
+        .search-box {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: center;
+            gap: 10px;
+            min-height: 64px;
+            padding: 8px;
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            background: var(--surface);
+            box-shadow: var(--shadow);
+        }
+
+        .search-input {
+            width: 100%;
+            min-width: 0;
+            height: 48px;
+            border: 0;
+            outline: 0;
+            padding: 0 14px;
+            background: transparent;
+            color: var(--text);
+            font: inherit;
+            font-size: 18px;
+        }
+
+        .search-input::placeholder {
+            color: var(--quiet);
+        }
+
+        .search-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 48px;
+            height: 48px;
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            background: var(--surface-soft);
+            color: var(--muted);
+            cursor: pointer;
+            transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+        }
+
+        .search-button:hover {
+            border-color: var(--line-strong);
+            background: var(--accent-soft);
+            color: var(--accent);
+        }
+
+        .search-icon {
+            width: 18px;
+            height: 18px;
+            border: 2px solid currentColor;
+            border-radius: 50%;
+            position: relative;
+        }
+
+        .search-icon::after {
+            position: absolute;
+            right: -7px;
+            bottom: -5px;
+            width: 8px;
+            height: 2px;
+            background: currentColor;
+            border-radius: 2px;
+            content: "";
+            transform: rotate(45deg);
+            transform-origin: center;
+        }
+
+        .search-meta {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            margin-top: 10px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .search-count {
+            color: var(--text);
+            font-weight: 560;
+        }
+
+        .sections {
+            display: grid;
+            gap: 28px;
+        }
+
+        .section {
+            display: grid;
+            grid-template-columns: 164px 1fr;
+            gap: 18px;
+            padding-top: 24px;
+            border-top: 1px solid var(--line);
+        }
+
+        .section-title {
+            margin: 0;
+            font-size: 15px;
+            font-weight: 680;
+        }
+
+        .section-count {
+            display: block;
+            margin-top: 4px;
+            color: var(--quiet);
+            font-size: 12px;
+            font-weight: 480;
+        }
+
+        .links {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .site-link {
+            display: grid;
+            grid-template-columns: 32px minmax(0, 1fr);
+            align-items: center;
+            gap: 10px;
+            min-height: 46px;
+            padding: 7px 10px 7px 7px;
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            background: rgba(255, 255, 255, 0.78);
+            transition:
+                border-color 160ms ease,
+                background 160ms ease,
+                box-shadow 160ms ease,
+                transform 160ms ease;
+        }
+
+        .site-link:hover,
+        .site-link:focus-visible {
+            border-color: var(--line-strong);
+            background: var(--surface);
+            box-shadow: 0 10px 28px rgba(29, 38, 51, 0.09);
+            transform: translateY(-1px);
+        }
+
+        .site-link:focus-visible,
+        .search-button:focus-visible,
+        .search-input:focus-visible {
+            outline: 3px solid rgba(36, 107, 254, 0.18);
+            outline-offset: 2px;
+        }
+
+        .site-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: var(--radius);
+            background: var(--accent-soft);
+            overflow: hidden;
+        }
+
+        .favicon {
+            width: 20px;
+            height: 20px;
+            object-fit: contain;
+        }
+
+        .mark {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            color: var(--accent);
+            font-size: 12px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .site-name {
+            overflow: hidden;
+            color: var(--text);
+            font-weight: 560;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .empty-state {
+            display: none;
+            padding: 32px 0 20px;
+            border-top: 1px solid var(--line);
+            color: var(--muted);
+            text-align: center;
+        }
+
+        .empty-state.is-visible {
+            display: block;
+        }
+
+        @media (max-width: 720px) {
+            .page {
+                width: min(100% - 28px, 960px);
+                padding: 32px 0 40px;
+            }
+
+            .masthead {
+                align-items: flex-start;
+                flex-direction: column;
+                gap: 14px;
+                margin-bottom: 24px;
+            }
+
+            .today {
+                min-width: 0;
+                text-align: left;
+            }
+
+            h1 {
+                font-size: 44px;
+            }
+
+            .search-box {
+                min-height: 58px;
+            }
+
+            .search-input {
+                height: 42px;
+                font-size: 16px;
+            }
+
+            .search-button {
+                width: 42px;
+                height: 42px;
+            }
+
+            .search-meta {
+                flex-direction: column;
+                gap: 4px;
+            }
+
+            .section {
+                grid-template-columns: 1fr;
+                gap: 12px;
+                padding-top: 22px;
+            }
+
+            .links {
+                grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
+            }
+        }
+
+        @media (max-width: 420px) {
+            h1 {
+                font-size: 40px;
+            }
+
+            .links {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
+<body>
+    <main class="page">
+        <header class="masthead">
+            <div>
+                <p class="eyebrow">Personal start page</p>
+                <h1>Home</h1>
+            </div>
+            <time class="today" id="today"></time>
+        </header>
 
-<body text="blue">
-    <h2 align="center">My HomePage</h2>
-    <hr>
-    <a href="http://www.google.com.hk">Google</a>
-    <a href="https://cn.bing.com/">Bing</a>
-    <a href="https://weibo.com/">微博</a>
-    <a href="https://email.163.com/">网易邮箱</a>
-    <br>
-    <a href="https://www.zhibo8.cc/">直播吧</a>
-    <a href="https://tieba.baidu.com/f?kw=%E9%A9%AC%E6%8B%89%E6%9D%BE&fr=wwwt">马拉松吧</a>
-    <a href="http://bbs.running8.com/">跑吧</a>
-    <a href="http://iranshao.com/">爱燃烧</a>
-    <a href="http://bbs.runbible.cn/forum.php">跑步圣经</a>
-    <a href="https://www.nike.com/cn/zh_cn/">Nike</a>
-    <br>
-    <a href="https://www.csdn.net/">CSDN</a>
-    <a href="https://yq.aliyun.com/">阿里云栖社区</a>
-    <a href="https://github.com/">GitHub</a>
-    <a href="https://bitbucket.org/product">BitBucket</a>
-    <a href="https://coding.net/">Coding</a>
-    <a href="https://gitee.com//">Gitee</a>
-    <a href="https://mp.weixin.qq.com/">微信公众号</a>
-    <br>
-    <a href="https://aws.amazon.com/cn/">AWS</a>
-    <br>
-    <a href="https://www.economist.com/">The Economist</a>
-    <a href="https://fortune.com/">Fortune</a>
-    <a href="https://www.nytimes.com/">The New York Times</a>
-    <a href="https://www.washingtonpost.com//">The Washington Post</a>
-    <a href="https://www.latimes.com/">Los Angeles Times</a>
-    <a href="https://www.wsj.com/">The Wall Street Journal</a>
-    <a href="https://www.scientificamerican.com//">Scientific American</a>
-    <a href="https://web.shanbay.com/web/main/index/">扇贝</a>
-    <br>
-    <a href="https://www.xuetangx.com/">学堂在线</a>
-    <a href="https://www.coursera.org/">Coursera</a>
-    <br>
-    <a href="http://www.95559.com.cn/BankCommSite/default.shtml">交通银行</a>
-    <a href="http://www.cmbchina.com/">招商银行</a>
-    <a href="http://www.icbc.com.cn/icbc/">工商银行</a>
-    <br>
-    <a href="https://sh.lianjia.com/">链家</a>
-    <a href="https://www.autohome.com.cn/shanghai/">汽车之家</a>
-    <a href="https://www.zhihu.com/">知乎</a>
-    <a href="https://www.baidu.com/s?word=%E4%B8%87%E5%B9%B4%E5%8E%86&tn=sitehao123_pg&ie=utf-8">万年历</a>
-    <a href="http://www.renren.com/">人人网</a>
-    <a href="http://muchong.com/">小木虫</a>
-    <br>
-    <a href="https://www.douyu.com/">斗鱼</a>
-    <a href="http://www.huya.com/">虎牙</a>
-    <a href="http://www.iqiyi.com/">爱奇艺</a>
-    <br>
-    <a href="http://www.dangdang.com/">当当网</a>
-    <a href="https://www.taobao.com/">淘宝</a>
-    <a href="https://www.jd.com/">京东</a>
-    <a href="http://www.dianping.com/shanghai">大众点评</a>
-    <a href="https://www.kanzhun.com/">看准网</a>
-    <a href="https://www.liepin.com/">猎聘网</a>
-    <a href="https://www.lagou.com/">拉勾网</a>
-    <a href="https://leetcode.com/">LeetCode</a>
-    <a href="https://www.v2ex.com/">V2EX</a>
+        <section class="search-panel" aria-label="搜索和过滤">
+            <form class="search-box" id="searchForm" role="search">
+                <input
+                    class="search-input"
+                    id="searchInput"
+                    type="search"
+                    autocomplete="off"
+                    placeholder="搜索"
+                    aria-label="搜索网站或使用 DuckDuckGo 搜索"
+                >
+                <button class="search-button" type="submit" aria-label="使用 DuckDuckGo 搜索">
+                    <span class="search-icon" aria-hidden="true"></span>
+                </button>
+            </form>
+            <div class="search-meta">
+                <span>DuckDuckGo Search</span>
+                <span><span class="search-count" id="visibleCount">0</span> 个入口可用</span>
+            </div>
+        </section>
 
+        <section class="sections" id="sections" aria-label="常用网站导航"></section>
+        <p class="empty-state" id="emptyState">没有匹配的网站。</p>
+    </main>
+
+    <script>
+        const categories = [
+            {
+                title: "搜索与邮箱",
+                keywords: "搜索 引擎 邮箱 邮件",
+                items: [
+                    { name: "Google", mark: "G", url: "https://www.google.com.hk/" },
+                    { name: "Bing", mark: "B", url: "https://cn.bing.com/" },
+                    { name: "网易邮箱", mark: "邮", url: "https://email.163.com/" }
+                ]
+            },
+            {
+                title: "技术与开发",
+                keywords: "代码 仓库 编程 开发 云服务",
+                items: [
+                    { name: "GitHub", mark: "GH", url: "https://github.com/", keywords: "git 代码 仓库" },
+                    { name: "Gitee", mark: "GE", url: "https://gitee.com/", keywords: "git 代码 仓库" },
+                    { name: "BitBucket", mark: "BB", url: "https://bitbucket.org/product", keywords: "git 代码 仓库" },
+                    { name: "Coding", mark: "CO", url: "https://coding.net/", keywords: "git 代码 仓库" },
+                    { name: "CSDN", mark: "CS", url: "https://www.csdn.net/", keywords: "技术 开发 博客" },
+                    { name: "阿里云栖社区", mark: "云", url: "https://yq.aliyun.com/", keywords: "技术 开发 阿里云" },
+                    { name: "AWS", mark: "AWS", url: "https://aws.amazon.com/cn/", keywords: "云服务 云计算" },
+                    { name: "LeetCode", mark: "LC", url: "https://leetcode.com/", keywords: "算法 刷题 编程" },
+                    { name: "V2EX", mark: "V2", url: "https://www.v2ex.com/", keywords: "社区 技术" }
+                ]
+            },
+            {
+                title: "新闻与阅读",
+                keywords: "新闻 阅读 英语 杂志 报纸",
+                items: [
+                    { name: "The Economist", mark: "TE", url: "https://www.economist.com/" },
+                    { name: "Fortune", mark: "FO", url: "https://fortune.com/" },
+                    { name: "The New York Times", mark: "NY", url: "https://www.nytimes.com/" },
+                    { name: "The Washington Post", mark: "WP", url: "https://www.washingtonpost.com/" },
+                    { name: "Los Angeles Times", mark: "LA", url: "https://www.latimes.com/" },
+                    { name: "The Wall Street Journal", mark: "WS", url: "https://www.wsj.com/" },
+                    { name: "Scientific American", mark: "SA", url: "https://www.scientificamerican.com/" },
+                    { name: "扇贝", mark: "扇", url: "https://web.shanbay.com/web/main/index/" }
+                ]
+            },
+            {
+                title: "学习",
+                keywords: "课程 在线学习 mooc",
+                items: [
+                    { name: "学堂在线", mark: "学", url: "https://www.xuetangx.com/" },
+                    { name: "Coursera", mark: "C", url: "https://www.coursera.org/" }
+                ]
+            },
+            {
+                title: "运动",
+                keywords: "跑步 马拉松 体育 篮球 足球",
+                items: [
+                    { name: "直播吧", mark: "播", url: "https://www.zhibo8.cc/" },
+                    { name: "马拉松吧", mark: "马", url: "https://tieba.baidu.com/f?kw=%E9%A9%AC%E6%8B%89%E6%9D%BE&fr=wwwt" },
+                    { name: "跑吧", mark: "跑", url: "http://bbs.running8.com/" },
+                    { name: "爱燃烧", mark: "燃", url: "https://iranshao.com/" },
+                    { name: "跑步圣经", mark: "圣", url: "http://bbs.runbible.cn/forum.php" },
+                    { name: "Nike", mark: "NK", url: "https://www.nike.com/cn/zh_cn/" }
+                ]
+            },
+            {
+                title: "金融生活",
+                keywords: "银行 金融 房产 汽车 日历 生活",
+                items: [
+                    { name: "交通银行", mark: "交", url: "https://www.bankcomm.com/BankCommSite/default.shtml" },
+                    { name: "招商银行", mark: "招", url: "https://www.cmbchina.com/" },
+                    { name: "工商银行", mark: "工", url: "https://www.icbc.com.cn/icbc/" },
+                    { name: "链家", mark: "链", url: "https://sh.lianjia.com/" },
+                    { name: "汽车之家", mark: "车", url: "https://www.autohome.com.cn/shanghai/" },
+                    { name: "万年历", mark: "历", url: "https://www.baidu.com/s?word=%E4%B8%87%E5%B9%B4%E5%8E%86&tn=sitehao123_pg&ie=utf-8" }
+                ]
+            },
+            {
+                title: "社交内容",
+                keywords: "社交 内容 知识 社区",
+                items: [
+                    { name: "微博", mark: "微", url: "https://weibo.com/" },
+                    { name: "知乎", mark: "知", url: "https://www.zhihu.com/" },
+                    { name: "微信公众号", mark: "众", url: "https://mp.weixin.qq.com/" },
+                    { name: "小木虫", mark: "木", url: "https://muchong.com/" },
+                    { name: "人人网", mark: "人", url: "http://www.renren.com/" }
+                ]
+            },
+            {
+                title: "娱乐购物求职",
+                keywords: "娱乐 视频 购物 招聘 求职 工作 美食",
+                items: [
+                    { name: "斗鱼", mark: "斗", url: "https://www.douyu.com/" },
+                    { name: "虎牙", mark: "虎", url: "https://www.huya.com/" },
+                    { name: "爱奇艺", mark: "爱", url: "https://www.iqiyi.com/" },
+                    { name: "当当", mark: "当", url: "https://www.dangdang.com/" },
+                    { name: "淘宝", mark: "淘", url: "https://www.taobao.com/" },
+                    { name: "京东", mark: "京", url: "https://www.jd.com/" },
+                    { name: "大众点评", mark: "评", url: "https://www.dianping.com/shanghai" },
+                    { name: "看准", mark: "看", url: "https://www.kanzhun.com/" },
+                    { name: "猎聘", mark: "猎", url: "https://www.liepin.com/" },
+                    { name: "拉勾", mark: "拉", url: "https://www.lagou.com/" }
+                ]
+            }
+        ];
+
+        const sectionsEl = document.querySelector("#sections");
+        const inputEl = document.querySelector("#searchInput");
+        const countEl = document.querySelector("#visibleCount");
+        const emptyEl = document.querySelector("#emptyState");
+        const todayEl = document.querySelector("#today");
+        const formEl = document.querySelector("#searchForm");
+        const totalCount = categories.reduce((sum, category) => sum + category.items.length, 0);
+
+        function normalize(value) {
+            return value.trim().toLowerCase();
+        }
+
+        function faviconUrl(siteUrl) {
+            const hostname = new URL(siteUrl).hostname;
+            return `https://icons.duckduckgo.com/ip3/${hostname}.ico`;
+        }
+
+        function fallbackFaviconUrl(siteUrl) {
+            const url = new URL(siteUrl);
+            return `${url.origin}/favicon.ico`;
+        }
+
+        function handleIconError(image) {
+            if (!image.dataset.usedFallback) {
+                image.dataset.usedFallback = "true";
+                image.src = image.dataset.fallbackSrc;
+                return;
+            }
+
+            image.hidden = true;
+            image.nextElementSibling.hidden = false;
+        }
+
+        function render(query = "") {
+            const keyword = normalize(query);
+            let visibleCount = 0;
+
+            sectionsEl.innerHTML = categories.map((category) => {
+                const categorySearchText = normalize(`${category.title} ${category.keywords || ""}`);
+                const categoryMatches = categorySearchText.includes(keyword);
+                const items = category.items.filter((item) => {
+                    const searchText = normalize(`${categorySearchText} ${item.name} ${item.mark} ${item.keywords || ""}`);
+                    return !keyword || categoryMatches || searchText.includes(keyword);
+                });
+
+                if (items.length === 0) {
+                    return "";
+                }
+
+                visibleCount += items.length;
+
+                const links = items.map((item) => `
+                    <a class="site-link" href="${item.url}" target="_blank" rel="noopener noreferrer">
+                        <span class="site-icon" aria-hidden="true">
+                            <img
+                                class="favicon"
+                                src="${faviconUrl(item.url)}"
+                                data-fallback-src="${fallbackFaviconUrl(item.url)}"
+                                alt=""
+                                loading="lazy"
+                                referrerpolicy="no-referrer"
+                                onerror="handleIconError(this)"
+                            >
+                            <span class="mark" hidden>${item.mark}</span>
+                        </span>
+                        <span class="site-name">${item.name}</span>
+                    </a>
+                `).join("");
+
+                return `
+                    <article class="section">
+                        <div>
+                            <h2 class="section-title">${category.title}</h2>
+                            <span class="section-count">${items.length} / ${category.items.length}</span>
+                        </div>
+                        <div class="links">${links}</div>
+                    </article>
+                `;
+            }).join("");
+
+            countEl.textContent = visibleCount;
+            emptyEl.classList.toggle("is-visible", visibleCount === 0);
+        }
+
+        function updateDate() {
+            todayEl.dateTime = new Date().toISOString();
+            todayEl.textContent = new Intl.DateTimeFormat("zh-CN", {
+                weekday: "long",
+                month: "long",
+                day: "numeric"
+            }).format(new Date());
+        }
+
+        inputEl.addEventListener("input", (event) => {
+            render(event.target.value);
+        });
+
+        formEl.addEventListener("submit", (event) => {
+            event.preventDefault();
+            const keyword = inputEl.value.trim();
+
+            if (!keyword) {
+                inputEl.focus();
+                return;
+            }
+
+            window.open(`https://duckduckgo.com/?q=${encodeURIComponent(keyword)}`, "_blank", "noopener,noreferrer");
+        });
+
+        updateDate();
+        render();
+        countEl.textContent = totalCount;
+    </script>
 </body>
-
 </html>
