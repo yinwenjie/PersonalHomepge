@@ -15,6 +15,8 @@
             --quiet: #8a95a5;
             --line: #dfe5ec;
             --line-strong: #c9d3df;
+            --danger: #c2410c;
+            --danger-soft: #fff1e9;
             --accent: #246bfe;
             --accent-soft: #e8f0ff;
             --shadow: 0 18px 48px rgba(29, 38, 51, 0.08);
@@ -49,6 +51,15 @@
             text-decoration: none;
         }
 
+        button,
+        input {
+            font: inherit;
+        }
+
+        button {
+            cursor: pointer;
+        }
+
         [hidden] {
             display: none !important;
         }
@@ -81,17 +92,67 @@
             letter-spacing: 0;
         }
 
-        .today {
+        .header-side {
+            display: grid;
+            justify-items: end;
+            gap: 10px;
             min-width: 168px;
-            padding-bottom: 4px;
+        }
+
+        .today {
             color: var(--muted);
             font-size: 14px;
             text-align: right;
             white-space: nowrap;
         }
 
+        .utility-button,
+        .file-button,
+        .mini-button,
+        .danger-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 34px;
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            background: rgba(255, 255, 255, 0.82);
+            color: var(--text);
+            font-size: 13px;
+            font-weight: 560;
+            transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+        }
+
+        .utility-button,
+        .file-button,
+        .danger-button {
+            padding: 0 12px;
+        }
+
+        .mini-button {
+            width: 34px;
+            padding: 0;
+        }
+
+        .utility-button:hover,
+        .file-button:hover,
+        .mini-button:hover {
+            border-color: var(--line-strong);
+            background: var(--surface);
+            color: var(--accent);
+        }
+
+        .danger-button {
+            color: var(--danger);
+        }
+
+        .danger-button:hover {
+            border-color: #fed7aa;
+            background: var(--danger-soft);
+        }
+
         .search-panel {
-            margin-bottom: 34px;
+            margin-bottom: 22px;
         }
 
         .search-box {
@@ -134,7 +195,6 @@
             border-radius: var(--radius);
             background: var(--surface-soft);
             color: var(--muted);
-            cursor: pointer;
             transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
         }
 
@@ -179,6 +239,30 @@
             font-weight: 560;
         }
 
+        .edit-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin: 0 0 28px;
+            padding: 10px;
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            background: rgba(255, 255, 255, 0.72);
+        }
+
+        .edit-actions-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .save-status {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
         .sections {
             display: grid;
             gap: 28px;
@@ -206,6 +290,14 @@
             font-weight: 480;
         }
 
+        .section-controls,
+        .site-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 10px;
+        }
+
         .links {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
@@ -213,13 +305,9 @@
             min-width: 0;
         }
 
-        .site-link {
-            display: grid;
-            grid-template-columns: 32px minmax(0, 1fr);
-            align-items: center;
-            gap: 10px;
+        .site-link,
+        .add-site-button {
             min-height: 46px;
-            padding: 7px 10px 7px 7px;
             border: 1px solid var(--line);
             border-radius: var(--radius);
             background: rgba(255, 255, 255, 0.78);
@@ -228,6 +316,19 @@
                 background 160ms ease,
                 box-shadow 160ms ease,
                 transform 160ms ease;
+        }
+
+        .site-link {
+            display: grid;
+            grid-template-columns: 32px minmax(0, 1fr);
+            align-items: center;
+            gap: 10px;
+            padding: 7px 10px 7px 7px;
+        }
+
+        .site-link.is-editing {
+            grid-template-columns: 32px minmax(0, 1fr) auto;
+            align-items: start;
         }
 
         .site-link:hover,
@@ -240,7 +341,11 @@
 
         .site-link:focus-visible,
         .search-button:focus-visible,
-        .search-input:focus-visible {
+        .search-input:focus-visible,
+        .utility-button:focus-visible,
+        .file-button:focus-visible,
+        .mini-button:focus-visible,
+        .danger-button:focus-visible {
             outline: 3px solid rgba(36, 107, 254, 0.18);
             outline-offset: 2px;
         }
@@ -282,6 +387,21 @@
             white-space: nowrap;
         }
 
+        .add-site-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            color: var(--muted);
+            font-weight: 560;
+        }
+
+        .add-site-button:hover {
+            border-color: var(--line-strong);
+            background: var(--surface);
+            color: var(--accent);
+        }
+
         .empty-state {
             display: none;
             padding: 32px 0 20px;
@@ -292,6 +412,85 @@
 
         .empty-state.is-visible {
             display: block;
+        }
+
+        .editor-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 20;
+            display: grid;
+            place-items: center;
+            padding: 20px;
+            background: rgba(29, 38, 51, 0.22);
+        }
+
+        .editor-card {
+            width: min(520px, 100%);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            background: var(--surface);
+            box-shadow: 0 28px 72px rgba(29, 38, 51, 0.2);
+        }
+
+        .editor-header,
+        .editor-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 16px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .editor-footer {
+            justify-content: flex-end;
+            border-top: 1px solid var(--line);
+            border-bottom: 0;
+        }
+
+        .editor-title {
+            margin: 0;
+            font-size: 17px;
+            font-weight: 680;
+        }
+
+        .editor-body {
+            display: grid;
+            gap: 14px;
+            padding: 16px;
+        }
+
+        .field {
+            display: grid;
+            gap: 6px;
+        }
+
+        .field label {
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 560;
+        }
+
+        .field input {
+            width: 100%;
+            min-height: 42px;
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            padding: 0 12px;
+            background: var(--surface);
+            color: var(--text);
+        }
+
+        .field input:focus {
+            border-color: var(--line-strong);
+            outline: 3px solid rgba(36, 107, 254, 0.16);
+        }
+
+        .form-error {
+            min-height: 20px;
+            margin: 0;
+            color: var(--danger);
+            font-size: 13px;
         }
 
         @media (max-width: 720px) {
@@ -307,8 +506,12 @@
                 margin-bottom: 24px;
             }
 
-            .today {
+            .header-side {
+                justify-items: start;
                 min-width: 0;
+            }
+
+            .today {
                 text-align: left;
             }
 
@@ -344,6 +547,14 @@
             .links {
                 grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
             }
+
+            .site-link.is-editing {
+                grid-template-columns: 32px minmax(0, 1fr);
+            }
+
+            .site-link.is-editing .site-controls {
+                grid-column: 1 / -1;
+            }
         }
 
         @media (max-width: 420px) {
@@ -364,7 +575,10 @@
                 <p class="eyebrow">Personal start page</p>
                 <h1>Home</h1>
             </div>
-            <time class="today" id="today"></time>
+            <div class="header-side">
+                <time class="today" id="today"></time>
+                <button class="utility-button" id="editToggle" type="button">编辑</button>
+            </div>
         </header>
 
         <section class="search-panel" aria-label="搜索和过滤">
@@ -387,110 +601,190 @@
             </div>
         </section>
 
+        <section class="edit-toolbar" id="editToolbar" aria-label="编辑工具" hidden>
+            <div class="edit-actions-row">
+                <button class="utility-button" type="button" data-action="add-group">新增分组</button>
+                <button class="utility-button" type="button" data-action="export-json">导出 JSON</button>
+                <label class="file-button" for="importInput">导入 JSON</label>
+                <input id="importInput" type="file" accept="application/json" hidden>
+                <button class="danger-button" type="button" data-action="reset-default">恢复默认</button>
+            </div>
+            <span class="save-status" id="saveStatus"></span>
+        </section>
+
         <section class="sections" id="sections" aria-label="常用网站导航"></section>
         <p class="empty-state" id="emptyState">没有匹配的网站。</p>
     </main>
 
+    <div class="editor-modal" id="editorModal" hidden>
+        <form class="editor-card" id="editorForm">
+            <div class="editor-header">
+                <h2 class="editor-title" id="editorTitle">编辑</h2>
+                <button class="mini-button" type="button" data-action="close-modal" aria-label="关闭">×</button>
+            </div>
+            <div class="editor-body">
+                <div class="field" data-field="group-title">
+                    <label for="groupTitleInput">分组名称</label>
+                    <input id="groupTitleInput" name="groupTitle" autocomplete="off">
+                </div>
+                <div class="field" data-field="group-keywords">
+                    <label for="groupKeywordsInput">分组关键词</label>
+                    <input id="groupKeywordsInput" name="groupKeywords" autocomplete="off">
+                </div>
+                <div class="field" data-field="site-name">
+                    <label for="siteNameInput">网站名称</label>
+                    <input id="siteNameInput" name="siteName" autocomplete="off">
+                </div>
+                <div class="field" data-field="site-url">
+                    <label for="siteUrlInput">网站 URL</label>
+                    <input id="siteUrlInput" name="siteUrl" autocomplete="off" inputmode="url">
+                </div>
+                <div class="field" data-field="site-keywords">
+                    <label for="siteKeywordsInput">网站关键词</label>
+                    <input id="siteKeywordsInput" name="siteKeywords" autocomplete="off">
+                </div>
+                <div class="field" data-field="site-mark">
+                    <label for="siteMarkInput">图标文字</label>
+                    <input id="siteMarkInput" name="siteMark" autocomplete="off" maxlength="3">
+                </div>
+                <p class="form-error" id="formError"></p>
+            </div>
+            <div class="editor-footer">
+                <button class="utility-button" type="button" data-action="close-modal">取消</button>
+                <button class="utility-button" type="submit">保存</button>
+            </div>
+        </form>
+    </div>
+
     <script>
-        const categories = [
+        const STORAGE_KEY = "homepage:data:v1";
+        const DOCUMENT_VERSION = 1;
+        const DEFAULT_GROUPS = [
             {
+                id: "group-search-email",
                 title: "搜索与邮箱",
                 keywords: "搜索 引擎 邮箱 邮件",
-                items: [
-                    { name: "Google", mark: "G", url: "https://www.google.com.hk/" },
-                    { name: "Bing", mark: "B", url: "https://cn.bing.com/" },
-                    { name: "网易邮箱", mark: "邮", url: "https://email.163.com/" }
+                order: 1,
+                sites: [
+                    { id: "site-google", name: "Google", mark: "G", url: "https://www.google.com.hk/", keywords: "", order: 1 },
+                    { id: "site-bing", name: "Bing", mark: "B", url: "https://cn.bing.com/", keywords: "", order: 2 },
+                    { id: "site-netease-mail", name: "网易邮箱", mark: "邮", url: "https://email.163.com/", keywords: "", order: 3 }
                 ]
             },
             {
+                id: "group-dev",
                 title: "技术与开发",
                 keywords: "代码 仓库 编程 开发 云服务",
-                items: [
-                    { name: "GitHub", mark: "GH", url: "https://github.com/", keywords: "git 代码 仓库" },
-                    { name: "Gitee", mark: "GE", url: "https://gitee.com/", keywords: "git 代码 仓库" },
-                    { name: "BitBucket", mark: "BB", url: "https://bitbucket.org/product", keywords: "git 代码 仓库" },
-                    { name: "Coding", mark: "CO", url: "https://coding.net/", keywords: "git 代码 仓库" },
-                    { name: "CSDN", mark: "CS", url: "https://www.csdn.net/", keywords: "技术 开发 博客" },
-                    { name: "阿里云栖社区", mark: "云", url: "https://yq.aliyun.com/", keywords: "技术 开发 阿里云" },
-                    { name: "AWS", mark: "AWS", url: "https://aws.amazon.com/cn/", keywords: "云服务 云计算" },
-                    { name: "LeetCode", mark: "LC", url: "https://leetcode.com/", keywords: "算法 刷题 编程" },
-                    { name: "V2EX", mark: "V2", url: "https://www.v2ex.com/", keywords: "社区 技术" }
+                order: 2,
+                sites: [
+                    { id: "site-github", name: "GitHub", mark: "GH", url: "https://github.com/", keywords: "git 代码 仓库", order: 1 },
+                    { id: "site-gitee", name: "Gitee", mark: "GE", url: "https://gitee.com/", keywords: "git 代码 仓库", order: 2 },
+                    { id: "site-bitbucket", name: "BitBucket", mark: "BB", url: "https://bitbucket.org/product", keywords: "git 代码 仓库", order: 3 },
+                    { id: "site-coding", name: "Coding", mark: "CO", url: "https://coding.net/", keywords: "git 代码 仓库", order: 4 },
+                    { id: "site-csdn", name: "CSDN", mark: "CS", url: "https://www.csdn.net/", keywords: "技术 开发 博客", order: 5 },
+                    { id: "site-aliyun-yq", name: "阿里云栖社区", mark: "云", url: "https://yq.aliyun.com/", keywords: "技术 开发 阿里云", order: 6 },
+                    { id: "site-aws", name: "AWS", mark: "AWS", url: "https://aws.amazon.com/cn/", keywords: "云服务 云计算", order: 7 },
+                    { id: "site-leetcode", name: "LeetCode", mark: "LC", url: "https://leetcode.com/", keywords: "算法 刷题 编程", order: 8 },
+                    { id: "site-v2ex", name: "V2EX", mark: "V2", url: "https://www.v2ex.com/", keywords: "社区 技术", order: 9 }
                 ]
             },
             {
+                id: "group-news",
                 title: "新闻与阅读",
                 keywords: "新闻 阅读 英语 杂志 报纸",
-                items: [
-                    { name: "The Economist", mark: "TE", url: "https://www.economist.com/" },
-                    { name: "Fortune", mark: "FO", url: "https://fortune.com/" },
-                    { name: "The New York Times", mark: "NY", url: "https://www.nytimes.com/" },
-                    { name: "The Washington Post", mark: "WP", url: "https://www.washingtonpost.com/" },
-                    { name: "Los Angeles Times", mark: "LA", url: "https://www.latimes.com/" },
-                    { name: "The Wall Street Journal", mark: "WS", url: "https://www.wsj.com/" },
-                    { name: "Scientific American", mark: "SA", url: "https://www.scientificamerican.com/" },
-                    { name: "扇贝", mark: "扇", url: "https://web.shanbay.com/web/main/index/" }
+                order: 3,
+                sites: [
+                    { id: "site-economist", name: "The Economist", mark: "TE", url: "https://www.economist.com/", keywords: "", order: 1 },
+                    { id: "site-fortune", name: "Fortune", mark: "FO", url: "https://fortune.com/", keywords: "", order: 2 },
+                    { id: "site-nytimes", name: "The New York Times", mark: "NY", url: "https://www.nytimes.com/", keywords: "", order: 3 },
+                    { id: "site-washington-post", name: "The Washington Post", mark: "WP", url: "https://www.washingtonpost.com/", keywords: "", order: 4 },
+                    { id: "site-latimes", name: "Los Angeles Times", mark: "LA", url: "https://www.latimes.com/", keywords: "", order: 5 },
+                    { id: "site-wsj", name: "The Wall Street Journal", mark: "WS", url: "https://www.wsj.com/", keywords: "", order: 6 },
+                    { id: "site-scientific-american", name: "Scientific American", mark: "SA", url: "https://www.scientificamerican.com/", keywords: "", order: 7 },
+                    { id: "site-shanbay", name: "扇贝", mark: "扇", url: "https://web.shanbay.com/web/main/index/", keywords: "", order: 8 }
                 ]
             },
             {
+                id: "group-learning",
                 title: "学习",
                 keywords: "课程 在线学习 mooc",
-                items: [
-                    { name: "学堂在线", mark: "学", url: "https://www.xuetangx.com/" },
-                    { name: "Coursera", mark: "C", url: "https://www.coursera.org/" }
+                order: 4,
+                sites: [
+                    { id: "site-xuetangx", name: "学堂在线", mark: "学", url: "https://www.xuetangx.com/", keywords: "", order: 1 },
+                    { id: "site-coursera", name: "Coursera", mark: "C", url: "https://www.coursera.org/", keywords: "", order: 2 }
                 ]
             },
             {
+                id: "group-sports",
                 title: "运动",
                 keywords: "跑步 马拉松 体育 篮球 足球",
-                items: [
-                    { name: "直播吧", mark: "播", url: "https://www.zhibo8.cc/" },
-                    { name: "马拉松吧", mark: "马", url: "https://tieba.baidu.com/f?kw=%E9%A9%AC%E6%8B%89%E6%9D%BE&fr=wwwt" },
-                    { name: "跑吧", mark: "跑", url: "http://bbs.running8.com/" },
-                    { name: "爱燃烧", mark: "燃", url: "https://iranshao.com/" },
-                    { name: "跑步圣经", mark: "圣", url: "http://bbs.runbible.cn/forum.php" },
-                    { name: "Nike", mark: "NK", url: "https://www.nike.com/cn/zh_cn/" }
+                order: 5,
+                sites: [
+                    { id: "site-zhibo8", name: "直播吧", mark: "播", url: "https://www.zhibo8.cc/", keywords: "", order: 1 },
+                    { id: "site-marathon-tieba", name: "马拉松吧", mark: "马", url: "https://tieba.baidu.com/f?kw=%E9%A9%AC%E6%8B%89%E6%9D%BE&fr=wwwt", keywords: "", order: 2 },
+                    { id: "site-running8", name: "跑吧", mark: "跑", url: "http://bbs.running8.com/", keywords: "", order: 3 },
+                    { id: "site-iranshao", name: "爱燃烧", mark: "燃", url: "https://iranshao.com/", keywords: "", order: 4 },
+                    { id: "site-runbible", name: "跑步圣经", mark: "圣", url: "http://bbs.runbible.cn/forum.php", keywords: "", order: 5 },
+                    { id: "site-nike", name: "Nike", mark: "NK", url: "https://www.nike.com/cn/zh_cn/", keywords: "", order: 6 }
                 ]
             },
             {
+                id: "group-life",
                 title: "金融生活",
                 keywords: "银行 金融 房产 汽车 日历 生活",
-                items: [
-                    { name: "交通银行", mark: "交", url: "https://www.bankcomm.com/BankCommSite/default.shtml" },
-                    { name: "招商银行", mark: "招", url: "https://www.cmbchina.com/" },
-                    { name: "工商银行", mark: "工", url: "https://www.icbc.com.cn/icbc/" },
-                    { name: "链家", mark: "链", url: "https://sh.lianjia.com/" },
-                    { name: "汽车之家", mark: "车", url: "https://www.autohome.com.cn/shanghai/" },
-                    { name: "万年历", mark: "历", url: "https://www.baidu.com/s?word=%E4%B8%87%E5%B9%B4%E5%8E%86&tn=sitehao123_pg&ie=utf-8" }
+                order: 6,
+                sites: [
+                    { id: "site-bankcomm", name: "交通银行", mark: "交", url: "https://www.bankcomm.com/BankCommSite/default.shtml", keywords: "", order: 1 },
+                    { id: "site-cmb", name: "招商银行", mark: "招", url: "https://www.cmbchina.com/", keywords: "", order: 2 },
+                    { id: "site-icbc", name: "工商银行", mark: "工", url: "https://www.icbc.com.cn/icbc/", keywords: "", order: 3 },
+                    { id: "site-lianjia", name: "链家", mark: "链", url: "https://sh.lianjia.com/", keywords: "", order: 4 },
+                    { id: "site-autohome", name: "汽车之家", mark: "车", url: "https://www.autohome.com.cn/shanghai/", keywords: "", order: 5 },
+                    { id: "site-calendar", name: "万年历", mark: "历", url: "https://www.baidu.com/s?word=%E4%B8%87%E5%B9%B4%E5%8E%86&tn=sitehao123_pg&ie=utf-8", keywords: "", order: 6 }
                 ]
             },
             {
+                id: "group-social",
                 title: "社交内容",
                 keywords: "社交 内容 知识 社区",
-                items: [
-                    { name: "微博", mark: "微", url: "https://weibo.com/" },
-                    { name: "知乎", mark: "知", url: "https://www.zhihu.com/" },
-                    { name: "微信公众号", mark: "众", url: "https://mp.weixin.qq.com/" },
-                    { name: "小木虫", mark: "木", url: "https://muchong.com/" },
-                    { name: "人人网", mark: "人", url: "http://www.renren.com/" }
+                order: 7,
+                sites: [
+                    { id: "site-weibo", name: "微博", mark: "微", url: "https://weibo.com/", keywords: "", order: 1 },
+                    { id: "site-zhihu", name: "知乎", mark: "知", url: "https://www.zhihu.com/", keywords: "", order: 2 },
+                    { id: "site-wechat-mp", name: "微信公众号", mark: "众", url: "https://mp.weixin.qq.com/", keywords: "", order: 3 },
+                    { id: "site-muchong", name: "小木虫", mark: "木", url: "https://muchong.com/", keywords: "", order: 4 },
+                    { id: "site-renren", name: "人人网", mark: "人", url: "http://www.renren.com/", keywords: "", order: 5 }
                 ]
             },
             {
+                id: "group-entertain-shopping-jobs",
                 title: "娱乐购物求职",
                 keywords: "娱乐 视频 购物 招聘 求职 工作 美食",
-                items: [
-                    { name: "斗鱼", mark: "斗", url: "https://www.douyu.com/" },
-                    { name: "虎牙", mark: "虎", url: "https://www.huya.com/" },
-                    { name: "爱奇艺", mark: "爱", url: "https://www.iqiyi.com/" },
-                    { name: "当当", mark: "当", url: "https://www.dangdang.com/" },
-                    { name: "淘宝", mark: "淘", url: "https://www.taobao.com/" },
-                    { name: "京东", mark: "京", url: "https://www.jd.com/" },
-                    { name: "大众点评", mark: "评", url: "https://www.dianping.com/shanghai" },
-                    { name: "看准", mark: "看", url: "https://www.kanzhun.com/" },
-                    { name: "猎聘", mark: "猎", url: "https://www.liepin.com/" },
-                    { name: "拉勾", mark: "拉", url: "https://www.lagou.com/" }
+                order: 8,
+                sites: [
+                    { id: "site-douyu", name: "斗鱼", mark: "斗", url: "https://www.douyu.com/", keywords: "", order: 1 },
+                    { id: "site-huya", name: "虎牙", mark: "虎", url: "https://www.huya.com/", keywords: "", order: 2 },
+                    { id: "site-iqiyi", name: "爱奇艺", mark: "爱", url: "https://www.iqiyi.com/", keywords: "", order: 3 },
+                    { id: "site-dangdang", name: "当当", mark: "当", url: "https://www.dangdang.com/", keywords: "", order: 4 },
+                    { id: "site-taobao", name: "淘宝", mark: "淘", url: "https://www.taobao.com/", keywords: "", order: 5 },
+                    { id: "site-jd", name: "京东", mark: "京", url: "https://www.jd.com/", keywords: "", order: 6 },
+                    { id: "site-dianping", name: "大众点评", mark: "评", url: "https://www.dianping.com/shanghai", keywords: "", order: 7 },
+                    { id: "site-kanzhun", name: "看准", mark: "看", url: "https://www.kanzhun.com/", keywords: "", order: 8 },
+                    { id: "site-liepin", name: "猎聘", mark: "猎", url: "https://www.liepin.com/", keywords: "", order: 9 },
+                    { id: "site-lagou", name: "拉勾", mark: "拉", url: "https://www.lagou.com/", keywords: "", order: 10 }
                 ]
             }
         ];
+
+        const DEFAULT_HOME_DOCUMENT = {
+            version: DOCUMENT_VERSION,
+            updatedAt: "2026-06-02T00:00:00.000Z",
+            groups: DEFAULT_GROUPS,
+            widgets: [],
+            theme: {},
+            syncMeta: {
+                mode: "local"
+            }
+        };
 
         const sectionsEl = document.querySelector("#sections");
         const inputEl = document.querySelector("#searchInput");
@@ -498,10 +792,183 @@
         const emptyEl = document.querySelector("#emptyState");
         const todayEl = document.querySelector("#today");
         const formEl = document.querySelector("#searchForm");
-        const totalCount = categories.reduce((sum, category) => sum + category.items.length, 0);
+        const editToggleEl = document.querySelector("#editToggle");
+        const editToolbarEl = document.querySelector("#editToolbar");
+        const saveStatusEl = document.querySelector("#saveStatus");
+        const importInputEl = document.querySelector("#importInput");
+        const editorModalEl = document.querySelector("#editorModal");
+        const editorFormEl = document.querySelector("#editorForm");
+        const editorTitleEl = document.querySelector("#editorTitle");
+        const formErrorEl = document.querySelector("#formError");
+        const fieldEls = Array.from(document.querySelectorAll("[data-field]"));
+        let homeDocument = loadHomeDocument();
+        let editMode = false;
+        let activeQuery = "";
+
+        function clone(value) {
+            return JSON.parse(JSON.stringify(value));
+        }
+
+        function createDefaultHomeDocument() {
+            return normalizeHomeDocument(clone(DEFAULT_HOME_DOCUMENT));
+        }
+
+        function createId(prefix) {
+            const cryptoApi = globalThis.crypto;
+            const randomPart = cryptoApi && cryptoApi.getRandomValues
+                ? Array.from(cryptoApi.getRandomValues(new Uint32Array(2)), (value) => value.toString(36)).join("")
+                : Math.random().toString(36).slice(2);
+            return `${prefix}-${Date.now().toString(36)}-${randomPart}`;
+        }
 
         function normalize(value) {
-            return value.trim().toLowerCase();
+            return String(value || "").trim().toLowerCase();
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+                "&": "&amp;",
+                "<": "&lt;",
+                ">": "&gt;",
+                "\"": "&quot;",
+                "'": "&#39;"
+            }[char]));
+        }
+
+        function isValidUrl(value) {
+            try {
+                const url = new URL(String(value).trim());
+                return url.protocol === "http:" || url.protocol === "https:";
+            } catch {
+                return false;
+            }
+        }
+
+        function normalizeUrl(value) {
+            const url = new URL(String(value).trim());
+            return url.href;
+        }
+
+        function validateHomeDocument(input) {
+            return Boolean(
+                input
+                && typeof input === "object"
+                && input.version === DOCUMENT_VERSION
+                && Array.isArray(input.groups)
+            );
+        }
+
+        function generateMark(name) {
+            const value = String(name || "").trim();
+            if (!value) {
+                return "站";
+            }
+
+            const cjk = value.match(/[\u4e00-\u9fff]/);
+            if (cjk) {
+                return cjk[0];
+            }
+
+            const parts = value.split(/[^a-zA-Z0-9]+/).filter(Boolean);
+            const initials = parts.map((part) => part[0]).join("").slice(0, 3).toUpperCase();
+            return initials || value.slice(0, 2).toUpperCase();
+        }
+
+        function normalizeHomeDocument(input) {
+            if (!input || typeof input !== "object" || !Array.isArray(input.groups)) {
+                throw new Error("Invalid home document");
+            }
+
+            const groups = input.groups.map((group, groupIndex) => {
+                const title = String(group.title || "").trim() || "未命名分组";
+                const sites = Array.isArray(group.sites) ? group.sites : Array.isArray(group.items) ? group.items : [];
+
+                return {
+                    id: String(group.id || createId("group")),
+                    title,
+                    keywords: String(group.keywords || "").trim(),
+                    order: Number.isFinite(Number(group.order)) ? Number(group.order) : groupIndex + 1,
+                    sites: sites
+                        .filter((site) => site && typeof site === "object" && site.name && site.url && isValidUrl(site.url))
+                        .map((site, siteIndex) => {
+                            const name = String(site.name || "").trim();
+                            return {
+                                id: String(site.id || createId("site")),
+                                name,
+                                url: normalizeUrl(site.url),
+                                keywords: String(site.keywords || "").trim(),
+                                mark: String(site.mark || generateMark(name)).trim().slice(0, 3) || generateMark(name),
+                                order: Number.isFinite(Number(site.order)) ? Number(site.order) : siteIndex + 1
+                            };
+                        })
+                        .sort((a, b) => a.order - b.order)
+                        .map((site, siteIndex) => ({ ...site, order: siteIndex + 1 }))
+                };
+            })
+                .sort((a, b) => a.order - b.order)
+                .map((group, groupIndex) => ({ ...group, order: groupIndex + 1 }));
+
+            return {
+                version: DOCUMENT_VERSION,
+                updatedAt: input.updatedAt || new Date().toISOString(),
+                groups,
+                widgets: Array.isArray(input.widgets) ? input.widgets : [],
+                theme: input.theme && typeof input.theme === "object" ? input.theme : {},
+                syncMeta: input.syncMeta && typeof input.syncMeta === "object" ? input.syncMeta : { mode: "local" }
+            };
+        }
+
+        function loadHomeDocument() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw) {
+                    return createDefaultHomeDocument();
+                }
+
+                const parsed = JSON.parse(raw);
+                if (!validateHomeDocument(parsed)) {
+                    throw new Error("Unsupported home document version");
+                }
+
+                return normalizeHomeDocument(parsed);
+            } catch (error) {
+                console.warn("Falling back to default homepage data:", error);
+                return createDefaultHomeDocument();
+            }
+        }
+
+        function saveHomeDocument(documentValue) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(documentValue));
+        }
+
+        function setSaveStatus(message) {
+            saveStatusEl.textContent = message;
+        }
+
+        function commitHomeDocument(nextDocument, message = "已保存") {
+            homeDocument = normalizeHomeDocument({
+                ...nextDocument,
+                updatedAt: new Date().toISOString()
+            });
+            saveHomeDocument(homeDocument);
+            render();
+            setSaveStatus(message);
+        }
+
+        function sortedGroups() {
+            return [...homeDocument.groups].sort((a, b) => a.order - b.order);
+        }
+
+        function sortedSites(group) {
+            return [...group.sites].sort((a, b) => a.order - b.order);
+        }
+
+        function findGroup(groupId) {
+            return homeDocument.groups.find((group) => group.id === groupId);
+        }
+
+        function findSite(group, siteId) {
+            return group ? group.sites.find((site) => site.id === siteId) : undefined;
         }
 
         function faviconUrl(siteUrl) {
@@ -525,55 +992,100 @@
             image.nextElementSibling.hidden = false;
         }
 
-        function render(query = "") {
+        function renderSiteIcon(site) {
+            const escapedMark = escapeHtml(site.mark || generateMark(site.name));
+            return `
+                <span class="site-icon" aria-hidden="true">
+                    <img
+                        class="favicon"
+                        src="${escapeHtml(faviconUrl(site.url))}"
+                        data-fallback-src="${escapeHtml(fallbackFaviconUrl(site.url))}"
+                        alt=""
+                        loading="lazy"
+                        referrerpolicy="no-referrer"
+                        onerror="handleIconError(this)"
+                    >
+                    <span class="mark" hidden>${escapedMark}</span>
+                </span>
+            `;
+        }
+
+        function renderSite(site, group) {
+            const escapedName = escapeHtml(site.name);
+            const escapedUrl = escapeHtml(site.url);
+
+            if (!editMode) {
+                return `
+                    <a class="site-link" href="${escapedUrl}" target="_blank" rel="noopener noreferrer">
+                        ${renderSiteIcon(site)}
+                        <span class="site-name">${escapedName}</span>
+                    </a>
+                `;
+            }
+
+            return `
+                <div class="site-link is-editing">
+                    ${renderSiteIcon(site)}
+                    <span class="site-name">${escapedName}</span>
+                    <div class="site-controls" aria-label="${escapedName} 操作">
+                        <button class="mini-button" type="button" data-action="edit-site" data-group-id="${escapeHtml(group.id)}" data-site-id="${escapeHtml(site.id)}" aria-label="编辑 ${escapedName}">改</button>
+                        <button class="mini-button" type="button" data-action="move-site-up" data-group-id="${escapeHtml(group.id)}" data-site-id="${escapeHtml(site.id)}" aria-label="上移 ${escapedName}">↑</button>
+                        <button class="mini-button" type="button" data-action="move-site-down" data-group-id="${escapeHtml(group.id)}" data-site-id="${escapeHtml(site.id)}" aria-label="下移 ${escapedName}">↓</button>
+                        <button class="mini-button" type="button" data-action="delete-site" data-group-id="${escapeHtml(group.id)}" data-site-id="${escapeHtml(site.id)}" aria-label="删除 ${escapedName}">×</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function render(query = activeQuery) {
+            activeQuery = query;
             const keyword = normalize(query);
             let visibleCount = 0;
+            const groups = sortedGroups();
 
-            sectionsEl.innerHTML = categories.map((category) => {
-                const categorySearchText = normalize(`${category.title} ${category.keywords || ""}`);
+            sectionsEl.innerHTML = groups.map((group) => {
+                const categorySearchText = normalize(`${group.title} ${group.keywords || ""}`);
                 const categoryMatches = categorySearchText.includes(keyword);
-                const items = category.items.filter((item) => {
-                    const searchText = normalize(`${categorySearchText} ${item.name} ${item.mark} ${item.keywords || ""}`);
+                const sites = sortedSites(group).filter((site) => {
+                    const searchText = normalize(`${categorySearchText} ${site.name} ${site.mark} ${site.keywords || ""}`);
                     return !keyword || categoryMatches || searchText.includes(keyword);
                 });
 
-                if (items.length === 0) {
+                if (!editMode && sites.length === 0) {
                     return "";
                 }
 
-                visibleCount += items.length;
+                visibleCount += sites.length;
 
-                const links = items.map((item) => `
-                    <a class="site-link" href="${item.url}" target="_blank" rel="noopener noreferrer">
-                        <span class="site-icon" aria-hidden="true">
-                            <img
-                                class="favicon"
-                                src="${faviconUrl(item.url)}"
-                                data-fallback-src="${fallbackFaviconUrl(item.url)}"
-                                alt=""
-                                loading="lazy"
-                                referrerpolicy="no-referrer"
-                                onerror="handleIconError(this)"
-                            >
-                            <span class="mark" hidden>${item.mark}</span>
-                        </span>
-                        <span class="site-name">${item.name}</span>
-                    </a>
-                `).join("");
+                const links = sites.map((site) => renderSite(site, group)).join("");
+                const addSiteButton = editMode ? `
+                    <button class="add-site-button" type="button" data-action="add-site" data-group-id="${escapeHtml(group.id)}">+ 新增网站</button>
+                ` : "";
+                const controls = editMode ? `
+                    <div class="section-controls" aria-label="${escapeHtml(group.title)} 操作">
+                        <button class="mini-button" type="button" data-action="edit-group" data-group-id="${escapeHtml(group.id)}" aria-label="编辑 ${escapeHtml(group.title)}">改</button>
+                        <button class="mini-button" type="button" data-action="move-group-up" data-group-id="${escapeHtml(group.id)}" aria-label="上移 ${escapeHtml(group.title)}">↑</button>
+                        <button class="mini-button" type="button" data-action="move-group-down" data-group-id="${escapeHtml(group.id)}" aria-label="下移 ${escapeHtml(group.title)}">↓</button>
+                        <button class="mini-button" type="button" data-action="delete-group" data-group-id="${escapeHtml(group.id)}" aria-label="删除 ${escapeHtml(group.title)}">×</button>
+                    </div>
+                ` : "";
 
                 return `
                     <article class="section">
                         <div>
-                            <h2 class="section-title">${category.title}</h2>
-                            <span class="section-count">${items.length} / ${category.items.length}</span>
+                            <h2 class="section-title">${escapeHtml(group.title)}</h2>
+                            <span class="section-count">${sites.length} / ${group.sites.length}</span>
+                            ${controls}
                         </div>
-                        <div class="links">${links}</div>
+                        <div class="links">${links}${addSiteButton}</div>
                     </article>
                 `;
             }).join("");
 
             countEl.textContent = visibleCount;
-            emptyEl.classList.toggle("is-visible", visibleCount === 0);
+            emptyEl.classList.toggle("is-visible", visibleCount === 0 && !editMode);
+            editToolbarEl.hidden = !editMode;
+            editToggleEl.textContent = editMode ? "完成" : "编辑";
         }
 
         function updateDate() {
@@ -584,6 +1096,309 @@
                 day: "numeric"
             }).format(new Date());
         }
+
+        function showFields(fieldNames) {
+            fieldEls.forEach((field) => {
+                field.hidden = !fieldNames.includes(field.dataset.field);
+            });
+        }
+
+        function openGroupEditor(groupId) {
+            const group = groupId ? findGroup(groupId) : undefined;
+            editorFormEl.reset();
+            editorFormEl.dataset.mode = group ? "edit-group" : "add-group";
+            editorFormEl.dataset.groupId = group ? group.id : "";
+            editorFormEl.dataset.siteId = "";
+            editorTitleEl.textContent = group ? "编辑分组" : "新增分组";
+            showFields(["group-title", "group-keywords"]);
+            document.querySelector("#groupTitleInput").value = group ? group.title : "";
+            document.querySelector("#groupKeywordsInput").value = group ? group.keywords : "";
+            formErrorEl.textContent = "";
+            editorModalEl.hidden = false;
+            document.querySelector("#groupTitleInput").focus();
+        }
+
+        function openSiteEditor(groupId, siteId) {
+            const group = findGroup(groupId);
+            const site = findSite(group, siteId);
+            if (!group) {
+                return;
+            }
+
+            editorFormEl.reset();
+            editorFormEl.dataset.mode = site ? "edit-site" : "add-site";
+            editorFormEl.dataset.groupId = group.id;
+            editorFormEl.dataset.siteId = site ? site.id : "";
+            editorTitleEl.textContent = site ? "编辑网站" : "新增网站";
+            showFields(["site-name", "site-url", "site-keywords", "site-mark"]);
+            document.querySelector("#siteNameInput").value = site ? site.name : "";
+            document.querySelector("#siteUrlInput").value = site ? site.url : "";
+            document.querySelector("#siteKeywordsInput").value = site ? site.keywords : "";
+            document.querySelector("#siteMarkInput").value = site ? site.mark : "";
+            formErrorEl.textContent = "";
+            editorModalEl.hidden = false;
+            document.querySelector("#siteNameInput").focus();
+        }
+
+        function closeEditor() {
+            editorModalEl.hidden = true;
+            formErrorEl.textContent = "";
+        }
+
+        function addGroup(values) {
+            const groups = sortedGroups();
+            groups.push({
+                id: createId("group"),
+                title: values.title,
+                keywords: values.keywords,
+                order: groups.length + 1,
+                sites: []
+            });
+            commitHomeDocument({ ...homeDocument, groups }, "分组已保存");
+        }
+
+        function updateGroup(groupId, values) {
+            const groups = sortedGroups().map((group) => group.id === groupId
+                ? { ...group, title: values.title, keywords: values.keywords }
+                : group);
+            commitHomeDocument({ ...homeDocument, groups }, "分组已保存");
+        }
+
+        function deleteGroup(groupId) {
+            const group = findGroup(groupId);
+            if (!group || !confirm(`删除分组“${group.title}”及其中 ${group.sites.length} 个网站？`)) {
+                return;
+            }
+
+            commitHomeDocument({
+                ...homeDocument,
+                groups: sortedGroups().filter((item) => item.id !== groupId)
+            }, "分组已删除");
+        }
+
+        function moveGroup(groupId, direction) {
+            const groups = sortedGroups();
+            const index = groups.findIndex((group) => group.id === groupId);
+            const targetIndex = index + direction;
+            if (index < 0 || targetIndex < 0 || targetIndex >= groups.length) {
+                return;
+            }
+
+            [groups[index], groups[targetIndex]] = [groups[targetIndex], groups[index]];
+            commitHomeDocument({
+                ...homeDocument,
+                groups: groups.map((group, groupIndex) => ({ ...group, order: groupIndex + 1 }))
+            }, "排序已保存");
+        }
+
+        function addSite(groupId, values) {
+            const groups = sortedGroups().map((group) => {
+                if (group.id !== groupId) {
+                    return group;
+                }
+
+                const sites = sortedSites(group);
+                sites.push({
+                    id: createId("site"),
+                    name: values.name,
+                    url: values.url,
+                    keywords: values.keywords,
+                    mark: values.mark,
+                    order: sites.length + 1
+                });
+                return { ...group, sites };
+            });
+            commitHomeDocument({ ...homeDocument, groups }, "网站已保存");
+        }
+
+        function updateSite(groupId, siteId, values) {
+            const groups = sortedGroups().map((group) => {
+                if (group.id !== groupId) {
+                    return group;
+                }
+
+                return {
+                    ...group,
+                    sites: sortedSites(group).map((site) => site.id === siteId ? { ...site, ...values } : site)
+                };
+            });
+            commitHomeDocument({ ...homeDocument, groups }, "网站已保存");
+        }
+
+        function deleteSite(groupId, siteId) {
+            const group = findGroup(groupId);
+            const site = findSite(group, siteId);
+            if (!group || !site || !confirm(`删除网站“${site.name}”？`)) {
+                return;
+            }
+
+            const groups = sortedGroups().map((item) => item.id === groupId
+                ? { ...item, sites: sortedSites(item).filter((candidate) => candidate.id !== siteId) }
+                : item);
+            commitHomeDocument({ ...homeDocument, groups }, "网站已删除");
+        }
+
+        function moveSite(groupId, siteId, direction) {
+            const groups = sortedGroups().map((group) => {
+                if (group.id !== groupId) {
+                    return group;
+                }
+
+                const sites = sortedSites(group);
+                const index = sites.findIndex((site) => site.id === siteId);
+                const targetIndex = index + direction;
+                if (index < 0 || targetIndex < 0 || targetIndex >= sites.length) {
+                    return group;
+                }
+
+                [sites[index], sites[targetIndex]] = [sites[targetIndex], sites[index]];
+                return {
+                    ...group,
+                    sites: sites.map((site, siteIndex) => ({ ...site, order: siteIndex + 1 }))
+                };
+            });
+            commitHomeDocument({ ...homeDocument, groups }, "排序已保存");
+        }
+
+        function exportJson() {
+            const blob = new Blob([JSON.stringify(homeDocument, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = `homepage-${new Date().toISOString().slice(0, 10)}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
+        async function importJson(file) {
+            if (!file) {
+                return;
+            }
+
+            try {
+                const parsed = JSON.parse(await file.text());
+                if (!validateHomeDocument(parsed)) {
+                    throw new Error("Unsupported home document version");
+                }
+
+                const imported = normalizeHomeDocument(parsed);
+                if (!confirm("导入会覆盖当前本地首页，继续？")) {
+                    importInputEl.value = "";
+                    return;
+                }
+
+                commitHomeDocument(imported, "已导入");
+            } catch {
+                alert("导入失败：JSON 格式不正确。");
+            } finally {
+                importInputEl.value = "";
+            }
+        }
+
+        function resetDefault() {
+            if (!confirm("恢复默认会清除当前浏览器中的本地编辑，继续？")) {
+                return;
+            }
+
+            localStorage.removeItem(STORAGE_KEY);
+            homeDocument = createDefaultHomeDocument();
+            render();
+            setSaveStatus("已恢复默认");
+        }
+
+        function handleAction(action, button) {
+            const groupId = button.dataset.groupId;
+            const siteId = button.dataset.siteId;
+
+            ({
+                "add-group": () => openGroupEditor(),
+                "edit-group": () => openGroupEditor(groupId),
+                "delete-group": () => deleteGroup(groupId),
+                "move-group-up": () => moveGroup(groupId, -1),
+                "move-group-down": () => moveGroup(groupId, 1),
+                "add-site": () => openSiteEditor(groupId),
+                "edit-site": () => openSiteEditor(groupId, siteId),
+                "delete-site": () => deleteSite(groupId, siteId),
+                "move-site-up": () => moveSite(groupId, siteId, -1),
+                "move-site-down": () => moveSite(groupId, siteId, 1),
+                "export-json": exportJson,
+                "reset-default": resetDefault,
+                "close-modal": closeEditor
+            }[action] || (() => {}))();
+        }
+
+        document.addEventListener("click", (event) => {
+            const button = event.target instanceof Element
+                ? event.target.closest("[data-action]")
+                : null;
+            if (!button) {
+                return;
+            }
+
+            event.preventDefault();
+            handleAction(button.dataset.action, button);
+        });
+
+        editToggleEl.addEventListener("click", () => {
+            editMode = !editMode;
+            setSaveStatus(editMode ? "本地编辑" : "");
+            render();
+        });
+
+        importInputEl.addEventListener("change", (event) => {
+            importJson(event.target.files[0]);
+        });
+
+        editorFormEl.addEventListener("submit", (event) => {
+            event.preventDefault();
+            const mode = editorFormEl.dataset.mode;
+
+            if (mode === "add-group" || mode === "edit-group") {
+                const title = document.querySelector("#groupTitleInput").value.trim();
+                const keywords = document.querySelector("#groupKeywordsInput").value.trim();
+                if (!title) {
+                    formErrorEl.textContent = "请输入分组名称。";
+                    return;
+                }
+
+                if (mode === "add-group") {
+                    addGroup({ title, keywords });
+                } else {
+                    updateGroup(editorFormEl.dataset.groupId, { title, keywords });
+                }
+                closeEditor();
+                return;
+            }
+
+            const name = document.querySelector("#siteNameInput").value.trim();
+            const rawUrl = document.querySelector("#siteUrlInput").value.trim();
+            const keywords = document.querySelector("#siteKeywordsInput").value.trim();
+            const mark = document.querySelector("#siteMarkInput").value.trim() || generateMark(name);
+
+            if (!name) {
+                formErrorEl.textContent = "请输入网站名称。";
+                return;
+            }
+
+            if (!isValidUrl(rawUrl)) {
+                formErrorEl.textContent = "URL 只支持 http:// 或 https://。";
+                return;
+            }
+
+            const values = {
+                name,
+                url: normalizeUrl(rawUrl),
+                keywords,
+                mark: mark.slice(0, 3)
+            };
+
+            if (mode === "add-site") {
+                addSite(editorFormEl.dataset.groupId, values);
+            } else {
+                updateSite(editorFormEl.dataset.groupId, editorFormEl.dataset.siteId, values);
+            }
+            closeEditor();
+        });
 
         inputEl.addEventListener("input", (event) => {
             render(event.target.value);
@@ -603,7 +1418,7 @@
 
         updateDate();
         render();
-        countEl.textContent = totalCount;
+        setSaveStatus("");
     </script>
 </body>
 </html>
