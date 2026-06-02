@@ -349,4 +349,3 @@ The long-term north star:
 The practical short-term north star:
 
 > Increase the number of users who set this product as their homepage or new-tab page and continue using it after 30 days.
-
