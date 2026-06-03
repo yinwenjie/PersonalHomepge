@@ -23,6 +23,7 @@ import { LocalHomeRepository } from "@/infrastructure/home-repository";
 import { SiteCollection } from "@/components/site-collection";
 import { SyncPanel } from "@/components/sync-panel";
 import { WidgetPanel } from "@/components/widget-panel";
+import { SYNC_BINDING_STORAGE_KEY } from "@/domain/sync-code";
 
 type EditorState =
   | { kind: "group"; mode: "add" }
@@ -47,6 +48,7 @@ const EMPTY_FORM_VALUES: FormValues = {
   siteKeywords: "",
   siteMark: ""
 };
+const ONBOARDING_STORAGE_KEY = "homepage:onboarding:v1";
 
 export function HomeDashboard() {
   const [homeDocument, setHomeDocument] = useState<HomeDocumentV2>(() => createDefaultHomeDocument());
@@ -58,13 +60,18 @@ export function HomeDashboard() {
   const [formValues, setFormValues] = useState<FormValues>(EMPTY_FORM_VALUES);
   const [formError, setFormError] = useState("");
   const [storageReady, setStorageReady] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
   const repositoryRef = useRef<LocalHomeRepository | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     repositoryRef.current = new LocalHomeRepository(window.localStorage);
+    const hasStoredDocument = repositoryRef.current.hasStoredDocument();
+    const hasSyncBinding = Boolean(window.localStorage.getItem(SYNC_BINDING_STORAGE_KEY));
+    const onboardingDone = window.localStorage.getItem(ONBOARDING_STORAGE_KEY) === "complete";
     setHomeDocument(repositoryRef.current.load());
+    setShowWelcome(!hasStoredDocument && !hasSyncBinding && !onboardingDone);
     setTodayLabel(new Intl.DateTimeFormat("zh-CN", {
       weekday: "long",
       month: "long",
@@ -288,6 +295,47 @@ export function HomeDashboard() {
     setSaveStatus("已恢复默认");
   }
 
+  function completeOnboarding() {
+    window.localStorage.setItem(ONBOARDING_STORAGE_KEY, "complete");
+    setShowWelcome(false);
+  }
+
+  function keepDefaultTemplate() {
+    const normalized = normalizeHomeDocument({
+      ...homeDocument,
+      updatedAt: new Date().toISOString()
+    });
+    repositoryRef.current?.save(normalized);
+    setHomeDocument(normalized);
+    completeOnboarding();
+    setSaveStatus("已使用默认模板");
+  }
+
+  function openSyncCodeSetup() {
+    completeOnboarding();
+    setEditMode(true);
+    setSaveStatus("请在同步码面板输入同步码");
+  }
+
+  function startBlankHome() {
+    const blankDocument = normalizeHomeDocument({
+      ...createDefaultHomeDocument(),
+      documentId: createId("home"),
+      updatedAt: new Date().toISOString(),
+      groups: [],
+      widgets: []
+    });
+    repositoryRef.current?.save(blankDocument);
+    setHomeDocument(blankDocument);
+    completeOnboarding();
+    setEditMode(true);
+    setSaveStatus("已从空白首页开始");
+  }
+
+  function dismissWelcome() {
+    completeOnboarding();
+  }
+
   function handleEditorSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!editor) {
@@ -380,6 +428,21 @@ export function HomeDashboard() {
           </button>
         </div>
       </header>
+
+      {showWelcome ? (
+        <section className="welcome-strip" aria-label="新用户启动选项">
+          <div className="welcome-copy">
+            <strong>开始设置你的首页</strong>
+            <span>使用通用效率模板，输入同步码恢复已有首页，或从空白开始。</span>
+          </div>
+          <div className="welcome-actions">
+            <button className="utility-button" type="button" onClick={keepDefaultTemplate}>使用模板</button>
+            <button className="utility-button" type="button" onClick={openSyncCodeSetup}>输入同步码</button>
+            <button className="utility-button" type="button" onClick={startBlankHome}>空白开始</button>
+            <button className="mini-button" type="button" onClick={dismissWelcome} aria-label="稍后再设置">稍后</button>
+          </div>
+        </section>
+      ) : null}
 
       <section className="search-panel" aria-label="搜索和过滤">
         <form className="search-box" onSubmit={handleSearchSubmit}>

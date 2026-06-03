@@ -98,7 +98,7 @@ export const WIDGET_REGISTRY: Record<HomeWidgetType, { title: string }> = {
 export const DEFAULT_HOME_DOCUMENT_V2: HomeDocumentV2 = {
   version: HOME_DOCUMENT_VERSION,
   documentId: "local-default",
-  updatedAt: "2026-06-02T00:00:00.000Z",
+  updatedAt: "2026-06-03T00:00:00.000Z",
   revision: 0,
   theme: DEFAULT_THEME,
   syncMeta: DEFAULT_SYNC_META,
@@ -106,100 +106,85 @@ export const DEFAULT_HOME_DOCUMENT_V2: HomeDocumentV2 = {
   widgets: [],
   groups: [
     {
-      id: "group-search-email",
-      title: "搜索与邮箱",
-      keywords: "搜索 引擎 邮箱 邮件",
+      id: "group-search",
+      title: "搜索",
+      keywords: "搜索 引擎 web search",
       order: 1,
       sites: [
-        { id: "site-google", name: "Google", mark: "G", url: "https://www.google.com.hk/", keywords: "", order: 1 },
-        { id: "site-netease-mail", name: "网易邮箱", mark: "邮", url: "https://email.163.com/", keywords: "", order: 2 }
+        { id: "site-google", name: "Google", mark: "G", url: "https://www.google.com/", keywords: "search", order: 1 },
+        { id: "site-duckduckgo", name: "DuckDuckGo", mark: "DDG", url: "https://duckduckgo.com/", keywords: "search privacy", order: 2 },
+        { id: "site-bing", name: "Bing", mark: "B", url: "https://www.bing.com/", keywords: "search", order: 3 }
       ]
     },
     {
-      id: "group-dev",
-      title: "技术与开发",
-      keywords: "代码 仓库 编程 开发 云服务",
+      id: "group-ai",
+      title: "AI",
+      keywords: "ai assistant chatbot productivity",
       order: 2,
       sites: [
-        { id: "site-github", name: "GitHub", mark: "GH", url: "https://github.com/", keywords: "git 代码 仓库", order: 1 },
-        { id: "site-gitee", name: "Gitee", mark: "GE", url: "https://gitee.com/", keywords: "git 代码 仓库", order: 2 },
-        { id: "site-bitbucket", name: "BitBucket", mark: "BB", url: "https://bitbucket.org/product", keywords: "git 代码 仓库", order: 3 },
-        { id: "site-csdn", name: "CSDN", mark: "CS", url: "https://www.csdn.net/", keywords: "技术 开发 博客", order: 4 },
-        { id: "site-aliyun-yq", name: "阿里云栖社区", mark: "云", url: "https://yq.aliyun.com/", keywords: "技术 开发 阿里云", order: 5 },
-        { id: "site-aws", name: "AWS", mark: "AWS", url: "https://aws.amazon.com/cn/", keywords: "云服务 云计算", order: 6 },
-        { id: "site-leetcode", name: "LeetCode", mark: "LC", url: "https://leetcode.com/", keywords: "算法 刷题 编程", order: 7 },
-        { id: "site-v2ex", name: "V2EX", mark: "V2", url: "https://www.v2ex.com/", keywords: "社区 技术", order: 8 }
+        { id: "site-chatgpt", name: "ChatGPT", mark: "CG", url: "https://chatgpt.com/", keywords: "openai ai assistant", order: 1 },
+        { id: "site-claude", name: "Claude", mark: "CL", url: "https://claude.ai/", keywords: "ai assistant", order: 2 },
+        { id: "site-gemini", name: "Gemini", mark: "GM", url: "https://gemini.google.com/", keywords: "google ai assistant", order: 3 },
+        { id: "site-perplexity", name: "Perplexity", mark: "PX", url: "https://www.perplexity.ai/", keywords: "ai search", order: 4 }
       ]
     },
     {
-      id: "group-news",
-      title: "新闻与阅读",
-      keywords: "新闻 阅读 英语 杂志 报纸",
+      id: "group-development",
+      title: "开发",
+      keywords: "代码 编程 开发 文档 package",
       order: 3,
       sites: [
-        { id: "site-economist", name: "The Economist", mark: "TE", url: "https://www.economist.com/", keywords: "", order: 1 },
-        { id: "site-fortune", name: "Fortune", mark: "FO", url: "https://fortune.com/", keywords: "", order: 2 },
-        { id: "site-nytimes", name: "The New York Times", mark: "NY", url: "https://www.nytimes.com/", keywords: "", order: 3 },
-        { id: "site-washington-post", name: "The Washington Post", mark: "WP", url: "https://www.washingtonpost.com/", keywords: "", order: 4 },
-        { id: "site-latimes", name: "Los Angeles Times", mark: "LA", url: "https://www.latimes.com/", keywords: "", order: 5 },
-        { id: "site-wsj", name: "The Wall Street Journal", mark: "WS", url: "https://www.wsj.com/", keywords: "", order: 6 },
-        { id: "site-scientific-american", name: "Scientific American", mark: "SA", url: "https://www.scientificamerican.com/", keywords: "", order: 7 },
-        { id: "site-shanbay", name: "扇贝", mark: "扇", url: "https://web.shanbay.com/web/main/index/", keywords: "", order: 8 }
+        { id: "site-github", name: "GitHub", mark: "GH", url: "https://github.com/", keywords: "git code repository", order: 1 },
+        { id: "site-stack-overflow", name: "Stack Overflow", mark: "SO", url: "https://stackoverflow.com/", keywords: "programming questions", order: 2 },
+        { id: "site-mdn", name: "MDN", mark: "MDN", url: "https://developer.mozilla.org/", keywords: "web docs javascript css html", order: 3 },
+        { id: "site-npm", name: "npm", mark: "npm", url: "https://www.npmjs.com/", keywords: "node package", order: 4 }
       ]
     },
     {
       id: "group-learning",
       title: "学习",
-      keywords: "课程 在线学习 mooc",
+      keywords: "课程 知识 视频 在线学习",
       order: 4,
       sites: [
-        { id: "site-xuetangx", name: "学堂在线", mark: "学", url: "https://www.xuetangx.com/", keywords: "", order: 1 },
-        { id: "site-coursera", name: "Coursera", mark: "C", url: "https://www.coursera.org/", keywords: "", order: 2 }
+        { id: "site-wikipedia", name: "Wikipedia", mark: "W", url: "https://www.wikipedia.org/", keywords: "encyclopedia knowledge", order: 1 },
+        { id: "site-coursera", name: "Coursera", mark: "C", url: "https://www.coursera.org/", keywords: "course mooc", order: 2 },
+        { id: "site-youtube", name: "YouTube", mark: "YT", url: "https://www.youtube.com/", keywords: "video learning", order: 3 },
+        { id: "site-khan-academy", name: "Khan Academy", mark: "KA", url: "https://www.khanacademy.org/", keywords: "course math science", order: 4 }
       ]
     },
     {
-      id: "group-sports",
-      title: "运动",
-      keywords: "跑步 马拉松 体育 篮球 足球",
+      id: "group-productivity",
+      title: "效率",
+      keywords: "工作 文档 日历 文件 任务",
       order: 5,
       sites: [
-        { id: "site-zhibo8", name: "直播吧", mark: "播", url: "https://www.zhibo8.cc/", keywords: "", order: 1 },
-        { id: "site-marathon-tieba", name: "马拉松吧", mark: "马", url: "https://tieba.baidu.com/f?kw=%E9%A9%AC%E6%8B%89%E6%9D%BE&fr=wwwt", keywords: "", order: 2 },
-        { id: "site-iranshao", name: "爱燃烧", mark: "燃", url: "https://iranshao.com/", keywords: "", order: 3 },
-        { id: "site-nike", name: "Nike", mark: "NK", url: "https://www.nike.com/cn/zh_cn/", keywords: "", order: 4 }
+        { id: "site-notion", name: "Notion", mark: "N", url: "https://www.notion.so/", keywords: "notes docs workspace", order: 1 },
+        { id: "site-google-calendar", name: "Google Calendar", mark: "GC", url: "https://calendar.google.com/", keywords: "calendar schedule", order: 2 },
+        { id: "site-google-drive", name: "Google Drive", mark: "GD", url: "https://drive.google.com/", keywords: "files cloud docs", order: 3 },
+        { id: "site-todoist", name: "Todoist", mark: "TD", url: "https://todoist.com/", keywords: "todo tasks", order: 4 }
+      ]
+    },
+    {
+      id: "group-reading",
+      title: "阅读",
+      keywords: "新闻 阅读 资讯 文章",
+      order: 6,
+      sites: [
+        { id: "site-reuters", name: "Reuters", mark: "RT", url: "https://www.reuters.com/", keywords: "news", order: 1 },
+        { id: "site-bbc", name: "BBC", mark: "BBC", url: "https://www.bbc.com/", keywords: "news", order: 2 },
+        { id: "site-hacker-news", name: "Hacker News", mark: "HN", url: "https://news.ycombinator.com/", keywords: "technology startup news", order: 3 },
+        { id: "site-medium", name: "Medium", mark: "M", url: "https://medium.com/", keywords: "articles writing", order: 4 }
       ]
     },
     {
       id: "group-life",
-      title: "金融生活",
-      keywords: "银行 金融 房产 汽车 日历 生活",
-      order: 6,
-      sites: [
-        { id: "site-bankcomm", name: "交通银行", mark: "交", url: "https://www.bankcomm.com/BankCommSite/default.shtml", keywords: "", order: 1 },
-        { id: "site-cmb", name: "招商银行", mark: "招", url: "https://www.cmbchina.com/", keywords: "", order: 2 },
-        { id: "site-icbc", name: "工商银行", mark: "工", url: "https://www.icbc.com.cn/icbc/", keywords: "", order: 3 },
-        { id: "site-lianjia", name: "链家", mark: "链", url: "https://sh.lianjia.com/", keywords: "", order: 4 },
-        { id: "site-calendar", name: "万年历", mark: "历", url: "https://www.baidu.com/s?word=%E4%B8%87%E5%B9%B4%E5%8E%86&tn=sitehao123_pg&ie=utf-8", keywords: "", order: 5 }
-      ]
-    },
-    {
-      id: "group-social",
-      title: "社交内容",
-      keywords: "社交 内容 知识 社区",
+      title: "生活",
+      keywords: "地图 购物 社区 生活",
       order: 7,
       sites: [
-        { id: "site-zhihu", name: "知乎", mark: "知", url: "https://www.zhihu.com/", keywords: "", order: 1 },
-        { id: "site-wechat-mp", name: "微信公众号", mark: "众", url: "https://mp.weixin.qq.com/", keywords: "", order: 2 }
-      ]
-    },
-    {
-      id: "group-entertain-shopping-jobs",
-      title: "娱乐购物求职",
-      keywords: "娱乐 视频 购物 招聘 求职 工作 美食",
-      order: 8,
-      sites: [
-        { id: "site-douyu", name: "斗鱼", mark: "斗", url: "https://www.douyu.com/", keywords: "", order: 1 },
-        { id: "site-huya", name: "虎牙", mark: "虎", url: "https://www.huya.com/", keywords: "", order: 2 }
+        { id: "site-google-maps", name: "Google Maps", mark: "GM", url: "https://www.google.com/maps", keywords: "map navigation", order: 1 },
+        { id: "site-amazon", name: "Amazon", mark: "AZ", url: "https://www.amazon.com/", keywords: "shopping", order: 2 },
+        { id: "site-reddit", name: "Reddit", mark: "R", url: "https://www.reddit.com/", keywords: "community discussion", order: 3 }
       ]
     }
   ]
