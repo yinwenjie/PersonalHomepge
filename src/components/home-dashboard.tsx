@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createDefaultHomeDocument,
   createId,
@@ -8,6 +8,7 @@ import {
   HomeDocumentV2,
   HomeGroup,
   HomeSite,
+  HomeSyncMeta,
   isValidUrl,
   migrateV1ToV2,
   normalizeHomeDocument,
@@ -20,6 +21,7 @@ import {
 } from "@/domain/home-document";
 import { LocalHomeRepository } from "@/infrastructure/home-repository";
 import { SiteIcon } from "@/components/site-icon";
+import { SyncPanel } from "@/components/sync-panel";
 import { WidgetPanel } from "@/components/widget-panel";
 
 type EditorState =
@@ -105,6 +107,26 @@ export function HomeDashboard() {
     setHomeDocument(normalized);
     setSaveStatus(message);
   }
+
+  const replaceHomeDocument = useCallback((nextDocument: HomeDocumentV2, message: string) => {
+    const normalized = normalizeHomeDocument(nextDocument);
+    repositoryRef.current?.save(normalized);
+    setHomeDocument(normalized);
+    setSaveStatus(message);
+  }, []);
+
+  const updateSyncMeta = useCallback((syncMeta: HomeSyncMeta, message: string) => {
+    setHomeDocument((currentDocument) => {
+      const normalized = normalizeHomeDocument({
+        ...currentDocument,
+        syncMeta,
+        updatedAt: new Date().toISOString()
+      });
+      repositoryRef.current?.save(normalized);
+      return normalized;
+    });
+    setSaveStatus(message);
+  }, []);
 
   function openGroupEditor(groupId?: string) {
     const group = groupId ? findGroup(homeDocument, groupId) : undefined;
@@ -410,16 +432,23 @@ export function HomeDashboard() {
       </section>
 
       {editMode ? (
-        <section className="edit-toolbar" aria-label="编辑工具">
-          <div className="edit-actions-row">
-            <button className="utility-button" type="button" onClick={() => openGroupEditor()}>新增分组</button>
-            <button className="utility-button" type="button" onClick={exportJson}>导出 JSON</button>
-            <label className="file-button" htmlFor="importInput">导入 JSON</label>
-            <input ref={importInputRef} id="importInput" type="file" accept="application/json" hidden onChange={handleFileChange} />
-            <button className="danger-button" type="button" onClick={resetDefault}>恢复默认</button>
-          </div>
-          <span className="save-status">{saveStatus}</span>
-        </section>
+        <>
+          <section className="edit-toolbar" aria-label="编辑工具">
+            <div className="edit-actions-row">
+              <button className="utility-button" type="button" onClick={() => openGroupEditor()}>新增分组</button>
+              <button className="utility-button" type="button" onClick={exportJson}>导出 JSON</button>
+              <label className="file-button" htmlFor="importInput">导入 JSON</label>
+              <input ref={importInputRef} id="importInput" type="file" accept="application/json" hidden onChange={handleFileChange} />
+              <button className="danger-button" type="button" onClick={resetDefault}>恢复默认</button>
+            </div>
+            <span className="save-status">{saveStatus}</span>
+          </section>
+          <SyncPanel
+            documentValue={homeDocument}
+            onReplaceDocument={replaceHomeDocument}
+            onSyncMetaChange={updateSyncMeta}
+          />
+        </>
       ) : null}
 
       <div className="workspace">

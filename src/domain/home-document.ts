@@ -2,8 +2,15 @@ export const HOME_DOCUMENT_VERSION = 2;
 export const V1_STORAGE_KEY = "homepage:data:v1";
 export const V2_STORAGE_KEY = "homepage:document:v2";
 
-export type SyncMode = "local";
-export type SyncStatus = "local-only";
+export type SyncMode = "local" | "sync-code";
+export type SyncStatus =
+  | "local-only"
+  | "linked"
+  | "syncing"
+  | "synced"
+  | "offline"
+  | "conflict"
+  | "error";
 export type HomeWidgetType = "calendar.month" | "todo.list";
 
 export interface HomeSite {
@@ -40,7 +47,10 @@ export interface HomeTheme {
 export interface HomeSyncMeta {
   mode: SyncMode;
   status: SyncStatus;
-  provider: null;
+  provider: "supabase" | null;
+  spaceId: string | null;
+  remoteRevision: number | null;
+  lastSyncedAt: string | null;
 }
 
 export interface HomeBillingMeta {
@@ -69,7 +79,10 @@ const DEFAULT_THEME: HomeTheme = {
 const DEFAULT_SYNC_META: HomeSyncMeta = {
   mode: "local",
   status: "local-only",
-  provider: null
+  provider: null,
+  spaceId: null,
+  remoteRevision: null,
+  lastSyncedAt: null
 };
 
 const DEFAULT_BILLING_META: HomeBillingMeta = {
@@ -293,7 +306,7 @@ export function normalizeHomeDocument(input: unknown): HomeDocumentV2 {
     groups,
     widgets: normalizeWidgets(input.widgets),
     theme: normalizeTheme(input.theme),
-    syncMeta: DEFAULT_SYNC_META,
+    syncMeta: normalizeSyncMeta(input.syncMeta),
     billing: DEFAULT_BILLING_META
   };
 }
@@ -393,8 +406,43 @@ function normalizeTheme(input: unknown): HomeTheme {
   };
 }
 
+function normalizeSyncMeta(input: unknown): HomeSyncMeta {
+  if (!isRecord(input)) {
+    return DEFAULT_SYNC_META;
+  }
+
+  const mode = input.mode === "sync-code" ? "sync-code" : "local";
+  const provider = mode === "sync-code" && input.provider === "supabase" ? "supabase" : null;
+  const status = isSyncStatus(input.status)
+    ? input.status
+    : mode === "sync-code"
+      ? "linked"
+      : "local-only";
+
+  return {
+    mode,
+    status: mode === "local" ? "local-only" : status,
+    provider,
+    spaceId: mode === "sync-code" ? normalizeText(input.spaceId) || null : null,
+    remoteRevision: mode === "sync-code" && Number.isFinite(Number(input.remoteRevision))
+      ? Number(input.remoteRevision)
+      : null,
+    lastSyncedAt: mode === "sync-code" ? normalizeText(input.lastSyncedAt) || null : null
+  };
+}
+
 function isWidgetType(value: unknown): value is HomeWidgetType {
   return value === "calendar.month" || value === "todo.list";
+}
+
+function isSyncStatus(value: unknown): value is SyncStatus {
+  return value === "local-only"
+    || value === "linked"
+    || value === "syncing"
+    || value === "synced"
+    || value === "offline"
+    || value === "conflict"
+    || value === "error";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

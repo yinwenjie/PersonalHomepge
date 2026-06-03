@@ -45,7 +45,7 @@ hp1_<spaceId>_<accessToken>_<encryptionKey>
 ```
 
 - `hp1`：格式版本，便于未来升级。
-- `spaceId`：128-bit 随机值，Base64URL 编码。
+- `spaceId`：Supabase 返回的同步空间 UUID。
 - `accessToken`：256-bit 随机值，Base64URL 编码。
 - `encryptionKey`：256-bit 随机值，Base64URL 编码。
 
