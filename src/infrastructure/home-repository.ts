@@ -21,6 +21,10 @@ export interface CloudHomeRepository {
 export class LocalHomeRepository implements HomeRepository {
   constructor(private readonly storage: Storage) {}
 
+  hasStoredDocument(): boolean {
+    return Boolean(this.storage.getItem(V2_STORAGE_KEY) || this.storage.getItem(V1_STORAGE_KEY));
+  }
+
   load(): HomeDocumentV2 {
     const v2Document = this.loadV2();
     if (v2Document) {
