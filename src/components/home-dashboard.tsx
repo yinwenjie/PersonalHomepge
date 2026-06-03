@@ -20,7 +20,7 @@ import {
   sortByOrder
 } from "@/domain/home-document";
 import { LocalHomeRepository } from "@/infrastructure/home-repository";
-import { SiteIcon } from "@/components/site-icon";
+import { SiteCollection } from "@/components/site-collection";
 import { SyncPanel } from "@/components/sync-panel";
 import { WidgetPanel } from "@/components/widget-panel";
 
@@ -97,6 +97,7 @@ export function HomeDashboard() {
   }, [activeQuery, editMode, homeDocument.groups]);
 
   const visibleCount = filteredGroups.reduce((sum, { sites }) => sum + sites.length, 0);
+  const dragDisabled = Boolean(normalizeText(activeQuery));
 
   function commitHomeDocument(nextDocument: HomeDocumentV2, message = "已保存") {
     const normalized = normalizeHomeDocument({
@@ -197,18 +198,6 @@ export function HomeDashboard() {
     }, "分组已删除");
   }
 
-  function moveGroup(groupId: string, direction: number) {
-    const groups = sortByOrder(homeDocument.groups);
-    const index = groups.findIndex((group) => group.id === groupId);
-    const targetIndex = index + direction;
-    if (index < 0 || targetIndex < 0 || targetIndex >= groups.length) {
-      return;
-    }
-
-    [groups[index], groups[targetIndex]] = [groups[targetIndex], groups[index]];
-    commitHomeDocument({ ...homeDocument, groups: renumberGroups(groups) }, "排序已保存");
-  }
-
   function addSite(groupId: string, values: Pick<HomeSite, "name" | "url" | "keywords" | "mark">) {
     const groups = homeDocument.groups.map((group) => {
       if (group.id !== groupId) {
@@ -253,26 +242,6 @@ export function HomeDashboard() {
       ? { ...item, sites: renumberSites(item.sites.filter((candidate) => candidate.id !== siteId)) }
       : item);
     commitHomeDocument({ ...homeDocument, groups: renumberGroups(groups) }, "网站已删除");
-  }
-
-  function moveSite(groupId: string, siteId: string, direction: number) {
-    const groups = homeDocument.groups.map((group) => {
-      if (group.id !== groupId) {
-        return group;
-      }
-
-      const sites = sortByOrder(group.sites);
-      const index = sites.findIndex((site) => site.id === siteId);
-      const targetIndex = index + direction;
-      if (index < 0 || targetIndex < 0 || targetIndex >= sites.length) {
-        return group;
-      }
-
-      [sites[index], sites[targetIndex]] = [sites[targetIndex], sites[index]];
-      return { ...group, sites: renumberSites(sites) };
-    });
-
-    commitHomeDocument({ ...homeDocument, groups: renumberGroups(groups) }, "排序已保存");
   }
 
   function exportJson() {
@@ -456,49 +425,18 @@ export function HomeDashboard() {
       />
 
       <div className="workspace">
-        <section className="sections" aria-label="常用网站导航">
-          {filteredGroups.map(({ group, sites }) => (
-            <article className="section" key={group.id}>
-              <div>
-                <h2 className="section-title">{group.title}</h2>
-                <span className="section-count">{sites.length} / {group.sites.length}</span>
-                {editMode ? (
-                  <div className="section-controls" aria-label={`${group.title} 操作`}>
-                    <button className="mini-button" type="button" onClick={() => openGroupEditor(group.id)} aria-label={`编辑 ${group.title}`}>改</button>
-                    <button className="mini-button" type="button" onClick={() => moveGroup(group.id, -1)} aria-label={`上移 ${group.title}`}>↑</button>
-                    <button className="mini-button" type="button" onClick={() => moveGroup(group.id, 1)} aria-label={`下移 ${group.title}`}>↓</button>
-                    <button className="mini-button" type="button" onClick={() => deleteGroup(group.id)} aria-label={`删除 ${group.title}`}>×</button>
-                  </div>
-                ) : null}
-              </div>
-              <div className="links">
-                {sites.map((site) => editMode ? (
-                  <div className="site-link is-editing" key={site.id}>
-                    <SiteIcon site={site} />
-                    <span className="site-name">{site.name}</span>
-                    <div className="site-controls" aria-label={`${site.name} 操作`}>
-                      <button className="mini-button" type="button" onClick={() => openSiteEditor(group.id, site.id)} aria-label={`编辑 ${site.name}`}>改</button>
-                      <button className="mini-button" type="button" onClick={() => moveSite(group.id, site.id, -1)} aria-label={`上移 ${site.name}`}>↑</button>
-                      <button className="mini-button" type="button" onClick={() => moveSite(group.id, site.id, 1)} aria-label={`下移 ${site.name}`}>↓</button>
-                      <button className="mini-button" type="button" onClick={() => deleteSite(group.id, site.id)} aria-label={`删除 ${site.name}`}>×</button>
-                    </div>
-                  </div>
-                ) : (
-                  <a className="site-link" key={site.id} href={site.url} target="_blank" rel="noopener noreferrer">
-                    <SiteIcon site={site} />
-                    <span className="site-name">{site.name}</span>
-                  </a>
-                ))}
-                {editMode ? (
-                  <button className="add-site-button" type="button" onClick={() => openSiteEditor(group.id)}>+ 新增网站</button>
-                ) : null}
-              </div>
-            </article>
-          ))}
-          {visibleCount === 0 && !editMode ? (
-            <p className="empty-state is-visible">没有匹配的网站。</p>
-          ) : null}
-        </section>
+        <SiteCollection
+          documentValue={homeDocument}
+          visibleGroups={filteredGroups}
+          editMode={editMode}
+          dragDisabled={dragDisabled}
+          visibleCount={visibleCount}
+          onCommitDocument={commitHomeDocument}
+          onOpenGroupEditor={openGroupEditor}
+          onOpenSiteEditor={openSiteEditor}
+          onDeleteGroup={deleteGroup}
+          onDeleteSite={deleteSite}
+        />
 
         <WidgetPanel documentValue={homeDocument} updatedLabel={updatedLabel} />
       </div>
