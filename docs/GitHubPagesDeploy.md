@@ -22,8 +22,8 @@
 3. 进入 `Settings`。
 4. 在左侧进入 `Pages`。
 5. 在 `Build and deployment` 里把 `Source` 改成 `GitHub Actions`。
-6. 确认仓库的默认分支是你希望自动发布的分支。当前工作流监听的是 `master`。
-7. 推送一次代码，或者在 `Actions` 页手动运行 `Deploy to GitHub Pages`。
+6. 确认要发布的代码已经合并到 `production` 分支。当前工作流监听的是 `production`。
+7. 推送 `production` 分支，或者在 `Actions` 页手动运行 `Deploy to GitHub Pages`。
 8. 等工作流里的 `build` 和 `deploy` 两个 job 都变绿。
 9. 回到 `Settings > Pages` 查看最终站点地址。
 
