@@ -306,6 +306,24 @@ h1 {
   align-items: end;
 }
 
+.sync-conflict {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #fed7aa;
+  border-radius: var(--radius);
+  background: var(--danger-soft);
+}
+
+.sync-conflict strong {
+  display: block;
+  color: var(--danger);
+  font-size: 13px;
+  font-weight: 680;
+}
+
 .save-status {
   min-height: 20px;
   color: var(--muted);
@@ -720,7 +738,8 @@ h1 {
   }
 
   .sync-panel-head,
-  .sync-code-grid {
+  .sync-code-grid,
+  .sync-conflict {
     grid-template-columns: 1fr;
   }
 

@@ -57,6 +57,7 @@ export function HomeDashboard() {
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [formValues, setFormValues] = useState<FormValues>(EMPTY_FORM_VALUES);
   const [formError, setFormError] = useState("");
+  const [storageReady, setStorageReady] = useState(false);
   const repositoryRef = useRef<LocalHomeRepository | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
@@ -69,6 +70,7 @@ export function HomeDashboard() {
       month: "long",
       day: "numeric"
     }).format(new Date()));
+    setStorageReady(true);
   }, []);
 
   const updatedLabel = useMemo(() => {
@@ -399,7 +401,7 @@ export function HomeDashboard() {
         <div className="header-side">
           <span className="sync-pill">
             <span className="dot" />
-            {homeDocument.syncMeta.status}
+            {formatSyncStatus(homeDocument.syncMeta)}
           </span>
           <button className="utility-button" type="button" onClick={() => {
             setEditMode((value) => !value);
@@ -432,24 +434,26 @@ export function HomeDashboard() {
       </section>
 
       {editMode ? (
-        <>
-          <section className="edit-toolbar" aria-label="编辑工具">
-            <div className="edit-actions-row">
-              <button className="utility-button" type="button" onClick={() => openGroupEditor()}>新增分组</button>
-              <button className="utility-button" type="button" onClick={exportJson}>导出 JSON</button>
-              <label className="file-button" htmlFor="importInput">导入 JSON</label>
-              <input ref={importInputRef} id="importInput" type="file" accept="application/json" hidden onChange={handleFileChange} />
-              <button className="danger-button" type="button" onClick={resetDefault}>恢复默认</button>
-            </div>
-            <span className="save-status">{saveStatus}</span>
-          </section>
-          <SyncPanel
-            documentValue={homeDocument}
-            onReplaceDocument={replaceHomeDocument}
-            onSyncMetaChange={updateSyncMeta}
-          />
-        </>
+        <section className="edit-toolbar" aria-label="编辑工具">
+          <div className="edit-actions-row">
+            <button className="utility-button" type="button" onClick={() => openGroupEditor()}>新增分组</button>
+            <button className="utility-button" type="button" onClick={exportJson}>导出 JSON</button>
+            <label className="file-button" htmlFor="importInput">导入 JSON</label>
+            <input ref={importInputRef} id="importInput" type="file" accept="application/json" hidden onChange={handleFileChange} />
+            <button className="danger-button" type="button" onClick={resetDefault}>恢复默认</button>
+          </div>
+          <span className="save-status">{saveStatus}</span>
+        </section>
       ) : null}
+
+      <SyncPanel
+        documentValue={homeDocument}
+        editorOpen={Boolean(editor)}
+        storageReady={storageReady}
+        visible={editMode}
+        onReplaceDocument={replaceHomeDocument}
+        onSyncMetaChange={updateSyncMeta}
+      />
 
       <div className="workspace">
         <section className="sections" aria-label="常用网站导航">
@@ -565,4 +569,22 @@ function parseImportedDocument(input: unknown): HomeDocumentV2 {
   } catch {
     return migrateV1ToV2(input);
   }
+}
+
+function formatSyncStatus(syncMeta: HomeSyncMeta): string {
+  if (syncMeta.mode === "local") {
+    return "仅本地";
+  }
+
+  const labels: Record<HomeSyncMeta["status"], string> = {
+    "local-only": "仅本地",
+    linked: "已绑定",
+    syncing: "同步中",
+    synced: "已同步",
+    offline: "离线",
+    conflict: "有冲突",
+    error: "同步失败"
+  };
+
+  return labels[syncMeta.status];
 }

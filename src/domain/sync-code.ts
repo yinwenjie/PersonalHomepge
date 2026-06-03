@@ -14,6 +14,7 @@ export interface SyncCodeParts {
 export interface StoredSyncBinding extends SyncCodeParts {
   remoteRevision: number;
   lastSyncedAt: string | null;
+  lastSyncedDocumentRevision: number;
 }
 
 export function createSyncSecrets(): Pick<SyncCodeParts, "accessToken" | "encryptionKey"> {
@@ -70,7 +71,10 @@ export function normalizeStoredSyncBinding(input: unknown): StoredSyncBinding | 
     return {
       ...parts,
       remoteRevision: Number.isFinite(Number(value.remoteRevision)) ? Number(value.remoteRevision) : 0,
-      lastSyncedAt: typeof value.lastSyncedAt === "string" ? value.lastSyncedAt : null
+      lastSyncedAt: typeof value.lastSyncedAt === "string" ? value.lastSyncedAt : null,
+      lastSyncedDocumentRevision: Number.isFinite(Number(value.lastSyncedDocumentRevision))
+        ? Number(value.lastSyncedDocumentRevision)
+        : 0
     };
   } catch {
     return null;
