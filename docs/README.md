@@ -12,7 +12,7 @@
 
 - `implementation/phase-1/Phase1_1_Implement.md`：Phase 1.1，本地可编辑首页。
 - `implementation/phase-1/Phase1_2_Implement.md`：Phase 1.2，统一数据结构与 Next.js 迁移。
-- `implementation/phase-1/Phase1_3_Implement.md`：Phase 1.3，同步码跨设备同步；包含 Phase 1.3.1、1.3.2、1.3.3 的后续实施记录。
+- `implementation/phase-1/Phase1_3_Implement.md`：Phase 1.3，同步码跨设备同步；包含 Phase 1.3.1 之后的后续实施记录。
 
 ## Tech Stack
 
@@ -32,6 +32,7 @@
 
 - `guides/GitHubPagesDeploy.md`：GitHub Pages 部署说明。
 - `guides/SyncCodeUserGuide.md`：同步码使用指南。
+- `guides/SupabaseMigrationChecklist.md`：Supabase SQL 手动迁移执行清单。
 
 ## Backlog
 
