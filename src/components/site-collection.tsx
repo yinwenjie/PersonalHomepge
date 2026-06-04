@@ -29,6 +29,7 @@ import {
   HomeDocumentV2,
   HomeGroup,
   HomeSite,
+  isUngroupedGroup,
   sortByOrder
 } from "@/domain/home-document";
 import { SiteIcon } from "@/components/site-icon";
@@ -128,6 +129,8 @@ export function SiteCollection({
 
     return "";
   }, [activeItem, documentValue.groups]);
+  const ungroupedEntry = visibleGroups.find(({ group }) => isUngroupedGroup(group));
+  const regularGroups = visibleGroups.filter(({ group }) => !isUngroupedGroup(group));
 
   function handleDragStart(event: DragStartEvent) {
     setActiveItem(toDragItem(event.active.data.current, event.active.id, documentValue.groups));
@@ -157,7 +160,8 @@ export function SiteCollection({
       return;
     }
 
-    const groups = sortByOrder(documentValue.groups);
+    const groups = sortByOrder(documentValue.groups).filter((group) => !isUngroupedGroup(group));
+    const ungroupedGroup = documentValue.groups.find(isUngroupedGroup);
     const activeIndex = groups.findIndex((group) => group.id === activeGroupId);
     const overIndex = groups.findIndex((group) => group.id === overGroupId);
     if (activeIndex < 0 || overIndex < 0 || activeIndex === overIndex) {
@@ -166,7 +170,10 @@ export function SiteCollection({
 
     onCommitDocument({
       ...documentValue,
-      groups: applyCurrentOrder(arrayMove(groups, activeIndex, overIndex))
+      groups: applyCurrentOrder([
+        ...(ungroupedGroup ? [ungroupedGroup] : []),
+        ...arrayMove(groups, activeIndex, overIndex)
+      ])
     }, "分组排序已保存");
   }
 
@@ -225,15 +232,26 @@ export function SiteCollection({
 
   return (
     <DndContext
+      id="site-collection-dnd"
       sensors={sensors}
       collisionDetection={pointerFirstCollisionDetection}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       onDragCancel={() => setActiveItem(null)}
     >
-      <SortableContext items={visibleGroups.map(({ group }) => groupDragId(group.id))} strategy={verticalListSortingStrategy}>
+      <SortableContext items={regularGroups.map(({ group }) => groupDragId(group.id))} strategy={verticalListSortingStrategy}>
         <section className="sections" aria-label="常用网站导航">
-          {visibleGroups.map(({ group, sites }) => (
+          {ungroupedEntry ? (
+            <UngroupedSection
+              group={ungroupedEntry.group}
+              sites={ungroupedEntry.sites}
+              editMode={editMode}
+              dragDisabled={dragDisabled}
+              onOpenSiteEditor={onOpenSiteEditor}
+              onDeleteSite={onDeleteSite}
+            />
+          ) : null}
+          {regularGroups.map(({ group, sites }) => (
             <SortableGroup
               key={group.id}
               group={group}
@@ -267,6 +285,53 @@ interface SortableGroupProps {
   onOpenSiteEditor: (groupId: string, siteId?: string) => void;
   onDeleteGroup: (groupId: string) => void;
   onDeleteSite: (groupId: string, siteId: string) => void;
+}
+
+interface UngroupedSectionProps {
+  group: HomeGroup;
+  sites: HomeSite[];
+  editMode: boolean;
+  dragDisabled: boolean;
+  onOpenSiteEditor: (groupId: string, siteId?: string) => void;
+  onDeleteSite: (groupId: string, siteId: string) => void;
+}
+
+function UngroupedSection({
+  group,
+  sites,
+  editMode,
+  dragDisabled,
+  onOpenSiteEditor,
+  onDeleteSite
+}: UngroupedSectionProps) {
+  const {
+    isOver,
+    setNodeRef: setDropRef
+  } = useDroppable({
+    id: groupDropId(group.id),
+    data: { kind: "group-drop", groupId: group.id } satisfies DragItem,
+    disabled: dragDisabled
+  });
+
+  return (
+    <article className="ungrouped-section" aria-label="未分组网站">
+      <SortableContext items={sites.map((site) => siteDragId(site.id))} strategy={rectSortingStrategy}>
+        <div ref={setDropRef} className={`links ungrouped-links ${isOver ? "is-drop-target" : ""}`}>
+          {sites.map((site) => (
+            <SortableSiteTile
+              key={site.id}
+              groupId={group.id}
+              site={site}
+              editMode={editMode}
+              dragDisabled={dragDisabled}
+              onOpenSiteEditor={onOpenSiteEditor}
+              onDeleteSite={onDeleteSite}
+            />
+          ))}
+        </div>
+      </SortableContext>
+    </article>
+  );
 }
 
 function SortableGroup({
@@ -342,9 +407,6 @@ function SortableGroup({
               onDeleteSite={onDeleteSite}
             />
           ))}
-          {editMode ? (
-            <button className="add-site-button" type="button" onClick={() => onOpenSiteEditor(group.id)}>+ 新增网站</button>
-          ) : null}
         </div>
       </SortableContext>
     </article>
@@ -418,9 +480,11 @@ function SortableSiteTile({
 }
 
 function applyCurrentOrder(groups: HomeGroup[]): HomeGroup[] {
-  return groups.map((group, groupIndex) => ({
+  let regularGroupIndex = 0;
+
+  return groups.map((group) => ({
     ...group,
-    order: groupIndex + 1,
+    order: isUngroupedGroup(group) ? 0 : regularGroupIndex += 1,
     sites: group.sites.map((site, siteIndex) => ({
       ...site,
       order: siteIndex + 1

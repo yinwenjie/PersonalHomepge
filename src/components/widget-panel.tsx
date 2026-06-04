@@ -1,4 +1,5 @@
-import type { HomeDocumentV2 } from "@/domain/home-document";
+import Link from "next/link";
+import { type HomeDocumentV2, isUngroupedGroup } from "@/domain/home-document";
 
 interface WidgetPanelProps {
   documentValue: HomeDocumentV2;
@@ -7,20 +8,26 @@ interface WidgetPanelProps {
 
 export function WidgetPanel({ documentValue, updatedLabel }: WidgetPanelProps) {
   const siteCount = documentValue.groups.reduce((sum, group) => sum + group.sites.length, 0);
+  const groupCount = documentValue.groups.filter((group) => !isUngroupedGroup(group)).length;
 
   return (
     <aside className="sidebar" aria-label="状态和组件">
       <section className="status-panel">
         <div className="status-head">
           <span className="avatar">L</span>
-          <div>
-            <p className="status-title">Local</p>
+          <div className="status-copy">
+            <div className="status-title-row">
+              <p className="status-title">Local</p>
+              <Link className="settings-button" href="/edit" aria-label="打开编辑页面" title="编辑首页">
+                <span aria-hidden="true">⚙</span>
+              </Link>
+            </div>
             <p className="status-sub">本地模式</p>
           </div>
         </div>
         <div className="metrics">
           <div>
-            <strong>{documentValue.groups.length}</strong>
+            <strong>{groupCount}</strong>
             <span>分组</span>
           </div>
           <div>
