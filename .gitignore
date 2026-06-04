@@ -3,6 +3,7 @@ blog-image/.DS_Store
 .DS_Store
 node_modules/
 .next/
+.next-dev/
 out/
 dist/
 coverage/

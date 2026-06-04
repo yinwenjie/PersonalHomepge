@@ -2,6 +2,7 @@ export const HOME_DOCUMENT_VERSION = 2;
 export const SYNC_REVISION_MAX = 999;
 export const V1_STORAGE_KEY = "homepage:data:v1";
 export const V2_STORAGE_KEY = "homepage:document:v2";
+export const UNGROUPED_GROUP_ID = "group-ungrouped";
 
 export type SyncMode = "local" | "sync-code";
 export type SyncStatus =
@@ -107,6 +108,13 @@ export const DEFAULT_HOME_DOCUMENT_V2: HomeDocumentV2 = {
   widgets: [],
   groups: [
     {
+      id: UNGROUPED_GROUP_ID,
+      title: "未分组",
+      keywords: "未分组 ungrouped uncategorized",
+      order: 0,
+      sites: []
+    },
+    {
       id: "group-search",
       title: "搜索",
       keywords: "搜索 引擎 web search",
@@ -195,6 +203,20 @@ export function createDefaultHomeDocument(): HomeDocumentV2 {
   return clone(DEFAULT_HOME_DOCUMENT_V2);
 }
 
+export function isUngroupedGroup(group: Pick<HomeGroup, "id">): boolean {
+  return group.id === UNGROUPED_GROUP_ID;
+}
+
+export function createUngroupedGroup(sites: HomeSite[] = []): HomeGroup {
+  return {
+    id: UNGROUPED_GROUP_ID,
+    title: "未分组",
+    keywords: "未分组 ungrouped uncategorized",
+    order: 0,
+    sites: renumberSites(sites)
+  };
+}
+
 export function normalizeRevision(value: unknown): number {
   const revision = Math.trunc(Number(value));
   if (!Number.isFinite(revision) || revision < 0) {
@@ -264,11 +286,18 @@ export function sortByOrder<T extends { order: number }>(items: T[]): T[] {
 }
 
 export function renumberGroups(groups: HomeGroup[]): HomeGroup[] {
-  return sortByOrder(groups).map((group, groupIndex) => ({
-    ...group,
-    order: groupIndex + 1,
-    sites: renumberSites(group.sites)
-  }));
+  const sortedGroups = sortByOrder(groups);
+  const existingUngrouped = sortedGroups.find(isUngroupedGroup);
+  const regularGroups = sortedGroups.filter((group) => !isUngroupedGroup(group));
+
+  return [
+    createUngroupedGroup(existingUngrouped?.sites ?? []),
+    ...regularGroups.map((group, groupIndex) => ({
+      ...group,
+      order: groupIndex + 1,
+      sites: renumberSites(group.sites)
+    }))
+  ];
 }
 
 export function renumberSites(sites: HomeSite[]): HomeSite[] {
@@ -291,12 +320,7 @@ export function normalizeHomeDocument(input: unknown): HomeDocumentV2 {
     throw new Error("Invalid HomeDocumentV2");
   }
 
-  const groups = input.groups.map(normalizeGroup).sort((a, b) => a.order - b.order)
-    .map((group, groupIndex) => ({
-      ...group,
-      order: groupIndex + 1,
-      sites: renumberSites(group.sites)
-    }));
+  const groups = renumberGroups(input.groups.map(normalizeGroup));
 
   return {
     version: HOME_DOCUMENT_VERSION,
