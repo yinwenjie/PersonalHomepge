@@ -13,6 +13,7 @@
 - `implementation/phase-1/Phase1_1_Implement.md`：Phase 1.1，本地可编辑首页。
 - `implementation/phase-1/Phase1_2_Implement.md`：Phase 1.2，统一数据结构与 Next.js 迁移。
 - `implementation/phase-1/Phase1_3_Implement.md`：Phase 1.3，同步码跨设备同步；包含 Phase 1.3.1 之后的后续实施记录。
+- `implementation/phase-1/Phase1_4_Implement.md`：Phase 1.4，前端展示页与编辑交互优化。
 
 ## Tech Stack
 
@@ -37,3 +38,4 @@
 ## Backlog
 
 - `backlog/SyncAutoRequestOptimization.md`：同步请求优化备忘。
+- `backlog/AccountHomeSyncBacklog.md`：Supabase Auth 与账号首页同步 backlog。

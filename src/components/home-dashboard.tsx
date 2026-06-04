@@ -1,6 +1,8 @@
 "use client";
 
 import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   createDefaultHomeDocument,
   createId,
@@ -9,6 +11,7 @@ import {
   HomeGroup,
   HomeSite,
   HomeSyncMeta,
+  isUngroupedGroup,
   isValidUrl,
   migrateV1ToV2,
   nextRevision,
@@ -51,9 +54,15 @@ const EMPTY_FORM_VALUES: FormValues = {
 };
 const ONBOARDING_STORAGE_KEY = "homepage:onboarding:v1";
 
-export function HomeDashboard() {
+interface HomeDashboardProps {
+  surface?: "home" | "edit";
+}
+
+export function HomeDashboard({ surface = "home" }: HomeDashboardProps) {
+  const router = useRouter();
+  const isEditPage = surface === "edit";
   const [homeDocument, setHomeDocument] = useState<HomeDocumentV2>(() => createDefaultHomeDocument());
-  const [editMode, setEditMode] = useState(false);
+  const editMode = isEditPage;
   const [activeQuery, setActiveQuery] = useState("");
   const [saveStatus, setSaveStatus] = useState("");
   const [todayLabel, setTodayLabel] = useState("");
@@ -101,11 +110,14 @@ export function HomeDashboard() {
       });
 
       return { group, sites };
-    }).filter(({ sites }) => editMode || sites.length > 0);
+    }).filter(({ group, sites }) => isUngroupedGroup(group) || editMode || sites.length > 0);
   }, [activeQuery, editMode, homeDocument.groups]);
 
   const visibleCount = filteredGroups.reduce((sum, { sites }) => sum + sites.length, 0);
   const dragDisabled = Boolean(normalizeText(activeQuery));
+  const regularGroupCount = homeDocument.groups.filter((group) => !isUngroupedGroup(group)).length;
+  const siteCount = homeDocument.groups.reduce((sum, group) => sum + group.sites.length, 0);
+  const ungroupedCount = homeDocument.groups.find(isUngroupedGroup)?.sites.length ?? 0;
 
   function commitHomeDocument(nextDocument: HomeDocumentV2, message = "已保存") {
     const normalized = normalizeHomeDocument({
@@ -313,7 +325,7 @@ export function HomeDashboard() {
 
   function openSyncCodeSetup() {
     completeOnboarding();
-    setEditMode(true);
+    router.push("/edit");
     setSaveStatus("请在同步码面板输入同步码");
   }
 
@@ -328,7 +340,7 @@ export function HomeDashboard() {
     repositoryRef.current?.save(blankDocument);
     setHomeDocument(blankDocument);
     completeOnboarding();
-    setEditMode(true);
+    router.push("/edit");
     setSaveStatus("已从空白首页开始");
   }
 
@@ -409,27 +421,25 @@ export function HomeDashboard() {
   }
 
   return (
-    <main className="page">
-      <header className="masthead">
-        <div>
-          <p className="eyebrow">{todayLabel || "Home"}</p>
-          <h1>Home</h1>
-        </div>
-        <div className="header-side">
-          <span className="sync-pill">
-            <span className="dot" />
-            {formatSyncStatus(homeDocument.syncMeta)}
-          </span>
-          <button className="utility-button" type="button" onClick={() => {
-            setEditMode((value) => !value);
-            setSaveStatus(editMode ? "" : "本地编辑");
-          }}>
-            {editMode ? "完成" : "编辑"}
-          </button>
-        </div>
-      </header>
+    <main className={isEditPage ? "page edit-page" : "page"}>
+      {isEditPage ? (
+        <header className="edit-page-header">
+          <div>
+            <p className="eyebrow">Settings</p>
+            <h1>编辑首页</h1>
+          </div>
+          <Link className="utility-button" href="/">返回首页</Link>
+        </header>
+      ) : (
+        <header className="masthead">
+          <div>
+            <p className="eyebrow">{todayLabel || "Home"}</p>
+            <h1>Home</h1>
+          </div>
+        </header>
+      )}
 
-      {showWelcome ? (
+      {showWelcome && !isEditPage ? (
         <section className="welcome-strip" aria-label="新用户启动选项">
           <div className="welcome-copy">
             <strong>开始设置你的首页</strong>
@@ -440,6 +450,27 @@ export function HomeDashboard() {
             <button className="utility-button" type="button" onClick={openSyncCodeSetup}>输入同步码</button>
             <button className="utility-button" type="button" onClick={startBlankHome}>空白开始</button>
             <button className="mini-button" type="button" onClick={dismissWelcome} aria-label="稍后再设置">稍后</button>
+          </div>
+        </section>
+      ) : null}
+
+      {isEditPage ? (
+        <section className="edit-page-summary" aria-label="首页概览">
+          <div>
+            <strong>{regularGroupCount}</strong>
+            <span>分组</span>
+          </div>
+          <div>
+            <strong>{ungroupedCount}</strong>
+            <span>未分组</span>
+          </div>
+          <div>
+            <strong>{siteCount}</strong>
+            <span>网站</span>
+          </div>
+          <div>
+            <strong>{homeDocument.syncMeta.status}</strong>
+            <span>同步状态</span>
           </div>
         </section>
       ) : null}
@@ -486,6 +517,21 @@ export function HomeDashboard() {
         onReplaceDocument={replaceHomeDocument}
         onSyncMetaChange={updateSyncMeta}
       />
+
+      {isEditPage ? (
+        <section className="editor-panel account-placeholder" aria-label="账号登录">
+          <div className="panel-header">
+            <h2>账号</h2>
+            <span>Phase 1.5</span>
+          </div>
+          <label className="field">
+            <span>邮箱</span>
+            <input value="" placeholder="you@example.com" disabled readOnly />
+          </label>
+          <button className="utility-button" type="button" disabled>登录即将支持</button>
+          <p className="save-status">账号登录和账号首页同步将在 Phase 1.5 实现。</p>
+        </section>
+      ) : null}
 
       <div className="workspace">
         <SiteCollection
@@ -570,22 +616,4 @@ function parseImportedDocument(input: unknown): HomeDocumentV2 {
   } catch {
     return migrateV1ToV2(input);
   }
-}
-
-function formatSyncStatus(syncMeta: HomeSyncMeta): string {
-  if (syncMeta.mode === "local") {
-    return "仅本地";
-  }
-
-  const labels: Record<HomeSyncMeta["status"], string> = {
-    "local-only": "仅本地",
-    linked: "已绑定",
-    syncing: "同步中",
-    synced: "已同步",
-    offline: "离线",
-    conflict: "有冲突",
-    error: "同步失败"
-  };
-
-  return labels[syncMeta.status];
 }
