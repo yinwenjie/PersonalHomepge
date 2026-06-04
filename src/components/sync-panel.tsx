@@ -22,7 +22,7 @@ interface SyncPanelProps {
 
 const AUTO_PUSH_DEBOUNCE_MS = 1800;
 const AUTO_PULL_COOLDOWN_MS = 10000;
-const AUTO_PULL_INTERVAL_MS = 30000;
+const AUTO_PULL_INTERVAL_MS = 60000;
 
 export function SyncPanel({
   documentValue,
@@ -116,7 +116,8 @@ export function SyncPanel({
       ...activeBinding,
       remoteRevision: pulled.revision,
       lastSyncedAt: pulled.updatedAt,
-      lastSyncedDocumentRevision: pulled.document.revision
+      lastSyncedDocumentRevision: pulled.document.revision,
+      lastSyncedDocumentUpdatedAt: pulled.document.updatedAt
     };
     persistBinding(nextBinding);
     onReplaceDocument({
@@ -125,45 +126,37 @@ export function SyncPanel({
     }, statusMessage);
   }, [onReplaceDocument, persistBinding]);
 
-  const performPull = useCallback(async (options: { forceApply: boolean; source: "auto" | "manual" | "resolve" }) => {
+  const performPull = useCallback(async (options: { forceApply: boolean; source: "auto" | "manual" | "resolve" | "startup" }) => {
     const activeBinding = bindingRef.current;
     if (!activeBinding) {
       setError("请先创建或输入同步码。");
       return;
     }
 
-    if (activeBinding.remoteRevision > 0 && documentRef.current.syncMeta.status === "conflict" && !options.forceApply) {
+    if (documentRef.current.syncMeta.status === "conflict" && !options.forceApply) {
       setMessage("当前有冲突，请先选择云端版本或本地版本。");
       return;
-    }
-
-    if (options.source === "auto") {
-      if (editorOpenRef.current) {
-        return;
-      }
-
-      const now = Date.now();
-      if (now - lastAutoPullAtRef.current < AUTO_PULL_COOLDOWN_MS) {
-        return;
-      }
-      lastAutoPullAtRef.current = now;
     }
 
     await runSyncAction(async () => {
       setSyncMetaFromBinding(activeBinding, "syncing", "正在拉取云端");
       const pulled = await getSyncRepository().pull(activeBinding);
       const localDocument = documentRef.current;
-      const hasRemoteChanges = pulled.revision > activeBinding.remoteRevision;
-      const hasPendingLocalChanges = localDocument.revision > activeBinding.lastSyncedDocumentRevision;
+      const hasRemoteChanges = hasRemoteSnapshotChanged(pulled.revision, pulled.updatedAt, activeBinding);
+      const hasPendingLocalChanges = hasLocalDocumentChanges(localDocument, activeBinding);
       const shouldApplyConflictCloudVersion = options.forceApply && localDocument.syncMeta.status === "conflict";
 
       if (!hasRemoteChanges && !shouldApplyConflictCloudVersion) {
         const nextBinding: StoredSyncBinding = {
           ...activeBinding,
+          remoteRevision: pulled.revision,
           lastSyncedAt: pulled.updatedAt,
           lastSyncedDocumentRevision: hasPendingLocalChanges
             ? activeBinding.lastSyncedDocumentRevision
-            : localDocument.revision
+            : localDocument.revision,
+          lastSyncedDocumentUpdatedAt: hasPendingLocalChanges
+            ? activeBinding.lastSyncedDocumentUpdatedAt
+            : localDocument.updatedAt
         };
         persistBinding(nextBinding);
         setSyncMetaFromBinding(nextBinding, hasPendingLocalChanges ? "linked" : "synced", hasPendingLocalChanges ? "有本地修改待上传" : "已是最新");
@@ -190,6 +183,39 @@ export function SyncPanel({
     }, { exposeBusy: options.source !== "auto" });
   }, [applyCloudDocument, getSyncRepository, persistBinding, runSyncAction, setSyncMetaFromBinding]);
 
+  const performAutoRevisionCheck = useCallback(async () => {
+    const activeBinding = bindingRef.current;
+    if (!activeBinding || busyRef.current || documentRef.current.syncMeta.status === "conflict" || editorOpenRef.current) {
+      return;
+    }
+
+    const now = Date.now();
+    if (now - lastAutoPullAtRef.current < AUTO_PULL_COOLDOWN_MS) {
+      return;
+    }
+    lastAutoPullAtRef.current = now;
+
+    let shouldPull = false;
+    await runSyncAction(async () => {
+      const checked = await getSyncRepository().check(activeBinding);
+      shouldPull = hasRemoteSnapshotChanged(checked.revision, checked.updatedAt, activeBinding);
+      if (!shouldPull) {
+        const nextBinding: StoredSyncBinding = {
+          ...activeBinding,
+          remoteRevision: checked.revision,
+          lastSyncedAt: checked.updatedAt
+        };
+        const hasPendingLocalChanges = hasLocalDocumentChanges(documentRef.current, nextBinding);
+        persistBinding(nextBinding);
+        setSyncMetaFromBinding(nextBinding, hasPendingLocalChanges ? "linked" : "synced", hasPendingLocalChanges ? "有本地修改待上传" : "云端无更新");
+      }
+    }, { exposeBusy: false });
+
+    if (shouldPull && bindingRef.current) {
+      await performPull({ forceApply: false, source: "auto" });
+    }
+  }, [getSyncRepository, performPull, persistBinding, runSyncAction, setSyncMetaFromBinding]);
+
   const performPush = useCallback(async (options: { force: boolean; source: "auto" | "manual" | "resolve" }) => {
     const activeBinding = bindingRef.current;
     if (!activeBinding) {
@@ -203,7 +229,7 @@ export function SyncPanel({
       return;
     }
 
-    if (!options.force && localDocument.revision <= activeBinding.lastSyncedDocumentRevision) {
+    if (!options.force && !hasLocalDocumentChanges(localDocument, activeBinding)) {
       setMessage("没有待上传的本地修改。");
       return;
     }
@@ -221,7 +247,8 @@ export function SyncPanel({
           ...activeBinding,
           remoteRevision: result.revision,
           lastSyncedAt: result.updatedAt,
-          lastSyncedDocumentRevision: localDocument.revision
+          lastSyncedDocumentRevision: localDocument.revision,
+          lastSyncedDocumentUpdatedAt: localDocument.updatedAt
         };
         persistBinding(nextBinding);
         setSyncMetaFromBinding(nextBinding, "synced", "本地版本已覆盖云端");
@@ -246,7 +273,8 @@ export function SyncPanel({
         ...activeBinding,
         remoteRevision: result.revision,
         lastSyncedAt: result.updatedAt,
-        lastSyncedDocumentRevision: localDocument.revision
+        lastSyncedDocumentRevision: localDocument.revision,
+        lastSyncedDocumentUpdatedAt: localDocument.updatedAt
       };
       persistBinding(nextBinding);
       setSyncMetaFromBinding(nextBinding, "synced", options.source === "auto" ? "已自动上传本地首页" : "已上传本地首页");
@@ -271,7 +299,7 @@ export function SyncPanel({
     setSyncCode(formatSyncCode(storedBinding));
     setSyncMetaFromBinding(storedBinding, "linked", "已读取本机同步码");
     window.setTimeout(() => {
-      performPull({ forceApply: false, source: "auto" });
+      performPull({ forceApply: false, source: "startup" });
     }, 0);
   }, [performPull, persistBinding, setSyncMetaFromBinding, storageReady]);
 
@@ -283,7 +311,7 @@ export function SyncPanel({
         && !busyRef.current
         && documentRef.current.syncMeta.status !== "conflict"
       ) {
-        performPull({ forceApply: false, source: "auto" });
+        performAutoRevisionCheck();
       }
     }
 
@@ -297,7 +325,7 @@ export function SyncPanel({
       document.removeEventListener("visibilitychange", requestAutoPull);
       window.clearInterval(intervalId);
     };
-  }, [performPull]);
+  }, [performAutoRevisionCheck]);
 
   useEffect(() => {
     const activeBinding = binding;
@@ -305,7 +333,7 @@ export function SyncPanel({
       return;
     }
 
-    if (documentValue.revision <= activeBinding.lastSyncedDocumentRevision) {
+    if (!hasLocalDocumentChanges(documentValue, activeBinding)) {
       return;
     }
 
@@ -322,7 +350,7 @@ export function SyncPanel({
         clearTimeout(autoPushTimerRef.current);
       }
     };
-  }, [binding, documentValue.revision, documentValue.syncMeta.status, performPush]);
+  }, [binding, documentValue, performPush]);
 
   const statusText = useMemo(() => {
     if (!binding) {
@@ -344,7 +372,8 @@ export function SyncPanel({
         encryptionKey: secrets.encryptionKey,
         remoteRevision: result.revision,
         lastSyncedAt: result.updatedAt,
-        lastSyncedDocumentRevision: documentRef.current.revision
+        lastSyncedDocumentRevision: documentRef.current.revision,
+        lastSyncedDocumentUpdatedAt: documentRef.current.updatedAt
       };
 
       persistBinding(nextBinding);
@@ -367,7 +396,8 @@ export function SyncPanel({
         ...parsed,
         remoteRevision: pulled.revision,
         lastSyncedAt: pulled.updatedAt,
-        lastSyncedDocumentRevision: pulled.document.revision
+        lastSyncedDocumentRevision: pulled.document.revision,
+        lastSyncedDocumentUpdatedAt: pulled.document.updatedAt
       };
       persistBinding(nextBinding);
       setSyncCode(formatSyncCode(nextBinding));
@@ -517,6 +547,19 @@ function formatShortDateTime(value: string): string {
     hour: "2-digit",
     minute: "2-digit"
   }).format(new Date(value));
+}
+
+function hasRemoteSnapshotChanged(revision: number, updatedAt: string, binding: StoredSyncBinding): boolean {
+  return revision !== binding.remoteRevision || updatedAt !== binding.lastSyncedAt;
+}
+
+function hasLocalDocumentChanges(documentValue: HomeDocumentV2, binding: StoredSyncBinding): boolean {
+  if (!binding.lastSyncedDocumentUpdatedAt) {
+    return documentValue.revision !== binding.lastSyncedDocumentRevision;
+  }
+
+  return documentValue.revision !== binding.lastSyncedDocumentRevision
+    || documentValue.updatedAt !== binding.lastSyncedDocumentUpdatedAt;
 }
 
 function isLikelyOfflineError(error: unknown): boolean {

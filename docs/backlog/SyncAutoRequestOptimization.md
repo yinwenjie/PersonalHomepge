@@ -4,7 +4,9 @@
 
 当前首页已经支持同步码机制。绑定同步码后，前端会通过 Supabase RPC 自动拉取和自动上传首页数据，保证多浏览器、多设备之间的数据尽快一致。
 
-这个机制在 MVP 阶段可用，但它存在一个后续需要优化的点：自动拉取目前使用固定轮询和焦点触发，会在用户没有任何修改时也持续访问 Supabase。
+这个机制在 MVP 阶段可用，但它存在一个后续需要优化的点：自动拉取早期使用固定轮询和焦点触发，会在用户没有任何修改时也持续访问 Supabase。
+
+Phase 1.3.4 已开始落地 Phase A/B：保留页面刷新时的完整拉取，后台自动同步改为每 1 分钟先执行轻量 revision check，只有云端变化时才完整拉取。
 
 ## 当前请求逻辑
 
@@ -15,7 +17,7 @@
 - 页面启动并读取到本机同步码绑定后，立即自动拉取一次。
 - 浏览器窗口重新获得焦点时尝试拉取。
 - 页面从隐藏变为可见时尝试拉取。
-- 页面打开期间每 30 秒尝试拉取一次。
+- 页面打开期间每 1 分钟尝试检查一次。
 
 自动拉取的保护条件：
 
@@ -25,7 +27,7 @@
 - 编辑弹窗打开时不自动拉取。
 - 自动拉取有 10 秒 cooldown，避免焦点和可见性事件连续触发。
 
-注意：当前 `pull_sync_space` 会更新 `last_pulled_at`，因此它不是纯读请求；每次自动拉取都会造成一次数据库写操作。
+注意：`pull_sync_space` 会更新 `last_pulled_at`，因此它不是纯读请求。Phase 1.3.4 后，focus、visibilitychange 和定时轮询先调用 `check_sync_space_revision`；只有发现云端变化才调用 `pull_sync_space`。
 
 ### 自动上传
 
@@ -43,7 +45,7 @@
 - 必须已绑定同步码。
 - 当前不是冲突状态。
 - 当前没有正在进行的同步请求。
-- 本地 `documentValue.revision` 必须大于 `binding.lastSyncedDocumentRevision`。
+- 本地 `documentValue.revision` 或 `documentValue.updatedAt` 必须不同于上次成功同步记录。
 
 ## 风险
 
@@ -54,25 +56,25 @@
 
 ## 后续优化方向
 
-### Phase A：降低轮询频率
+### Phase A：降低轮询频率（Phase 1.3.4 已实施）
 
 短期可将自动拉取策略调整为：
 
 - 页面启动时拉取一次。
 - 浏览器重新获得焦点时拉取一次。
-- 固定轮询从 30 秒改为 2-5 分钟。
+- 固定轮询从 30 秒改为 1 分钟。
 - 页面隐藏时不轮询。
 
 这个方案改动小，能立即降低大多数无效请求。
 
-### Phase B：增加轻量 revision check
+### Phase B：增加轻量 revision check（Phase 1.3.4 已实施）
 
 新增一个只返回 `revision` 和 `updated_at` 的 RPC，例如 `check_sync_space_revision`。
 
 流程：
 
 - 自动同步先调用轻量 revision check。
-- 只有云端 `revision` 大于本地记录的 `remoteRevision` 时，才调用完整 `pull_sync_space`。
+- 只有云端 `revision` 或 `updated_at` 不同于本地记录时，才调用完整 `pull_sync_space`。
 - `check_sync_space_revision` 不更新 `last_pulled_at`，避免把检查行为变成数据库写。
 
 这个方案可以显著减少完整文档密文传输和数据库写入。
@@ -98,10 +100,11 @@
 
 ## 建议优先级
 
-近期优先做 Phase A 和 Phase B：
+Phase 1.3.4 已处理：
 
-1. 把固定 30 秒轮询调低到 2-5 分钟。
+1. 把固定 30 秒轮询调低到 1 分钟。
 2. 新增纯读 revision check RPC。
 3. 自动拉取改为先 check，再按需 pull。
+4. revision 当前测试上限为 `140`，超过后回到 `0`，正式上线前应调整为 `999`。
 
 这两步成本低，收益明确，不影响现有同步码协议和前端数据结构。
