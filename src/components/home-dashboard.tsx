@@ -254,13 +254,14 @@ export function HomeDashboard({ surface = "home" }: HomeDashboardProps) {
     const group = findGroup(homeDocument, groupId);
     const site = findSite(group, siteId);
     if (!group || !site || !window.confirm(`删除网站“${site.name}”？`)) {
-      return;
+      return false;
     }
 
     const groups = homeDocument.groups.map((item) => item.id === groupId
       ? { ...item, sites: renumberSites(item.sites.filter((candidate) => candidate.id !== siteId)) }
       : item);
     commitHomeDocument({ ...homeDocument, groups: renumberGroups(groups) }, "网站已删除");
+    return true;
   }
 
   function exportJson() {
@@ -592,8 +593,23 @@ export function HomeDashboard({ surface = "home" }: HomeDashboardProps) {
               <p className="form-error">{formError}</p>
             </div>
             <div className="editor-footer">
-              <button className="utility-button" type="button" onClick={closeEditor}>取消</button>
-              <button className="utility-button" type="submit">保存</button>
+              {editor.kind === "site" && editor.mode === "edit" ? (
+                <button
+                  className="danger-button"
+                  type="button"
+                  onClick={() => {
+                    if (deleteSite(editor.groupId, editor.siteId)) {
+                      closeEditor();
+                    }
+                  }}
+                >
+                  删除
+                </button>
+              ) : <span />}
+              <div className="editor-footer-actions">
+                <button className="utility-button" type="button" onClick={closeEditor}>取消</button>
+                <button className="utility-button" type="submit">保存</button>
+              </div>
             </div>
           </form>
         </div>
