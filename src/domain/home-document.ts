@@ -1,5 +1,5 @@
 export const HOME_DOCUMENT_VERSION = 2;
-export const SYNC_REVISION_MAX = 140;
+export const SYNC_REVISION_MAX = 999;
 export const V1_STORAGE_KEY = "homepage:data:v1";
 export const V2_STORAGE_KEY = "homepage:document:v2";
 
