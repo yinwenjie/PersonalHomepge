@@ -24,7 +24,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { UniqueIdentifier } from "@dnd-kit/core";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   HomeDocumentV2,
   HomeGroup,
@@ -107,10 +107,45 @@ export function SiteCollection({
   onDeleteSite
 }: SiteCollectionProps) {
   const [activeItem, setActiveItem] = useState<DragItem | null>(null);
+  const [openActionSiteId, setOpenActionSiteId] = useState<string | null>(null);
+  const [openActionGroupId, setOpenActionGroupId] = useState<string | null>(null);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
+
+  useEffect(() => {
+    if (!openActionSiteId && !openActionGroupId) {
+      return undefined;
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target;
+      if (!(target instanceof Element)) {
+        return;
+      }
+
+      if (target.closest("[data-action-menu]") || target.closest("[data-action-toggle]")) {
+        return;
+      }
+
+      closeActionMenus();
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        closeActionMenus();
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [openActionGroupId, openActionSiteId]);
 
   const activeLabel = useMemo(() => {
     if (!activeItem) {
@@ -140,6 +175,7 @@ export function SiteCollection({
     const activeData = toDragItem(event.active.data.current, event.active.id, documentValue.groups);
     const overData = toDragItem(event.over?.data.current, event.over?.id, documentValue.groups);
     setActiveItem(null);
+    closeActionMenus();
 
     if (!activeData || !overData || dragDisabled) {
       return;
@@ -230,6 +266,21 @@ export function SiteCollection({
     }, "网站已移动");
   }
 
+  function closeActionMenus() {
+    setOpenActionSiteId(null);
+    setOpenActionGroupId(null);
+  }
+
+  function toggleSiteActionMenu(siteId: string) {
+    setOpenActionGroupId(null);
+    setOpenActionSiteId((current) => current === siteId ? null : siteId);
+  }
+
+  function toggleGroupActionMenu(groupId: string) {
+    setOpenActionSiteId(null);
+    setOpenActionGroupId((current) => current === groupId ? null : groupId);
+  }
+
   return (
     <DndContext
       id="site-collection-dnd"
@@ -237,7 +288,10 @@ export function SiteCollection({
       collisionDetection={pointerFirstCollisionDetection}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
-      onDragCancel={() => setActiveItem(null)}
+      onDragCancel={() => {
+        setActiveItem(null);
+        closeActionMenus();
+      }}
     >
       <SortableContext items={regularGroups.map(({ group }) => groupDragId(group.id))} strategy={verticalListSortingStrategy}>
         <section className="sections" aria-label="常用网站导航">
@@ -247,8 +301,11 @@ export function SiteCollection({
               sites={ungroupedEntry.sites}
               editMode={editMode}
               dragDisabled={dragDisabled}
+              openActionSiteId={openActionSiteId}
               onOpenSiteEditor={onOpenSiteEditor}
               onDeleteSite={onDeleteSite}
+              onToggleActionMenu={toggleSiteActionMenu}
+              onCloseActionMenu={closeActionMenus}
             />
           ) : null}
           {regularGroups.map(({ group, sites }) => (
@@ -258,10 +315,15 @@ export function SiteCollection({
               sites={sites}
               editMode={editMode}
               dragDisabled={dragDisabled}
+              openActionSiteId={openActionSiteId}
+              actionMenuOpen={openActionGroupId === group.id}
               onOpenGroupEditor={onOpenGroupEditor}
               onOpenSiteEditor={onOpenSiteEditor}
               onDeleteGroup={onDeleteGroup}
               onDeleteSite={onDeleteSite}
+              onToggleSiteActionMenu={toggleSiteActionMenu}
+              onToggleGroupActionMenu={toggleGroupActionMenu}
+              onCloseActionMenu={closeActionMenus}
             />
           ))}
           {visibleCount === 0 && !editMode ? (
@@ -281,10 +343,15 @@ interface SortableGroupProps {
   sites: HomeSite[];
   editMode: boolean;
   dragDisabled: boolean;
+  openActionSiteId: string | null;
+  actionMenuOpen: boolean;
   onOpenGroupEditor: (groupId?: string) => void;
   onOpenSiteEditor: (groupId: string, siteId?: string) => void;
   onDeleteGroup: (groupId: string) => void;
   onDeleteSite: (groupId: string, siteId: string) => void;
+  onToggleSiteActionMenu: (siteId: string) => void;
+  onToggleGroupActionMenu: (groupId: string) => void;
+  onCloseActionMenu: () => void;
 }
 
 interface UngroupedSectionProps {
@@ -292,8 +359,11 @@ interface UngroupedSectionProps {
   sites: HomeSite[];
   editMode: boolean;
   dragDisabled: boolean;
+  openActionSiteId: string | null;
   onOpenSiteEditor: (groupId: string, siteId?: string) => void;
   onDeleteSite: (groupId: string, siteId: string) => void;
+  onToggleActionMenu: (siteId: string) => void;
+  onCloseActionMenu: () => void;
 }
 
 function UngroupedSection({
@@ -301,8 +371,11 @@ function UngroupedSection({
   sites,
   editMode,
   dragDisabled,
+  openActionSiteId,
   onOpenSiteEditor,
-  onDeleteSite
+  onDeleteSite,
+  onToggleActionMenu,
+  onCloseActionMenu
 }: UngroupedSectionProps) {
   const {
     isOver,
@@ -315,6 +388,15 @@ function UngroupedSection({
 
   return (
     <article className="ungrouped-section" aria-label="未分组网站">
+      <button
+        className="ungrouped-add-button"
+        type="button"
+        onClick={() => onOpenSiteEditor(group.id)}
+        aria-label="在未分组中新增网站"
+        title="新增网站"
+      >
+        +
+      </button>
       <SortableContext items={sites.map((site) => siteDragId(site.id))} strategy={rectSortingStrategy}>
         <div ref={setDropRef} className={`links ungrouped-links ${isOver ? "is-drop-target" : ""}`}>
           {sites.map((site) => (
@@ -324,8 +406,11 @@ function UngroupedSection({
               site={site}
               editMode={editMode}
               dragDisabled={dragDisabled}
+              actionMenuOpen={openActionSiteId === site.id}
               onOpenSiteEditor={onOpenSiteEditor}
               onDeleteSite={onDeleteSite}
+              onToggleActionMenu={onToggleActionMenu}
+              onCloseActionMenu={onCloseActionMenu}
             />
           ))}
         </div>
@@ -339,10 +424,15 @@ function SortableGroup({
   sites,
   editMode,
   dragDisabled,
+  openActionSiteId,
+  actionMenuOpen,
   onOpenGroupEditor,
   onOpenSiteEditor,
   onDeleteGroup,
-  onDeleteSite
+  onDeleteSite,
+  onToggleSiteActionMenu,
+  onToggleGroupActionMenu,
+  onCloseActionMenu
 }: SortableGroupProps) {
   const {
     attributes,
@@ -374,25 +464,73 @@ function SortableGroup({
       <div className="section-meta">
         <div className="section-heading-row">
           <h2 className="section-title">{group.title}</h2>
-          <button
-            className="drag-handle group-drag-handle"
-            type="button"
-            aria-label={`拖拽排序分组 ${group.title}`}
-            title={dragDisabled ? "搜索时不可拖拽排序" : "拖拽排序分组"}
-            disabled={dragDisabled}
-            {...attributes}
-            {...listeners}
-          >
-            ⋮⋮
-          </button>
+          <div className="group-action-shell" aria-label={`${group.title} 操作`}>
+            <button
+              className="site-action-toggle group-action-toggle"
+              type="button"
+              onClick={() => onToggleGroupActionMenu(group.id)}
+              aria-label={`打开 ${group.title} 的操作菜单`}
+              aria-expanded={actionMenuOpen}
+              title="分组操作"
+              data-action-toggle
+            >
+              ⋯
+            </button>
+            {actionMenuOpen ? (
+              <div className="site-action-menu group-action-menu" data-action-menu>
+                <button
+                  className="site-menu-button"
+                  type="button"
+                  onClick={() => {
+                    onOpenGroupEditor(group.id);
+                    onCloseActionMenu();
+                  }}
+                  aria-label={`编辑 ${group.title}`}
+                >
+                  <span aria-hidden="true">✎</span>
+                  <span>编辑</span>
+                </button>
+                <button
+                  className="site-menu-button site-drag-menu-button"
+                  type="button"
+                  aria-label={`拖拽排序分组 ${group.title}`}
+                  title={dragDisabled ? "搜索时不可拖拽排序" : "拖拽排序分组"}
+                  disabled={dragDisabled}
+                  {...attributes}
+                  {...listeners}
+                >
+                  <span aria-hidden="true">⋮⋮</span>
+                  <span>拖动</span>
+                </button>
+                <button
+                  className="site-menu-button"
+                  type="button"
+                  onClick={() => {
+                    onOpenSiteEditor(group.id);
+                    onCloseActionMenu();
+                  }}
+                  aria-label={`在 ${group.title} 中新增网站`}
+                >
+                  <span aria-hidden="true">+</span>
+                  <span>新增网站</span>
+                </button>
+                <button
+                  className="site-menu-button is-danger"
+                  type="button"
+                  onClick={() => {
+                    onDeleteGroup(group.id);
+                    onCloseActionMenu();
+                  }}
+                  aria-label={`删除 ${group.title}`}
+                >
+                  <span aria-hidden="true">×</span>
+                  <span>删除</span>
+                </button>
+              </div>
+            ) : null}
+          </div>
         </div>
         <span className="section-count">{sites.length} / {group.sites.length}</span>
-        {editMode ? (
-          <div className="section-controls" aria-label={`${group.title} 操作`}>
-            <button className="mini-button" type="button" onClick={() => onOpenGroupEditor(group.id)} aria-label={`编辑 ${group.title}`}>改</button>
-            <button className="mini-button" type="button" onClick={() => onDeleteGroup(group.id)} aria-label={`删除 ${group.title}`}>×</button>
-          </div>
-        ) : null}
       </div>
       <SortableContext items={sites.map((site) => siteDragId(site.id))} strategy={rectSortingStrategy}>
         <div ref={setDropRef} className={`links ${isOver ? "is-drop-target" : ""}`}>
@@ -403,8 +541,11 @@ function SortableGroup({
               site={site}
               editMode={editMode}
               dragDisabled={dragDisabled}
+              actionMenuOpen={openActionSiteId === site.id}
               onOpenSiteEditor={onOpenSiteEditor}
               onDeleteSite={onDeleteSite}
+              onToggleActionMenu={onToggleSiteActionMenu}
+              onCloseActionMenu={onCloseActionMenu}
             />
           ))}
         </div>
@@ -418,8 +559,11 @@ interface SortableSiteTileProps {
   site: HomeSite;
   editMode: boolean;
   dragDisabled: boolean;
+  actionMenuOpen: boolean;
   onOpenSiteEditor: (groupId: string, siteId?: string) => void;
   onDeleteSite: (groupId: string, siteId: string) => void;
+  onToggleActionMenu: (siteId: string) => void;
+  onCloseActionMenu: () => void;
 }
 
 function SortableSiteTile({
@@ -427,8 +571,11 @@ function SortableSiteTile({
   site,
   editMode,
   dragDisabled,
+  actionMenuOpen,
   onOpenSiteEditor,
-  onDeleteSite
+  onDeleteSite,
+  onToggleActionMenu,
+  onCloseActionMenu
 }: SortableSiteTileProps) {
   const {
     attributes,
@@ -448,15 +595,11 @@ function SortableSiteTile({
   };
 
   return (
-    <div ref={setNodeRef} className={`site-tile ${editMode ? "is-editing" : ""} ${isDragging ? "is-dragging" : ""}`} style={style}>
+    <div ref={setNodeRef} className={`site-tile ${editMode ? "is-editing" : ""} ${isDragging ? "is-dragging" : ""} ${actionMenuOpen ? "is-menu-open" : ""}`} style={style}>
       {editMode ? (
         <div className="site-link is-editing">
           <SiteIcon site={site} />
           <span className="site-name">{site.name}</span>
-          <div className="site-controls" aria-label={`${site.name} 操作`}>
-            <button className="mini-button" type="button" onClick={() => onOpenSiteEditor(groupId, site.id)} aria-label={`编辑 ${site.name}`}>改</button>
-            <button className="mini-button" type="button" onClick={() => onDeleteSite(groupId, site.id)} aria-label={`删除 ${site.name}`}>×</button>
-          </div>
         </div>
       ) : (
         <a className="site-link" href={site.url} target="_blank" rel="noopener noreferrer">
@@ -464,17 +607,59 @@ function SortableSiteTile({
           <span className="site-name">{site.name}</span>
         </a>
       )}
-      <button
-        className="drag-handle site-drag-handle"
-        type="button"
-        aria-label={`拖拽移动网站 ${site.name}`}
-        title={dragDisabled ? "搜索时不可拖拽排序" : "拖拽移动网站"}
-        disabled={dragDisabled}
-        {...attributes}
-        {...listeners}
-      >
-        ⋮⋮
-      </button>
+      <div className="site-action-shell" aria-label={`${site.name} 操作`}>
+        <button
+          className="site-action-toggle"
+          type="button"
+          onClick={() => onToggleActionMenu(site.id)}
+          aria-label={`打开 ${site.name} 的操作菜单`}
+          aria-expanded={actionMenuOpen}
+          title="网站操作"
+          data-action-toggle
+        >
+          ⋯
+        </button>
+        {actionMenuOpen ? (
+          <div className="site-action-menu" data-action-menu>
+            <button
+              className="site-menu-button"
+              type="button"
+              onClick={() => {
+                onOpenSiteEditor(groupId, site.id);
+                onCloseActionMenu();
+              }}
+              aria-label={`编辑 ${site.name}`}
+            >
+              <span aria-hidden="true">✎</span>
+              <span>编辑</span>
+            </button>
+            <button
+              className="site-menu-button site-drag-menu-button"
+              type="button"
+              aria-label={`拖拽移动网站 ${site.name}`}
+              title={dragDisabled ? "搜索时不可拖拽排序" : "拖拽移动网站"}
+              disabled={dragDisabled}
+              {...attributes}
+              {...listeners}
+            >
+              <span aria-hidden="true">⋮⋮</span>
+              <span>拖动</span>
+            </button>
+            <button
+              className="site-menu-button is-danger"
+              type="button"
+              onClick={() => {
+                onDeleteSite(groupId, site.id);
+                onCloseActionMenu();
+              }}
+              aria-label={`删除 ${site.name}`}
+            >
+              <span aria-hidden="true">×</span>
+              <span>删除</span>
+            </button>
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
