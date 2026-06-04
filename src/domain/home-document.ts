@@ -1,4 +1,5 @@
 export const HOME_DOCUMENT_VERSION = 2;
+export const SYNC_REVISION_MAX = 140;
 export const V1_STORAGE_KEY = "homepage:data:v1";
 export const V2_STORAGE_KEY = "homepage:document:v2";
 
@@ -194,6 +195,20 @@ export function createDefaultHomeDocument(): HomeDocumentV2 {
   return clone(DEFAULT_HOME_DOCUMENT_V2);
 }
 
+export function normalizeRevision(value: unknown): number {
+  const revision = Math.trunc(Number(value));
+  if (!Number.isFinite(revision) || revision < 0) {
+    return 0;
+  }
+
+  return revision > SYNC_REVISION_MAX ? 0 : revision;
+}
+
+export function nextRevision(value: unknown): number {
+  const revision = normalizeRevision(value);
+  return revision >= SYNC_REVISION_MAX ? 0 : revision + 1;
+}
+
 export function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
@@ -287,7 +302,7 @@ export function normalizeHomeDocument(input: unknown): HomeDocumentV2 {
     version: HOME_DOCUMENT_VERSION,
     documentId: normalizeText(input.documentId) || createId("home"),
     updatedAt: normalizeText(input.updatedAt) || new Date().toISOString(),
-    revision: Number.isFinite(Number(input.revision)) ? Number(input.revision) : 0,
+    revision: normalizeRevision(input.revision),
     groups,
     widgets: normalizeWidgets(input.widgets),
     theme: normalizeTheme(input.theme),
@@ -410,7 +425,7 @@ function normalizeSyncMeta(input: unknown): HomeSyncMeta {
     provider,
     spaceId: mode === "sync-code" ? normalizeText(input.spaceId) || null : null,
     remoteRevision: mode === "sync-code" && Number.isFinite(Number(input.remoteRevision))
-      ? Number(input.remoteRevision)
+      ? normalizeRevision(input.remoteRevision)
       : null,
     lastSyncedAt: mode === "sync-code" ? normalizeText(input.lastSyncedAt) || null : null
   };

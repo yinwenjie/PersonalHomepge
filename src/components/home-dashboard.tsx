@@ -11,6 +11,7 @@ import {
   HomeSyncMeta,
   isValidUrl,
   migrateV1ToV2,
+  nextRevision,
   normalizeHomeDocument,
   normalizeSearchText,
   normalizeText,
@@ -109,7 +110,7 @@ export function HomeDashboard() {
   function commitHomeDocument(nextDocument: HomeDocumentV2, message = "已保存") {
     const normalized = normalizeHomeDocument({
       ...nextDocument,
-      revision: nextDocument.revision + 1,
+      revision: nextRevision(nextDocument.revision),
       updatedAt: new Date().toISOString()
     });
 
@@ -129,8 +130,7 @@ export function HomeDashboard() {
     setHomeDocument((currentDocument) => {
       const normalized = normalizeHomeDocument({
         ...currentDocument,
-        syncMeta,
-        updatedAt: new Date().toISOString()
+        syncMeta
       });
       repositoryRef.current?.save(normalized);
       return normalized;

@@ -1,3 +1,5 @@
+import { normalizeRevision } from "@/domain/home-document";
+
 export const SYNC_CODE_VERSION = 1;
 export const SYNC_CODE_PREFIX = "hp1";
 export const SYNC_BINDING_STORAGE_KEY = "homepage:sync-code:v1";
@@ -15,6 +17,7 @@ export interface StoredSyncBinding extends SyncCodeParts {
   remoteRevision: number;
   lastSyncedAt: string | null;
   lastSyncedDocumentRevision: number;
+  lastSyncedDocumentUpdatedAt: string | null;
 }
 
 export function createSyncSecrets(): Pick<SyncCodeParts, "accessToken" | "encryptionKey"> {
@@ -70,11 +73,12 @@ export function normalizeStoredSyncBinding(input: unknown): StoredSyncBinding | 
 
     return {
       ...parts,
-      remoteRevision: Number.isFinite(Number(value.remoteRevision)) ? Number(value.remoteRevision) : 0,
+      remoteRevision: normalizeRevision(value.remoteRevision),
       lastSyncedAt: typeof value.lastSyncedAt === "string" ? value.lastSyncedAt : null,
-      lastSyncedDocumentRevision: Number.isFinite(Number(value.lastSyncedDocumentRevision))
-        ? Number(value.lastSyncedDocumentRevision)
-        : 0
+      lastSyncedDocumentRevision: normalizeRevision(value.lastSyncedDocumentRevision),
+      lastSyncedDocumentUpdatedAt: typeof value.lastSyncedDocumentUpdatedAt === "string"
+        ? value.lastSyncedDocumentUpdatedAt
+        : null
     };
   } catch {
     return null;

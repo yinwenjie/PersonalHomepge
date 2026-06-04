@@ -18,6 +18,11 @@ interface PullSyncSpaceRow {
   updated_at: string;
 }
 
+interface CheckSyncSpaceRevisionRow {
+  revision: number;
+  updated_at: string;
+}
+
 interface PushSyncSpaceRow {
   status: "ok" | "conflict";
   revision: number;
@@ -43,6 +48,11 @@ export interface CreateSyncSpaceResult {
 
 export interface PullSyncSpaceResult {
   document: HomeDocumentV2;
+  revision: number;
+  updatedAt: string;
+}
+
+export interface CheckSyncSpaceRevisionResult {
   revision: number;
   updatedAt: string;
 }
@@ -75,6 +85,18 @@ export class SyncCodeRepository {
 
     return {
       document: documentValue,
+      revision: row.revision,
+      updatedAt: row.updated_at
+    };
+  }
+
+  async check(binding: Pick<StoredSyncBinding, "spaceId" | "accessToken">): Promise<CheckSyncSpaceRevisionResult> {
+    const row = await rpcSingle<CheckSyncSpaceRevisionRow>("check_sync_space_revision", {
+      p_space_id: binding.spaceId,
+      p_access_token: binding.accessToken
+    });
+
+    return {
       revision: row.revision,
       updatedAt: row.updated_at
     };
