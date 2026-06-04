@@ -380,6 +380,9 @@ h1 {
 
 .ungrouped-section {
   display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
   min-width: 0;
 }
 
@@ -403,6 +406,7 @@ h1 {
 }
 
 .section-heading-row {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -424,14 +428,6 @@ h1 {
   color: var(--quiet);
   font-size: 12px;
   font-weight: 480;
-}
-
-.section-controls,
-.site-controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 10px;
 }
 
 .links {
@@ -464,6 +460,7 @@ h1 {
 
 .site-tile {
   display: grid;
+  position: relative;
   grid-template-columns: minmax(0, 1fr) 30px;
   align-items: center;
   gap: 4px;
@@ -482,6 +479,10 @@ h1 {
 .site-tile.is-dragging,
 .section.is-dragging {
   opacity: 0.55;
+}
+
+.site-tile.is-menu-open {
+  z-index: 6;
 }
 
 .site-link {
@@ -505,6 +506,8 @@ h1 {
 .file-button:focus-visible,
 .mini-button:focus-visible,
 .danger-button:focus-visible,
+.site-action-toggle:focus-visible,
+.site-menu-button:focus-visible,
 .drag-handle:focus-visible {
   outline: 3px solid rgba(36, 107, 254, 0.18);
   outline-offset: 2px;
@@ -547,12 +550,137 @@ h1 {
   white-space: nowrap;
 }
 
+.site-action-shell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  justify-self: end;
+}
+
+.site-action-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 28px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--quiet);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.site-action-toggle:hover,
+.site-action-toggle[aria-expanded="true"] {
+  border-color: var(--line);
+  background: var(--surface-soft);
+  color: var(--accent);
+}
+
+.site-action-menu {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  z-index: 20;
+  display: grid;
+  gap: 3px;
+  min-width: 96px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 14px 36px rgba(29, 38, 51, 0.16);
+  transform: translateY(-50%);
+}
+
+.site-menu-button {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  min-height: 30px;
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1;
+  text-align: left;
+}
+
+.site-menu-button:hover {
+  border-color: var(--line);
+  background: var(--surface-soft);
+  color: var(--accent);
+}
+
+.site-menu-button.is-danger {
+  color: var(--danger);
+}
+
+.site-menu-button.is-danger:hover {
+  border-color: rgba(194, 65, 12, 0.2);
+  background: var(--danger-soft);
+}
+
+.group-action-shell {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.group-action-menu {
+  top: 0;
+  transform: none;
+}
+
+.ungrouped-add-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  min-height: 54px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--muted);
+  font-size: 18px;
+  font-weight: 560;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.ungrouped-add-button:hover,
+.ungrouped-add-button:focus-visible {
+  border-color: var(--line-strong);
+  background: var(--surface);
+  box-shadow: 0 10px 28px rgba(29, 38, 51, 0.09);
+  color: var(--accent);
+  outline: 0;
+  transform: translateY(-1px);
+}
+
+.site-drag-menu-button {
+  cursor: grab;
+  touch-action: none;
+}
+
+.site-drag-menu-button:active {
+  cursor: grabbing;
+}
+
 .drag-handle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 24px;
   border: 1px solid transparent;
   border-radius: var(--radius);
   background: transparent;
@@ -789,9 +917,16 @@ h1 {
 }
 
 .editor-footer {
-  justify-content: flex-end;
+  justify-content: space-between;
   border-top: 1px solid var(--line);
   border-bottom: 0;
+}
+
+.editor-footer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
 }
 
 .editor-title {
@@ -1045,15 +1180,6 @@ h1 {
 
   .site-link.is-editing {
     grid-template-columns: 32px minmax(0, 1fr);
-  }
-
-  .site-tile.is-editing {
-    grid-template-columns: minmax(0, 1fr) 30px;
-  }
-
-  .site-link.is-editing .site-controls {
-    grid-column: 1 / -1;
-    margin-top: 4px;
   }
 
   .sidebar {
