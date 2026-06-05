@@ -35,6 +35,35 @@ Account
 - 配置价值：同步语言、主题、字体、默认搜索引擎、组件默认行为等全局偏好。
 - 商业价值：作为 VIP 付费、空间数量、组件权限、历史版本、AI 额度等权益认证入口。
 
+## Deployment And Domain Roadmap
+
+账号系统、首页空间和域名体系后续应统一到一个稳定的主域名和空间路由模型下：
+
+- 短期：
+  - 继续使用 GitHub Pages。
+  - 绑定自购主域名，逐步摆脱 `/PersonalHomepge/` 项目路径。
+  - Supabase Auth 的 `Site URL` 和 `Redirect URLs` 切换到统一主域名。
+- 中期：
+  - 评估迁移到 Vercel 或 Cloudflare Pages。
+  - 如果未来重点是 Next.js DX、预览环境和平台化部署，优先评估 Vercel。
+  - 如果未来重点是 DNS、WAF、限流、Turnstile、R2 和 SaaS 域名托管，优先评估 Cloudflare。
+- 长期：
+  - VIP 用户支持自定义域名。
+  - 自定义域名应绑定到某个 `home_space`，而不是直接绑定账号。
+  - 编辑和账号管理仍通过主站后台完成；自定义域名默认服务于首页展示和访问，不直接暴露后台编辑入口。
+
+长期模型补充：
+
+```text
+Account
+  -> Home Spaces
+       -> Sync Codes
+       -> Custom Domains
+       -> Public/Private Access Mode
+```
+
+域名系统应服务于 `home_spaces`，因为未来一个账号下可以有多个首页空间，而不是只有一个首页。
+
 ## Requirement Table
 
 | 分类 | 需求 | 用户价值 | 实现要点 | 优先级 | 阶段建议 |
@@ -65,6 +94,9 @@ Account
 | 安全 | 操作审计日志 | 出问题可追踪 | 记录登录、认领、废弃、覆盖、切换 | P1 | Phase 1.6 |
 | 安全 | 数据导出 | 用户能迁移自己的配置 | 导出账号下空间索引和首页 JSON | P1 | Phase 1.6 |
 | 安全 | 账号删除 | 合规和用户控制 | 删除账号数据、空间、偏好和绑定 | P2 | Phase 1.8 |
+| 部署与域名 | 统一自购主域名 | 摆脱 GitHub Pages 项目路径，统一品牌入口 | 主站从 `/PersonalHomepge/` 迁移到根路径，自定义 `Site URL` 和 redirect | P1 | Phase 1.6 |
+| 部署与域名 | 评估迁移到 Vercel 或 Cloudflare | 为后续平台化部署和域名管理做准备 | 保持 `basePath` 可配置，逐步从 GitHub Pages 脱离 | P2 | Phase 1.7 |
+| 部署与域名 | VIP 自定义域名 | 高感知付费能力 | 每个 `home_space` 可绑定一个或多个自定义域名，需验证所有权和证书状态 | P1 | Phase 2 |
 | 付费权益 | VIP 状态认证 | 付费功能入口 | Stripe customer 和 entitlement 关联账号 | P0 | Phase 2 |
 | 付费权益 | 首页空间数量限制 | 免费/付费分层 | free 限制空间数，VIP 增加额度 | P1 | Phase 2 |
 | 付费权益 | 高级组件权限 | 组件商业化 | AI 额度、项目管理、股票、实时比分等 | P1 | Phase 2 |
@@ -172,6 +204,7 @@ Phase 1 暂不做：
 
 ### Phase 1.6
 
+- 继续 GitHub Pages，但绑定自购主域名，逐步切换到根路径部署。
 - 创建/重命名/删除首页空间。
 - 为已存在空间生成新的同步码。
 - 完整同步语言、字体、默认搜索引擎、主题偏好。
@@ -195,6 +228,7 @@ Phase 1 暂不做：
 
 - Stripe 会员。
 - VIP 权益认证。
+- 自定义域名绑定和验证。
 - 高级组件。
 - 空间数量限制。
 - 历史版本和回滚。
@@ -207,6 +241,8 @@ Phase 1 暂不做：
 - 同步码认领不能泄露同步码 secret；账号空间列表默认只展示空间元数据。
 - Supabase Auth session 配置变化可能影响现有同步码 RPC，需要完整回归。
 - GitHub Pages 是静态部署，需要提前验证 Auth redirect URL、base path 和 callback 行为。
+- 自购主域名上线后，`basePath`、Supabase Auth URL 配置和本地缓存域隔离都会变化，需要单独回归。
+- VIP 自定义域名不是简单 DNS 功能，而是 `home_space -> hostname` 的绑定系统，需要域名所有权验证、证书管理和空间路由。
 
 ## Recommended Position
 
