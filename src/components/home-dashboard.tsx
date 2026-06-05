@@ -1,103 +1,80 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
+import type { FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   createDefaultHomeDocument,
   createId,
-  generateMark,
-  HomeDocumentV2,
-  HomeGroup,
-  HomeSite,
-  HomeSyncMeta,
   isUngroupedGroup,
-  isValidUrl,
-  migrateV1ToV2,
-  nextRevision,
   normalizeHomeDocument,
   normalizeSearchText,
   normalizeText,
-  normalizeUrl,
-  renumberGroups,
-  renumberSites,
   sortByOrder
 } from "@/domain/home-document";
-import { LocalHomeRepository } from "@/infrastructure/home-repository";
+import { SYNC_BINDING_STORAGE_KEY } from "@/domain/sync-code";
+import { HomeDocumentEditorModal } from "@/components/home-document-editor-modal";
 import { SiteCollection } from "@/components/site-collection";
 import { SyncPanel } from "@/components/sync-panel";
 import { WidgetPanel } from "@/components/widget-panel";
-import { SYNC_BINDING_STORAGE_KEY } from "@/domain/sync-code";
+import { useHomeDocumentController } from "@/hooks/use-home-document-controller";
+import { useHomeDocumentEditor } from "@/hooks/use-home-document-editor";
 
-type EditorState =
-  | { kind: "group"; mode: "add" }
-  | { kind: "group"; mode: "edit"; groupId: string }
-  | { kind: "site"; mode: "add"; groupId: string }
-  | { kind: "site"; mode: "edit"; groupId: string; siteId: string };
-
-interface FormValues {
-  groupTitle: string;
-  groupKeywords: string;
-  siteName: string;
-  siteUrl: string;
-  siteKeywords: string;
-  siteMark: string;
-}
-
-const EMPTY_FORM_VALUES: FormValues = {
-  groupTitle: "",
-  groupKeywords: "",
-  siteName: "",
-  siteUrl: "",
-  siteKeywords: "",
-  siteMark: ""
-};
 const ONBOARDING_STORAGE_KEY = "homepage:onboarding:v1";
 
-interface HomeDashboardProps {
-  surface?: "home" | "edit";
-}
-
-export function HomeDashboard({ surface = "home" }: HomeDashboardProps) {
+export function HomeDashboard() {
   const router = useRouter();
-  const isEditPage = surface === "edit";
-  const [homeDocument, setHomeDocument] = useState<HomeDocumentV2>(() => createDefaultHomeDocument());
-  const editMode = isEditPage;
+  const {
+    homeDocument,
+    storageReady,
+    updatedLabel,
+    hasStoredDocument,
+    commitHomeDocument,
+    replaceHomeDocument,
+    updateSyncMeta
+  } = useHomeDocumentController();
+  const {
+    editor,
+    formValues,
+    formError,
+    openGroupEditor,
+    openSiteEditor,
+    closeEditor,
+    updateFormValue,
+    handleEditorSubmit,
+    deleteGroup,
+    deleteSite
+  } = useHomeDocumentEditor({ homeDocument, commitHomeDocument });
   const [activeQuery, setActiveQuery] = useState("");
-  const [saveStatus, setSaveStatus] = useState("");
   const [todayLabel, setTodayLabel] = useState("");
-  const [editor, setEditor] = useState<EditorState | null>(null);
-  const [formValues, setFormValues] = useState<FormValues>(EMPTY_FORM_VALUES);
-  const [formError, setFormError] = useState("");
-  const [storageReady, setStorageReady] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
-  const repositoryRef = useRef<LocalHomeRepository | null>(null);
-  const importInputRef = useRef<HTMLInputElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    repositoryRef.current = new LocalHomeRepository(window.localStorage);
-    const hasStoredDocument = repositoryRef.current.hasStoredDocument();
-    const hasSyncBinding = Boolean(window.localStorage.getItem(SYNC_BINDING_STORAGE_KEY));
-    const onboardingDone = window.localStorage.getItem(ONBOARDING_STORAGE_KEY) === "complete";
-    setHomeDocument(repositoryRef.current.load());
-    setShowWelcome(!hasStoredDocument && !hasSyncBinding && !onboardingDone);
-    setTodayLabel(new Intl.DateTimeFormat("zh-CN", {
-      weekday: "long",
-      month: "long",
-      day: "numeric"
-    }).format(new Date()));
-    setStorageReady(true);
+    const timerId = window.setTimeout(() => {
+      setTodayLabel(new Intl.DateTimeFormat("zh-CN", {
+        weekday: "long",
+        month: "long",
+        day: "numeric"
+      }).format(new Date()));
+    }, 0);
+
+    return () => window.clearTimeout(timerId);
   }, []);
 
-  const updatedLabel = useMemo(() => {
-    return new Intl.DateTimeFormat("zh-CN", {
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit"
-    }).format(new Date(homeDocument.updatedAt));
-  }, [homeDocument.updatedAt]);
+  useEffect(() => {
+    if (!storageReady) {
+      return;
+    }
+
+    const timerId = window.setTimeout(() => {
+      const hasSyncBinding = Boolean(window.localStorage.getItem(SYNC_BINDING_STORAGE_KEY));
+      const onboardingDone = window.localStorage.getItem(ONBOARDING_STORAGE_KEY) === "complete";
+      setShowWelcome(!hasStoredDocument && !hasSyncBinding && !onboardingDone);
+    }, 0);
+
+    return () => window.clearTimeout(timerId);
+  }, [hasStoredDocument, storageReady]);
 
   const filteredGroups = useMemo(() => {
     const keyword = normalizeSearchText(activeQuery);
@@ -110,200 +87,11 @@ export function HomeDashboard({ surface = "home" }: HomeDashboardProps) {
       });
 
       return { group, sites };
-    }).filter(({ group, sites }) => isUngroupedGroup(group) || editMode || sites.length > 0);
-  }, [activeQuery, editMode, homeDocument.groups]);
+    }).filter(({ group, sites }) => isUngroupedGroup(group) || sites.length > 0);
+  }, [activeQuery, homeDocument.groups]);
 
   const visibleCount = filteredGroups.reduce((sum, { sites }) => sum + sites.length, 0);
   const dragDisabled = Boolean(normalizeText(activeQuery));
-
-  function commitHomeDocument(nextDocument: HomeDocumentV2, message = "已保存") {
-    const normalized = normalizeHomeDocument({
-      ...nextDocument,
-      revision: nextRevision(nextDocument.revision),
-      updatedAt: new Date().toISOString()
-    });
-
-    repositoryRef.current?.save(normalized);
-    setHomeDocument(normalized);
-    setSaveStatus(message);
-  }
-
-  const replaceHomeDocument = useCallback((nextDocument: HomeDocumentV2, message: string) => {
-    const normalized = normalizeHomeDocument(nextDocument);
-    repositoryRef.current?.save(normalized);
-    setHomeDocument(normalized);
-    setSaveStatus(message);
-  }, []);
-
-  const updateSyncMeta = useCallback((syncMeta: HomeSyncMeta, message: string) => {
-    setHomeDocument((currentDocument) => {
-      const normalized = normalizeHomeDocument({
-        ...currentDocument,
-        syncMeta
-      });
-      repositoryRef.current?.save(normalized);
-      return normalized;
-    });
-    setSaveStatus(message);
-  }, []);
-
-  function openGroupEditor(groupId?: string) {
-    const group = groupId ? findGroup(homeDocument, groupId) : undefined;
-    setEditor(group ? { kind: "group", mode: "edit", groupId: group.id } : { kind: "group", mode: "add" });
-    setFormValues({
-      ...EMPTY_FORM_VALUES,
-      groupTitle: group?.title ?? "",
-      groupKeywords: group?.keywords ?? ""
-    });
-    setFormError("");
-  }
-
-  function openSiteEditor(groupId: string, siteId?: string) {
-    const group = findGroup(homeDocument, groupId);
-    const site = siteId ? findSite(group, siteId) : undefined;
-    if (!group) {
-      return;
-    }
-
-    setEditor(site
-      ? { kind: "site", mode: "edit", groupId, siteId: site.id }
-      : { kind: "site", mode: "add", groupId });
-    setFormValues({
-      ...EMPTY_FORM_VALUES,
-      siteName: site?.name ?? "",
-      siteUrl: site?.url ?? "",
-      siteKeywords: site?.keywords ?? "",
-      siteMark: site?.mark ?? ""
-    });
-    setFormError("");
-  }
-
-  function closeEditor() {
-    setEditor(null);
-    setFormError("");
-  }
-
-  function addGroup(title: string, keywords: string) {
-    const groups = sortByOrder(homeDocument.groups);
-    groups.push({
-      id: createId("group"),
-      title,
-      keywords,
-      order: groups.length + 1,
-      sites: []
-    });
-    commitHomeDocument({ ...homeDocument, groups: renumberGroups(groups) }, "分组已保存");
-  }
-
-  function updateGroup(groupId: string, title: string, keywords: string) {
-    const groups = homeDocument.groups.map((group) => group.id === groupId
-      ? { ...group, title, keywords }
-      : group);
-    commitHomeDocument({ ...homeDocument, groups: renumberGroups(groups) }, "分组已保存");
-  }
-
-  function deleteGroup(groupId: string) {
-    const group = findGroup(homeDocument, groupId);
-    if (!group || !window.confirm(`删除分组“${group.title}”及其中 ${group.sites.length} 个网站？`)) {
-      return;
-    }
-
-    commitHomeDocument({
-      ...homeDocument,
-      groups: renumberGroups(homeDocument.groups.filter((item) => item.id !== groupId))
-    }, "分组已删除");
-  }
-
-  function addSite(groupId: string, values: Pick<HomeSite, "name" | "url" | "keywords" | "mark">) {
-    const groups = homeDocument.groups.map((group) => {
-      if (group.id !== groupId) {
-        return group;
-      }
-
-      const sites = sortByOrder(group.sites);
-      sites.push({
-        id: createId("site"),
-        ...values,
-        order: sites.length + 1
-      });
-      return { ...group, sites: renumberSites(sites) };
-    });
-
-    commitHomeDocument({ ...homeDocument, groups: renumberGroups(groups) }, "网站已保存");
-  }
-
-  function updateSite(groupId: string, siteId: string, values: Pick<HomeSite, "name" | "url" | "keywords" | "mark">) {
-    const groups = homeDocument.groups.map((group) => {
-      if (group.id !== groupId) {
-        return group;
-      }
-
-      return {
-        ...group,
-        sites: renumberSites(group.sites.map((site) => site.id === siteId ? { ...site, ...values } : site))
-      };
-    });
-
-    commitHomeDocument({ ...homeDocument, groups: renumberGroups(groups) }, "网站已保存");
-  }
-
-  function deleteSite(groupId: string, siteId: string) {
-    const group = findGroup(homeDocument, groupId);
-    const site = findSite(group, siteId);
-    if (!group || !site || !window.confirm(`删除网站“${site.name}”？`)) {
-      return false;
-    }
-
-    const groups = homeDocument.groups.map((item) => item.id === groupId
-      ? { ...item, sites: renumberSites(item.sites.filter((candidate) => candidate.id !== siteId)) }
-      : item);
-    commitHomeDocument({ ...homeDocument, groups: renumberGroups(groups) }, "网站已删除");
-    return true;
-  }
-
-  function exportJson() {
-    const blob = new Blob([JSON.stringify(homeDocument, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `homepage-${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.append(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-  }
-
-  async function importJson(file: File | undefined) {
-    if (!file) {
-      return;
-    }
-
-    try {
-      const parsed = JSON.parse(await file.text()) as unknown;
-      const imported = parseImportedDocument(parsed);
-      if (!window.confirm("导入会覆盖当前本地首页，继续？")) {
-        return;
-      }
-
-      commitHomeDocument(imported, "已导入");
-    } catch {
-      window.alert("导入失败：JSON 格式不正确。");
-    } finally {
-      if (importInputRef.current) {
-        importInputRef.current.value = "";
-      }
-    }
-  }
-
-  function resetDefault() {
-    if (!window.confirm("恢复默认会清除当前浏览器中的本地编辑，继续？")) {
-      return;
-    }
-
-    repositoryRef.current?.reset();
-    setHomeDocument(createDefaultHomeDocument());
-    setSaveStatus("已恢复默认");
-  }
 
   function completeOnboarding() {
     window.localStorage.setItem(ONBOARDING_STORAGE_KEY, "complete");
@@ -311,20 +99,16 @@ export function HomeDashboard({ surface = "home" }: HomeDashboardProps) {
   }
 
   function keepDefaultTemplate() {
-    const normalized = normalizeHomeDocument({
+    replaceHomeDocument(normalizeHomeDocument({
       ...homeDocument,
       updatedAt: new Date().toISOString()
-    });
-    repositoryRef.current?.save(normalized);
-    setHomeDocument(normalized);
+    }), "已使用默认模板");
     completeOnboarding();
-    setSaveStatus("已使用默认模板");
   }
 
   function openSyncCodeSetup() {
     completeOnboarding();
     router.push("/edit");
-    setSaveStatus("请在同步码面板输入同步码");
   }
 
   function startBlankHome() {
@@ -335,68 +119,14 @@ export function HomeDashboard({ surface = "home" }: HomeDashboardProps) {
       groups: [],
       widgets: []
     });
-    repositoryRef.current?.save(blankDocument);
-    setHomeDocument(blankDocument);
+
+    replaceHomeDocument(blankDocument, "已从空白首页开始");
     completeOnboarding();
     router.push("/edit");
-    setSaveStatus("已从空白首页开始");
   }
 
   function dismissWelcome() {
     completeOnboarding();
-  }
-
-  function handleEditorSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!editor) {
-      return;
-    }
-
-    if (editor.kind === "group") {
-      const title = normalizeText(formValues.groupTitle);
-      const keywords = normalizeText(formValues.groupKeywords);
-      if (!title) {
-        setFormError("请输入分组名称。");
-        return;
-      }
-
-      if (editor.mode === "add") {
-        addGroup(title, keywords);
-      } else {
-        updateGroup(editor.groupId, title, keywords);
-      }
-      closeEditor();
-      return;
-    }
-
-    const name = normalizeText(formValues.siteName);
-    const rawUrl = normalizeText(formValues.siteUrl);
-    const keywords = normalizeText(formValues.siteKeywords);
-    const mark = normalizeText(formValues.siteMark).slice(0, 3) || generateMark(name);
-
-    if (!name) {
-      setFormError("请输入网站名称。");
-      return;
-    }
-
-    if (!isValidUrl(rawUrl)) {
-      setFormError("URL 只支持 http:// 或 https://。");
-      return;
-    }
-
-    const values = {
-      name,
-      url: normalizeUrl(rawUrl),
-      keywords,
-      mark
-    };
-
-    if (editor.mode === "add") {
-      addSite(editor.groupId, values);
-    } else {
-      updateSite(editor.groupId, editor.siteId, values);
-    }
-    closeEditor();
   }
 
   function handleSearchSubmit(event: FormEvent<HTMLFormElement>) {
@@ -408,77 +138,6 @@ export function HomeDashboard({ surface = "home" }: HomeDashboardProps) {
     }
 
     window.open(`https://duckduckgo.com/?q=${encodeURIComponent(keyword)}`, "_blank", "noopener,noreferrer");
-  }
-
-  function updateFormValue(field: keyof FormValues, value: string) {
-    setFormValues((current) => ({ ...current, [field]: value }));
-  }
-
-  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
-    importJson(event.target.files?.[0]);
-  }
-
-  if (isEditPage) {
-    return (
-      <main className="page settings-page">
-        <header className="settings-page-header">
-          <div>
-            <p className="eyebrow">Settings</p>
-            <h1>设置</h1>
-          </div>
-          <Link className="utility-button" href="/">返回首页</Link>
-        </header>
-
-        <div className="settings-stack">
-          <section className="settings-panel account-placeholder" aria-label="账号登录">
-            <div className="panel-header">
-              <h2>账号</h2>
-              <span>Phase 1.5</span>
-            </div>
-            <label className="field">
-              <span>邮箱</span>
-              <input value="" placeholder="you@example.com" disabled readOnly />
-            </label>
-            <button className="utility-button" type="button" disabled>登录即将支持</button>
-            <p className="save-status">账号登录和账号首页同步将在 Phase 1.5 实现。</p>
-          </section>
-
-          <SyncPanel
-            documentValue={homeDocument}
-            editorOpen={false}
-            storageReady={storageReady}
-            visible
-            onReplaceDocument={replaceHomeDocument}
-            onSyncMetaChange={updateSyncMeta}
-          />
-
-          <section className="settings-panel" aria-label="配置文件">
-            <div className="panel-header">
-              <h2>配置文件</h2>
-              <span>JSON</span>
-            </div>
-            <div className="settings-actions">
-              <button className="utility-button" type="button" onClick={exportJson}>导出 JSON</button>
-              <label className="file-button" htmlFor="settingsImportInput">导入 JSON</label>
-              <input ref={importInputRef} id="settingsImportInput" type="file" accept="application/json" hidden onChange={handleFileChange} />
-              <button className="danger-button" type="button" onClick={resetDefault}>恢复默认</button>
-            </div>
-            <p className="save-status">{saveStatus || "导入会覆盖当前浏览器中的本地首页配置。"}</p>
-          </section>
-
-          <section className="settings-panel" aria-label="通用设置">
-            <div className="panel-header">
-              <h2>通用设置</h2>
-              <span>Coming soon</span>
-            </div>
-            <div className="settings-placeholder">
-              <strong>通用偏好设置将在后续阶段开放</strong>
-              <p>这里会承载启动行为、界面偏好、默认搜索引擎和组件显示策略。</p>
-            </div>
-          </section>
-        </div>
-      </main>
-    );
   }
 
   return (
@@ -539,7 +198,7 @@ export function HomeDashboard({ surface = "home" }: HomeDashboardProps) {
         <SiteCollection
           documentValue={homeDocument}
           visibleGroups={filteredGroups}
-          editMode={editMode}
+          editMode={false}
           dragDisabled={dragDisabled}
           visibleCount={visibleCount}
           onCommitDocument={commitHomeDocument}
@@ -553,84 +212,16 @@ export function HomeDashboard({ surface = "home" }: HomeDashboardProps) {
       </div>
 
       {editor ? (
-        <div className="editor-modal">
-          <form className="editor-card" onSubmit={handleEditorSubmit}>
-            <div className="editor-header">
-              <h2 className="editor-title">{editor.kind === "group" ? editor.mode === "add" ? "新增分组" : "编辑分组" : editor.mode === "add" ? "新增网站" : "编辑网站"}</h2>
-              <button className="mini-button" type="button" onClick={closeEditor} aria-label="关闭">×</button>
-            </div>
-            <div className="editor-body">
-              {editor.kind === "group" ? (
-                <>
-                  <label className="field">
-                    <span>分组名称</span>
-                    <input value={formValues.groupTitle} onChange={(event) => updateFormValue("groupTitle", event.target.value)} autoFocus />
-                  </label>
-                  <label className="field">
-                    <span>分组关键词</span>
-                    <input value={formValues.groupKeywords} onChange={(event) => updateFormValue("groupKeywords", event.target.value)} />
-                  </label>
-                </>
-              ) : (
-                <>
-                  <label className="field">
-                    <span>网站名称</span>
-                    <input value={formValues.siteName} onChange={(event) => updateFormValue("siteName", event.target.value)} autoFocus />
-                  </label>
-                  <label className="field">
-                    <span>网站 URL</span>
-                    <input value={formValues.siteUrl} onChange={(event) => updateFormValue("siteUrl", event.target.value)} inputMode="url" />
-                  </label>
-                  <label className="field">
-                    <span>网站关键词</span>
-                    <input value={formValues.siteKeywords} onChange={(event) => updateFormValue("siteKeywords", event.target.value)} />
-                  </label>
-                  <label className="field">
-                    <span>图标文字</span>
-                    <input value={formValues.siteMark} onChange={(event) => updateFormValue("siteMark", event.target.value)} maxLength={3} />
-                  </label>
-                </>
-              )}
-              <p className="form-error">{formError}</p>
-            </div>
-            <div className="editor-footer">
-              {editor.kind === "site" && editor.mode === "edit" ? (
-                <button
-                  className="danger-button"
-                  type="button"
-                  onClick={() => {
-                    if (deleteSite(editor.groupId, editor.siteId)) {
-                      closeEditor();
-                    }
-                  }}
-                >
-                  删除
-                </button>
-              ) : <span />}
-              <div className="editor-footer-actions">
-                <button className="utility-button" type="button" onClick={closeEditor}>取消</button>
-                <button className="utility-button" type="submit">保存</button>
-              </div>
-            </div>
-          </form>
-        </div>
+        <HomeDocumentEditorModal
+          editor={editor}
+          formValues={formValues}
+          formError={formError}
+          onClose={closeEditor}
+          onSubmit={handleEditorSubmit}
+          onUpdateFormValue={updateFormValue}
+          onDeleteSite={deleteSite}
+        />
       ) : null}
     </main>
   );
-}
-
-function findGroup(documentValue: HomeDocumentV2, groupId: string): HomeGroup | undefined {
-  return documentValue.groups.find((group) => group.id === groupId);
-}
-
-function findSite(group: HomeGroup | undefined, siteId: string): HomeSite | undefined {
-  return group?.sites.find((site) => site.id === siteId);
-}
-
-function parseImportedDocument(input: unknown): HomeDocumentV2 {
-  try {
-    return normalizeHomeDocument(input);
-  } catch {
-    return migrateV1ToV2(input);
-  }
 }
