@@ -115,9 +115,6 @@ export function HomeDashboard({ surface = "home" }: HomeDashboardProps) {
 
   const visibleCount = filteredGroups.reduce((sum, { sites }) => sum + sites.length, 0);
   const dragDisabled = Boolean(normalizeText(activeQuery));
-  const regularGroupCount = homeDocument.groups.filter((group) => !isUngroupedGroup(group)).length;
-  const siteCount = homeDocument.groups.reduce((sum, group) => sum + group.sites.length, 0);
-  const ungroupedCount = homeDocument.groups.find(isUngroupedGroup)?.sites.length ?? 0;
 
   function commitHomeDocument(nextDocument: HomeDocumentV2, message = "已保存") {
     const normalized = normalizeHomeDocument({
@@ -421,26 +418,79 @@ export function HomeDashboard({ surface = "home" }: HomeDashboardProps) {
     importJson(event.target.files?.[0]);
   }
 
-  return (
-    <main className={isEditPage ? "page edit-page" : "page"}>
-      {isEditPage ? (
-        <header className="edit-page-header">
+  if (isEditPage) {
+    return (
+      <main className="page settings-page">
+        <header className="settings-page-header">
           <div>
             <p className="eyebrow">Settings</p>
-            <h1>编辑首页</h1>
+            <h1>设置</h1>
           </div>
           <Link className="utility-button" href="/">返回首页</Link>
         </header>
-      ) : (
-        <header className="masthead">
-          <div>
-            <p className="eyebrow">{todayLabel || "Home"}</p>
-            <h1>Home</h1>
-          </div>
-        </header>
-      )}
 
-      {showWelcome && !isEditPage ? (
+        <div className="settings-stack">
+          <section className="settings-panel account-placeholder" aria-label="账号登录">
+            <div className="panel-header">
+              <h2>账号</h2>
+              <span>Phase 1.5</span>
+            </div>
+            <label className="field">
+              <span>邮箱</span>
+              <input value="" placeholder="you@example.com" disabled readOnly />
+            </label>
+            <button className="utility-button" type="button" disabled>登录即将支持</button>
+            <p className="save-status">账号登录和账号首页同步将在 Phase 1.5 实现。</p>
+          </section>
+
+          <SyncPanel
+            documentValue={homeDocument}
+            editorOpen={false}
+            storageReady={storageReady}
+            visible
+            onReplaceDocument={replaceHomeDocument}
+            onSyncMetaChange={updateSyncMeta}
+          />
+
+          <section className="settings-panel" aria-label="配置文件">
+            <div className="panel-header">
+              <h2>配置文件</h2>
+              <span>JSON</span>
+            </div>
+            <div className="settings-actions">
+              <button className="utility-button" type="button" onClick={exportJson}>导出 JSON</button>
+              <label className="file-button" htmlFor="settingsImportInput">导入 JSON</label>
+              <input ref={importInputRef} id="settingsImportInput" type="file" accept="application/json" hidden onChange={handleFileChange} />
+              <button className="danger-button" type="button" onClick={resetDefault}>恢复默认</button>
+            </div>
+            <p className="save-status">{saveStatus || "导入会覆盖当前浏览器中的本地首页配置。"}</p>
+          </section>
+
+          <section className="settings-panel" aria-label="通用设置">
+            <div className="panel-header">
+              <h2>通用设置</h2>
+              <span>Coming soon</span>
+            </div>
+            <div className="settings-placeholder">
+              <strong>通用偏好设置将在后续阶段开放</strong>
+              <p>这里会承载启动行为、界面偏好、默认搜索引擎和组件显示策略。</p>
+            </div>
+          </section>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="page">
+      <header className="masthead">
+        <div>
+          <p className="eyebrow">{todayLabel || "Home"}</p>
+          <h1>Home</h1>
+        </div>
+      </header>
+
+      {showWelcome ? (
         <section className="welcome-strip" aria-label="新用户启动选项">
           <div className="welcome-copy">
             <strong>开始设置你的首页</strong>
@@ -451,27 +501,6 @@ export function HomeDashboard({ surface = "home" }: HomeDashboardProps) {
             <button className="utility-button" type="button" onClick={openSyncCodeSetup}>输入同步码</button>
             <button className="utility-button" type="button" onClick={startBlankHome}>空白开始</button>
             <button className="mini-button" type="button" onClick={dismissWelcome} aria-label="稍后再设置">稍后</button>
-          </div>
-        </section>
-      ) : null}
-
-      {isEditPage ? (
-        <section className="edit-page-summary" aria-label="首页概览">
-          <div>
-            <strong>{regularGroupCount}</strong>
-            <span>分组</span>
-          </div>
-          <div>
-            <strong>{ungroupedCount}</strong>
-            <span>未分组</span>
-          </div>
-          <div>
-            <strong>{siteCount}</strong>
-            <span>网站</span>
-          </div>
-          <div>
-            <strong>{homeDocument.syncMeta.status}</strong>
-            <span>同步状态</span>
           </div>
         </section>
       ) : null}
@@ -497,42 +526,14 @@ export function HomeDashboard({ surface = "home" }: HomeDashboardProps) {
         </div>
       </section>
 
-      {editMode ? (
-        <section className="edit-toolbar" aria-label="编辑工具">
-          <div className="edit-actions-row">
-            <button className="utility-button" type="button" onClick={() => openGroupEditor()}>新增分组</button>
-            <button className="utility-button" type="button" onClick={exportJson}>导出 JSON</button>
-            <label className="file-button" htmlFor="importInput">导入 JSON</label>
-            <input ref={importInputRef} id="importInput" type="file" accept="application/json" hidden onChange={handleFileChange} />
-            <button className="danger-button" type="button" onClick={resetDefault}>恢复默认</button>
-          </div>
-          <span className="save-status">{saveStatus}</span>
-        </section>
-      ) : null}
-
       <SyncPanel
         documentValue={homeDocument}
         editorOpen={Boolean(editor)}
         storageReady={storageReady}
-        visible={editMode}
+        visible={false}
         onReplaceDocument={replaceHomeDocument}
         onSyncMetaChange={updateSyncMeta}
       />
-
-      {isEditPage ? (
-        <section className="editor-panel account-placeholder" aria-label="账号登录">
-          <div className="panel-header">
-            <h2>账号</h2>
-            <span>Phase 1.5</span>
-          </div>
-          <label className="field">
-            <span>邮箱</span>
-            <input value="" placeholder="you@example.com" disabled readOnly />
-          </label>
-          <button className="utility-button" type="button" disabled>登录即将支持</button>
-          <p className="save-status">账号登录和账号首页同步将在 Phase 1.5 实现。</p>
-        </section>
-      ) : null}
 
       <div className="workspace">
         <SiteCollection
