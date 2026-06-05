@@ -1,5 +1,5 @@
-import { HomeDashboard } from "@/components/home-dashboard";
+import { SettingsDashboard } from "@/components/settings-dashboard";
 
 export function EditDashboard() {
-  return <HomeDashboard surface="edit" />;
+  return <SettingsDashboard />;
 }
