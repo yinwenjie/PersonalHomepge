@@ -22,12 +22,19 @@
    - 更新 `next_sync_revision()` 为 `999 -> 0`。
    - 更新 `sync_spaces_revision_range` 约束为 `0-999`。
 
+4. `supabase/migrations/004_account_spaces.sql`
+   - 创建账号资料表 `profiles`。
+   - 创建账号全局偏好表 `account_preferences`。
+   - 创建账号首页空间索引表 `home_spaces`。
+   - 启用 RLS，并限制登录用户只能访问自己的账号数据。
+   - 不保存 `accessToken`、`encryptionKey` 或完整同步码。
+
 ## 执行规则
 
-- 新 Supabase project：按 `001 -> 002 -> 003` 顺序执行。
-- 已经执行过 `001` 和 `002` 的项目：只执行 `003`。
+- 新 Supabase project：按 `001 -> 002 -> 003 -> 004` 顺序执行。
+- 已经执行过 `001`、`002`、`003` 的项目：只执行 `004`。
 - 执行前确认目标 project 是线上使用的 Supabase project。
-- 执行后可以在 SQL Editor 中检查函数是否存在：
+- 执行 `003` 后可以在 SQL Editor 中检查 revision 函数是否存在：
 
 ```sql
 select public.next_sync_revision(998) as rev_999;
@@ -39,9 +46,48 @@ select public.next_sync_revision(999) as rev_0;
 - `rev_999 = 999`
 - `rev_0 = 0`
 
+执行 `004` 后可以检查账号表、RLS 和 policy 是否存在：
+
+```sql
+select
+  schemaname,
+  tablename,
+  rowsecurity
+from pg_tables
+where schemaname = 'public'
+  and tablename in ('profiles', 'account_preferences', 'home_spaces')
+order by tablename;
+
+select
+  schemaname,
+  tablename,
+  policyname,
+  roles,
+  cmd
+from pg_policies
+where schemaname = 'public'
+  and tablename in ('profiles', 'account_preferences', 'home_spaces')
+order by tablename, policyname;
+
+select
+  column_name
+from information_schema.columns
+where table_schema = 'public'
+  and table_name = 'home_spaces'
+  and column_name in ('access_token', 'encryption_key', 'sync_code');
+```
+
+预期结果：
+
+- `profiles`、`account_preferences`、`home_spaces` 的 `rowsecurity` 均为 `true`。
+- 三张表均存在 `select/insert/update` 的 own-data policy；`home_spaces` 额外存在 `delete` policy。
+- 最后一条查询返回 0 行，表示账号首页空间索引没有保存同步码 secret 字段。
+
 ## 注意事项
 
 - 前端代码部署不等于数据库迁移已执行。
 - 如果前端调用了数据库中不存在的 RPC，会出现同步失败。
 - `NEXT_PUBLIC_SUPABASE_URL` 和 `NEXT_PUBLIC_SUPABASE_ANON_KEY` 是公开前端配置，不是服务端密钥。
 - 不要把 Supabase service role key 写入前端代码、GitHub Pages 环境变量或公开仓库。
+- `004_account_spaces.sql` 只建立账号空间索引，不会改变现有同步码 RPC 行为。
+- 新设备登录后看到账号空间列表，不代表已经拥有该空间的同步凭证；没有本地绑定时仍需输入完整同步码。
