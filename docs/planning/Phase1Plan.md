@@ -134,6 +134,11 @@
 
 ### 第 6 阶段：组件、主题与 Beta 打磨，约 11-12 周
 
+- 部署与域名：
+  - 继续使用 GitHub Pages，但绑定自购主域名。
+  - 从 `/PersonalHomepge/` 项目路径逐步切换到根路径部署。
+  - 更新 `NEXT_PUBLIC_BASE_PATH`、静态资源路径和 Supabase Auth `Site URL` / `Redirect URLs`。
+  - 验证主域名切换后登录回调、首页加载和本地缓存隔离行为。
 - 组件系统：
   - `widgets` 使用 `{ id, type, title, order, config }`。
   - 首批实现：
