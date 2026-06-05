@@ -1041,6 +1041,51 @@ h1 {
   font-size: 13px;
 }
 
+.account-panel {
+  gap: 12px;
+}
+
+.auth-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.account-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+}
+
+.account-avatar {
+  flex: 0 0 auto;
+}
+
+.account-card div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.account-card strong,
+.status-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .edit-page-summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1244,6 +1289,10 @@ h1 {
 
   .edit-page-grid,
   .edit-page-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-form {
     grid-template-columns: 1fr;
   }
 }

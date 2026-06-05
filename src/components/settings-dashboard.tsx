@@ -3,6 +3,7 @@
 import type { ChangeEvent } from "react";
 import { useRef } from "react";
 import Link from "next/link";
+import { AccountPanel } from "@/components/account-panel";
 import { SyncPanel } from "@/components/sync-panel";
 import { useHomeDocumentController } from "@/hooks/use-home-document-controller";
 
@@ -40,18 +41,7 @@ export function SettingsDashboard() {
       </header>
 
       <div className="settings-stack">
-        <section className="settings-panel account-placeholder" aria-label="账号登录">
-          <div className="panel-header">
-            <h2>账号</h2>
-            <span>Phase 1.5</span>
-          </div>
-          <label className="field">
-            <span>邮箱</span>
-            <input value="" placeholder="you@example.com" disabled readOnly />
-          </label>
-          <button className="utility-button" type="button" disabled>登录即将支持</button>
-          <p className="save-status">账号登录和账号首页同步将在 Phase 1.5 实现。</p>
-        </section>
+        <AccountPanel />
 
         <SyncPanel
           documentValue={homeDocument}
