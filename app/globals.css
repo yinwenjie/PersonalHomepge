@@ -978,12 +978,67 @@ h1 {
   width: min(1120px, calc(100% - 40px));
 }
 
+.settings-page {
+  width: min(860px, calc(100% - 40px));
+}
+
 .edit-page-header {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
   gap: 18px;
   margin-bottom: 22px;
+}
+
+.settings-page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+.settings-stack {
+  display: grid;
+  gap: 14px;
+}
+
+.settings-stack > .sync-panel {
+  margin: 0;
+}
+
+.settings-panel {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.settings-placeholder {
+  display: grid;
+  gap: 5px;
+  padding: 14px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+}
+
+.settings-placeholder strong {
+  font-size: 14px;
+}
+
+.settings-placeholder p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .edit-page-summary {
@@ -1164,6 +1219,7 @@ h1 {
   }
 
   .edit-page-header,
+  .settings-page-header,
   .ungrouped-meta {
     align-items: flex-start;
     flex-direction: column;
