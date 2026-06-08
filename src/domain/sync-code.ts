@@ -87,7 +87,12 @@ export function normalizeStoredSyncBinding(input: unknown): StoredSyncBinding | 
 
 export function randomBase64Url(byteLength: number): string {
   const bytes = new Uint8Array(byteLength);
-  globalThis.crypto.getRandomValues(bytes);
+  const cryptoApi = globalThis.crypto;
+  if (!cryptoApi?.getRandomValues) {
+    throw new Error("当前浏览器环境不支持安全随机数生成，无法创建同步码。请使用 HTTPS 页面、localhost/127.0.0.1 本地页面，或现代浏览器后再试。");
+  }
+
+  cryptoApi.getRandomValues(bytes);
   return bytesToBase64Url(bytes);
 }
 

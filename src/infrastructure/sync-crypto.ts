@@ -19,11 +19,13 @@ export async function encryptHomeDocument(
   documentSalt = randomBase64Url(SALT_BYTE_LENGTH)
 ): Promise<EncryptedHomeDocument> {
   const iv = new Uint8Array(IV_BYTE_LENGTH);
-  globalThis.crypto.getRandomValues(iv);
+  const cryptoApi = getRequiredCrypto();
+  const subtleCrypto = getRequiredSubtleCrypto(cryptoApi);
+  cryptoApi.getRandomValues(iv);
 
   const cryptoKey = await deriveAesKey(encryptionKey, documentSalt);
   const plaintext = new TextEncoder().encode(JSON.stringify(documentValue));
-  const ciphertext = await globalThis.crypto.subtle.encrypt(
+  const ciphertext = await subtleCrypto.encrypt(
     { name: "AES-GCM", iv: toArrayBuffer(iv) },
     cryptoKey,
     toArrayBuffer(plaintext)
@@ -41,8 +43,9 @@ export async function decryptHomeDocument(
   encryptedDocument: EncryptedHomeDocument,
   encryptionKey: string
 ): Promise<HomeDocumentV2> {
+  const subtleCrypto = getRequiredSubtleCrypto();
   const cryptoKey = await deriveAesKey(encryptionKey, encryptedDocument.documentSalt);
-  const plaintext = await globalThis.crypto.subtle.decrypt(
+  const plaintext = await subtleCrypto.decrypt(
     { name: "AES-GCM", iv: toArrayBuffer(base64UrlToBytes(encryptedDocument.documentIv)) },
     cryptoKey,
     toArrayBuffer(base64UrlToBytes(encryptedDocument.documentCiphertext))
@@ -53,7 +56,8 @@ export async function decryptHomeDocument(
 }
 
 async function deriveAesKey(encryptionKey: string, documentSalt: string): Promise<CryptoKey> {
-  const sourceKey = await globalThis.crypto.subtle.importKey(
+  const subtleCrypto = getRequiredSubtleCrypto();
+  const sourceKey = await subtleCrypto.importKey(
     "raw",
     toArrayBuffer(base64UrlToBytes(encryptionKey)),
     "HKDF",
@@ -61,7 +65,7 @@ async function deriveAesKey(encryptionKey: string, documentSalt: string): Promis
     ["deriveKey"]
   );
 
-  return globalThis.crypto.subtle.deriveKey(
+  return subtleCrypto.deriveKey(
     {
       name: "HKDF",
       hash: "SHA-256",
@@ -79,4 +83,25 @@ function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   const copy = new Uint8Array(bytes.byteLength);
   copy.set(bytes);
   return copy.buffer;
+}
+
+function getRequiredCrypto(): Crypto {
+  const cryptoApi = globalThis.crypto;
+  if (!cryptoApi?.getRandomValues) {
+    throw new Error(getWebCryptoUnavailableMessage());
+  }
+
+  return cryptoApi;
+}
+
+function getRequiredSubtleCrypto(cryptoApi = getRequiredCrypto()): SubtleCrypto {
+  if (!cryptoApi.subtle) {
+    throw new Error(getWebCryptoUnavailableMessage());
+  }
+
+  return cryptoApi.subtle;
+}
+
+function getWebCryptoUnavailableMessage(): string {
+  return "当前浏览器环境不支持同步码加密。请使用 HTTPS 页面、localhost/127.0.0.1 本地页面，或支持 Web Crypto SubtleCrypto 的现代浏览器后再试。";
 }
