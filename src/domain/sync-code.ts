@@ -5,6 +5,15 @@ export const SYNC_CODE_PREFIX = "hp1";
 export const SYNC_BINDING_STORAGE_KEY = "homepage:sync-code:v1";
 
 const TOKEN_BYTE_LENGTH = 32;
+const TOKEN_TEXT_LENGTH = Math.ceil((TOKEN_BYTE_LENGTH * 4) / 3);
+const SPACE_ID_PATTERN_SOURCE = "[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
+const SECRET_PATTERN_SOURCE = `[A-Za-z0-9_-]{${TOKEN_TEXT_LENGTH}}`;
+const SPACE_ID_PATTERN = new RegExp(`^${SPACE_ID_PATTERN_SOURCE}$`, "i");
+const SECRET_PATTERN = new RegExp(`^${SECRET_PATTERN_SOURCE}$`);
+const SYNC_CODE_PATTERN = new RegExp(
+  `^${SYNC_CODE_PREFIX}_(${SPACE_ID_PATTERN_SOURCE})_(${SECRET_PATTERN_SOURCE})_(${SECRET_PATTERN_SOURCE})$`,
+  "i"
+);
 
 export interface SyncCodeParts {
   version: typeof SYNC_CODE_VERSION;
@@ -36,12 +45,13 @@ export function formatSyncCode(parts: Pick<SyncCodeParts, "spaceId" | "accessTok
 }
 
 export function parseSyncCode(value: string): SyncCodeParts {
-  const parts = value.trim().split("_");
-  if (parts.length !== 4 || parts[0] !== SYNC_CODE_PREFIX) {
+  // Base64URL secrets may contain "_", so parse by fixed token length instead of split("_").
+  const match = SYNC_CODE_PATTERN.exec(value.trim());
+  if (!match) {
     throw new Error("同步码格式不正确");
   }
 
-  const [, spaceId, accessToken, encryptionKey] = parts;
+  const [, spaceId = "", accessToken = "", encryptionKey = ""] = match;
   assertValidSpaceId(spaceId);
   assertValidSecret(accessToken, "accessToken");
   assertValidSecret(encryptionKey, "encryptionKey");
@@ -125,15 +135,13 @@ export function base64UrlToBytes(value: string): Uint8Array {
 }
 
 function assertValidSpaceId(value: string): void {
-  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  if (!uuidPattern.test(value)) {
+  if (!SPACE_ID_PATTERN.test(value)) {
     throw new Error("同步空间 ID 无效");
   }
 }
 
 function assertValidSecret(value: string, label: string): void {
-  const secretPattern = /^[A-Za-z0-9_-]{32,512}$/;
-  if (!secretPattern.test(value)) {
+  if (!SECRET_PATTERN.test(value)) {
     throw new Error(`${label} 无效`);
   }
 }

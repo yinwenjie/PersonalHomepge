@@ -12,6 +12,7 @@ const nextConfig = {
   output: "export",
   basePath: derivedBasePath,
   assetPrefix: derivedBasePath || undefined,
+  allowedDevOrigins: ["127.0.0.1"],
   images: {
     unoptimized: true
   },

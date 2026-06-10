@@ -7,15 +7,20 @@ import { AccountPanel } from "@/components/account-panel";
 import { AccountPreferencesPanel } from "@/components/account-preferences-panel";
 import { HomeSpacesPanel } from "@/components/home-spaces-panel";
 import { SyncPanel } from "@/components/sync-panel";
-import type { StoredSyncBinding } from "@/domain/sync-code";
+import type { HomeSpace } from "@/domain/account";
+import type { HomeSyncMeta } from "@/domain/home-document";
+import { parseSyncCode, type StoredSyncBinding } from "@/domain/sync-code";
 import { useAccountData } from "@/hooks/use-account-data";
 import { useHomeDocumentController } from "@/hooks/use-home-document-controller";
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
+import { LocalSyncBindingRepository } from "@/infrastructure/sync-binding-repository";
+import { SyncCodeRepository } from "@/infrastructure/sync-code-repository";
 
 export function SettingsDashboard() {
   const auth = useSupabaseAuth();
   const accountData = useAccountData(auth.user);
   const [currentBinding, setCurrentBinding] = useState<StoredSyncBinding | null>(null);
+  const [syncPanelKey, setSyncPanelKey] = useState(0);
   const {
     homeDocument,
     storageReady,
@@ -38,6 +43,33 @@ export function SettingsDashboard() {
     }
   }
 
+  async function activateHomeSpace(homeSpace: HomeSpace, syncCode: string): Promise<boolean> {
+    const parsed = parseSyncCode(syncCode);
+    const syncRepository = new SyncCodeRepository();
+    const pulled = await syncRepository.pull(parsed);
+    const nextBinding: StoredSyncBinding = {
+      ...parsed,
+      remoteRevision: pulled.revision,
+      lastSyncedAt: pulled.updatedAt,
+      lastSyncedDocumentRevision: pulled.document.revision,
+      lastSyncedDocumentUpdatedAt: pulled.document.updatedAt
+    };
+
+    const metadataUpdated = await accountData.markHomeSpaceActive(homeSpace.id);
+    if (!metadataUpdated) {
+      return false;
+    }
+
+    new LocalSyncBindingRepository(window.localStorage).save(nextBinding);
+    setCurrentBinding(nextBinding);
+    replaceHomeDocument({
+      ...pulled.document,
+      syncMeta: toSyncMeta(nextBinding)
+    }, "已激活首页空间并拉取云端首页");
+    setSyncPanelKey((value) => value + 1);
+    return true;
+  }
+
   return (
     <main className="page settings-page">
       <header className="settings-page-header">
@@ -52,6 +84,7 @@ export function SettingsDashboard() {
         <AccountPanel accountData={accountData} />
 
         <SyncPanel
+          key={syncPanelKey}
           documentValue={homeDocument}
           editorOpen={false}
           storageReady={storageReady}
@@ -66,6 +99,7 @@ export function SettingsDashboard() {
           authLoading={auth.loading}
           signedIn={Boolean(auth.user)}
           currentBinding={currentBinding}
+          onActivateHomeSpace={activateHomeSpace}
         />
 
         <section className="settings-panel" aria-label="配置文件">
@@ -90,4 +124,15 @@ export function SettingsDashboard() {
       </div>
     </main>
   );
+}
+
+function toSyncMeta(binding: StoredSyncBinding): HomeSyncMeta {
+  return {
+    mode: "sync-code",
+    status: "synced",
+    provider: "supabase",
+    spaceId: binding.spaceId,
+    remoteRevision: binding.remoteRevision,
+    lastSyncedAt: binding.lastSyncedAt
+  };
 }

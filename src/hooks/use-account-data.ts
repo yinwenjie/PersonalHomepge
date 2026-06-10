@@ -12,10 +12,14 @@ export interface AccountDataState {
   loading: boolean;
   error: string;
   claiming: boolean;
+  activating: boolean;
   claimMessage: string;
   claimError: string;
+  activationMessage: string;
+  activationError: string;
   refresh: () => Promise<void>;
   claimHomeSpace: (syncSpaceId: string, name: string) => Promise<void>;
+  markHomeSpaceActive: (homeSpaceId: string) => Promise<boolean>;
 }
 
 export function useAccountData(user: User | null): AccountDataState {
@@ -27,8 +31,11 @@ export function useAccountData(user: User | null): AccountDataState {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [claiming, setClaiming] = useState(false);
+  const [activating, setActivating] = useState(false);
   const [claimMessage, setClaimMessage] = useState("");
   const [claimError, setClaimError] = useState("");
+  const [activationMessage, setActivationMessage] = useState("");
+  const [activationError, setActivationError] = useState("");
 
   const userId = user?.id ?? null;
   const userEmail = user?.email ?? null;
@@ -44,8 +51,11 @@ export function useAccountData(user: User | null): AccountDataState {
       setLoading(false);
       setError("");
       setClaiming(false);
+      setActivating(false);
       setClaimMessage("");
       setClaimError("");
+      setActivationMessage("");
+      setActivationError("");
       return;
     }
 
@@ -110,6 +120,35 @@ export function useAccountData(user: User | null): AccountDataState {
     }
   }, [repository, userId]);
 
+  const markHomeSpaceActive = useCallback(async (homeSpaceId: string): Promise<boolean> => {
+    if (!userId) {
+      setActivationError("请先登录账号。");
+      return false;
+    }
+
+    if (!homeSpaceId) {
+      setActivationError("请选择首页空间。");
+      return false;
+    }
+
+    setActivating(true);
+    setActivationMessage("");
+    setActivationError("");
+
+    try {
+      const result = await repository.markHomeSpaceActive(userId, homeSpaceId);
+      setPreferences(result.preferences);
+      setHomeSpaces(result.homeSpaces);
+      setActivationMessage("当前首页空间已更新。");
+      return true;
+    } catch (activationError) {
+      setActivationError(getErrorMessage(activationError));
+      return false;
+    } finally {
+      setActivating(false);
+    }
+  }, [repository, userId]);
+
   useEffect(() => {
     const timerId = window.setTimeout(() => {
       void refresh();
@@ -125,10 +164,14 @@ export function useAccountData(user: User | null): AccountDataState {
     loading,
     error,
     claiming,
+    activating,
     claimMessage,
     claimError,
+    activationMessage,
+    activationError,
     refresh,
-    claimHomeSpace
+    claimHomeSpace,
+    markHomeSpaceActive
   };
 }
 

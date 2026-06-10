@@ -35,3 +35,8 @@ export interface AccountData {
 export type ClaimHomeSpaceResult =
   | { status: "created"; homeSpace: HomeSpace }
   | { status: "already-claimed"; homeSpace: HomeSpace };
+
+export interface ActivatedHomeSpaceResult {
+  preferences: AccountPreferences;
+  homeSpaces: HomeSpace[];
+}
