@@ -1127,6 +1127,11 @@ h1 {
   gap: 8px;
 }
 
+.home-space-item {
+  display: grid;
+  gap: 8px;
+}
+
 .home-space-row {
   display: flex;
   align-items: center;
@@ -1137,6 +1142,14 @@ h1 {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface-soft);
+}
+
+.home-space-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex: 0 0 auto;
 }
 
 .home-space-row div {
@@ -1156,6 +1169,21 @@ h1 {
   color: var(--muted);
   font-size: 12px;
   white-space: nowrap;
+}
+
+.home-space-activate-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+  padding: 10px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+}
+
+.home-space-activate-form .form-error {
+  grid-column: 1 / -1;
 }
 
 .edit-page-summary {
@@ -1364,8 +1392,19 @@ h1 {
     grid-template-columns: 1fr;
   }
 
-  .auth-form {
+  .auth-form,
+  .home-space-claim-form,
+  .home-space-activate-form {
     grid-template-columns: 1fr;
+  }
+
+  .home-space-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .home-space-row-actions {
+    justify-content: flex-start;
   }
 }
 
