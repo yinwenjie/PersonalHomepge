@@ -91,3 +91,8 @@ where table_schema = 'public'
 - 不要把 Supabase service role key 写入前端代码、GitHub Pages 环境变量或公开仓库。
 - `004_account_spaces.sql` 只建立账号空间索引，不会改变现有同步码 RPC 行为。
 - 新设备登录后看到账号空间列表，不代表已经拥有该空间的同步凭证；没有本地绑定时仍需输入完整同步码。
+
+## 辅助检查脚本
+
+- `supabase/checks/004_account_spaces_verify.sql`：验证 `004_account_spaces.sql` 是否已执行到位，包括账号表、RLS、policy、敏感字段缺失、约束和角色权限。
+- `supabase/checks/004_account_spaces_repair_grants.sql`：当 `authenticated` 被授予 `TRUNCATE`、`TRIGGER`、`REFERENCES` 等过宽权限时，用于收敛账号表权限。
