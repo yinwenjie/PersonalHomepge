@@ -326,6 +326,17 @@ export function SiteCollection({
               onCloseActionMenu={closeActionMenus}
             />
           ))}
+          <div className="add-group-row" aria-label="新增分组">
+            <button
+              className="ungrouped-add-button add-group-button"
+              type="button"
+              onClick={() => onOpenGroupEditor()}
+              aria-label="新增分组"
+              title="新增分组"
+            >
+              +
+            </button>
+          </div>
           {visibleCount === 0 && !editMode ? (
             <p className="empty-state is-visible">没有匹配的网站。</p>
           ) : null}
