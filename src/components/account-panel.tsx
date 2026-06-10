@@ -2,9 +2,14 @@
 
 import type { FormEvent } from "react";
 import { useMemo, useState } from "react";
+import type { AccountDataState } from "@/hooks/use-account-data";
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
 
-export function AccountPanel() {
+interface AccountPanelProps {
+  accountData: AccountDataState;
+}
+
+export function AccountPanel({ accountData }: AccountPanelProps) {
   const [email, setEmail] = useState("");
   const {
     user,
@@ -35,7 +40,7 @@ export function AccountPanel() {
           <span className="avatar account-avatar">{accountInitial}</span>
           <div>
             <strong>{user.email ?? "已登录账号"}</strong>
-            <p>账号状态已保存在当前浏览器。首页内容仍由同步码管理。</p>
+            <p>{getAccountDescription(accountData)}</p>
           </div>
         </div>
       ) : (
@@ -65,8 +70,8 @@ export function AccountPanel() {
         </div>
       ) : null}
 
-      <p className={error ? "form-error" : "save-status"}>
-        {error || message || (loading ? "正在读取账号状态。" : "登录仅建立账号身份，不会覆盖本地首页。")}
+      <p className={error || accountData.error ? "form-error" : "save-status"}>
+        {error || getAccountStatus(accountData, message, loading)}
       </p>
     </section>
   );
@@ -79,4 +84,36 @@ function getAccountInitial(email?: string): string {
   }
 
   return value.slice(0, 1).toUpperCase();
+}
+
+function getAccountDescription(accountData: AccountDataState): string {
+  if (accountData.loading) {
+    return "正在初始化账号资料。首页内容仍由同步码管理。";
+  }
+
+  if (accountData.error) {
+    return "账号已登录，但资料初始化暂时失败。";
+  }
+
+  if (accountData.profile) {
+    return "账号资料已保存。首页内容仍由同步码管理。";
+  }
+
+  return "账号状态已保存在当前浏览器。首页内容仍由同步码管理。";
+}
+
+function getAccountStatus(accountData: AccountDataState, authMessage: string, authLoading: boolean): string {
+  if (accountData.error) {
+    return `账号资料加载失败：${accountData.error}`;
+  }
+
+  if (accountData.loading) {
+    return "正在读取或初始化账号资料。";
+  }
+
+  if (accountData.profile) {
+    return "账号资料和偏好已就绪。";
+  }
+
+  return authMessage || (authLoading ? "正在读取账号状态。" : "登录仅建立账号身份，不会覆盖本地首页。");
 }

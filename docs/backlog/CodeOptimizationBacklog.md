@@ -4,7 +4,7 @@
 
 ## 优先级：高
 
-### 1. `useSupabaseAuth` 多次订阅问题
+### 1. `useSupabaseAuth` 多次订阅问题（Phase 1.5.3 已处理）
 
 **问题：**
 `WidgetPanel`（`src/components/widget-panel.tsx:15`）和 `AccountPanel`（`src/components/account-panel.tsx:5`）各自独立调用 `useSupabaseAuth()`，在同一页面会触发两次 `onAuthStateChange` 订阅和两次 `getSession()` 调用，数据完全重复，存在资源浪费和潜在状态不同步风险。
@@ -15,6 +15,9 @@
 - 或者用 React Context 把 auth 状态提升共享，避免多处重复订阅。
 
 **影响：** 性能 + 潜在状态不同步。Phase 1.5.3+ 账号层功能扩展时，重复订阅问题会随功能增加而放大，建议尽早处理。
+
+**处理记录：**
+Phase 1.5.3 已新增全局 Supabase Auth Provider，`useSupabaseAuth` 改为读取共享 Context；首页和设置页账号状态不再各自创建独立 auth 订阅。
 
 ---
 

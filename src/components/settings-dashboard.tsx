@@ -4,10 +4,15 @@ import type { ChangeEvent } from "react";
 import { useRef } from "react";
 import Link from "next/link";
 import { AccountPanel } from "@/components/account-panel";
+import { AccountPreferencesPanel } from "@/components/account-preferences-panel";
 import { SyncPanel } from "@/components/sync-panel";
+import { useAccountData } from "@/hooks/use-account-data";
 import { useHomeDocumentController } from "@/hooks/use-home-document-controller";
+import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
 
 export function SettingsDashboard() {
+  const auth = useSupabaseAuth();
+  const accountData = useAccountData(auth.user);
   const {
     homeDocument,
     storageReady,
@@ -41,7 +46,7 @@ export function SettingsDashboard() {
       </header>
 
       <div className="settings-stack">
-        <AccountPanel />
+        <AccountPanel accountData={accountData} />
 
         <SyncPanel
           documentValue={homeDocument}
@@ -66,16 +71,11 @@ export function SettingsDashboard() {
           <p className="save-status">{saveStatus || "导入会覆盖当前浏览器中的本地首页配置。"}</p>
         </section>
 
-        <section className="settings-panel" aria-label="通用设置">
-          <div className="panel-header">
-            <h2>通用设置</h2>
-            <span>Coming soon</span>
-          </div>
-          <div className="settings-placeholder">
-            <strong>通用偏好设置将在后续阶段开放</strong>
-            <p>这里会承载启动行为、界面偏好、默认搜索引擎和组件显示策略。</p>
-          </div>
-        </section>
+        <AccountPreferencesPanel
+          accountData={accountData}
+          authLoading={auth.loading}
+          signedIn={Boolean(auth.user)}
+        />
       </div>
     </main>
   );
