@@ -1086,6 +1086,35 @@ h1 {
   font-size: 13px;
 }
 
+.preference-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.preference-row {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+}
+
+.preference-row span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.preference-row strong {
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .edit-page-summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
