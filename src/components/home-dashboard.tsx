@@ -86,8 +86,8 @@ export function HomeDashboard() {
         return !keyword || groupMatches || siteSearchText.includes(keyword);
       });
 
-      return { group, sites };
-    }).filter(({ group, sites }) => isUngroupedGroup(group) || sites.length > 0);
+      return { group, groupMatches, sites };
+    }).filter(({ group, groupMatches, sites }) => isUngroupedGroup(group) || sites.length > 0 || !keyword || groupMatches);
   }, [activeQuery, homeDocument.groups]);
 
   const visibleCount = filteredGroups.reduce((sum, { sites }) => sum + sites.length, 0);

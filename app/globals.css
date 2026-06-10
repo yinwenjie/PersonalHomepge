@@ -386,6 +386,20 @@ h1 {
   min-width: 0;
 }
 
+.add-group-row {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  min-width: 0;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+
+.add-group-button {
+  justify-self: start;
+}
+
 .ungrouped-meta {
   display: flex;
   align-items: center;
