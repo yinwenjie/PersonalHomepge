@@ -18,6 +18,7 @@ interface SyncPanelProps {
   visible: boolean;
   onReplaceDocument: (documentValue: HomeDocumentV2, message: string) => void;
   onSyncMetaChange: (syncMeta: HomeSyncMeta, message: string) => void;
+  onBindingChange?: (binding: StoredSyncBinding | null) => void;
 }
 
 const AUTO_PUSH_DEBOUNCE_MS = 1800;
@@ -30,7 +31,8 @@ export function SyncPanel({
   storageReady,
   visible,
   onReplaceDocument,
-  onSyncMetaChange
+  onSyncMetaChange,
+  onBindingChange
 }: SyncPanelProps) {
   const [binding, setBinding] = useState<StoredSyncBinding | null>(null);
   const [syncCode, setSyncCode] = useState("");
@@ -63,7 +65,8 @@ export function SyncPanel({
     bindingRepositoryRef.current?.save(nextBinding);
     bindingRef.current = nextBinding;
     setBinding(nextBinding);
-  }, []);
+    onBindingChange?.(nextBinding);
+  }, [onBindingChange]);
 
   const setSyncMetaFromBinding = useCallback((nextBinding: StoredSyncBinding, status: HomeSyncMeta["status"], statusMessage: string) => {
     onSyncMetaChange(toSyncMeta(nextBinding, status), statusMessage);
@@ -292,6 +295,7 @@ export function SyncPanel({
 
     const storedBinding = bindingRepositoryRef.current.load();
     if (!storedBinding) {
+      onBindingChange?.(null);
       return;
     }
 
@@ -301,7 +305,7 @@ export function SyncPanel({
     window.setTimeout(() => {
       performPull({ forceApply: false, source: "startup" });
     }, 0);
-  }, [performPull, persistBinding, setSyncMetaFromBinding, storageReady]);
+  }, [onBindingChange, performPull, persistBinding, setSyncMetaFromBinding, storageReady]);
 
   useEffect(() => {
     function requestAutoPull() {
@@ -432,6 +436,7 @@ export function SyncPanel({
     bindingRepositoryRef.current?.clear();
     bindingRef.current = null;
     setBinding(null);
+    onBindingChange?.(null);
     setSyncCode("");
     onSyncMetaChange(localSyncMeta(), "已解除本机同步码");
     setMessage("已解除本机绑定。");
@@ -453,6 +458,7 @@ export function SyncPanel({
       bindingRepositoryRef.current?.clear();
       bindingRef.current = null;
       setBinding(null);
+      onBindingChange?.(null);
       setSyncCode("");
       onSyncMetaChange(localSyncMeta(), "同步码已废弃");
       setMessage("同步码已废弃。");

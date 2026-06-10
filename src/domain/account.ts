@@ -15,7 +15,23 @@ export interface AccountPreferences {
   updatedAt: string;
 }
 
+export interface HomeSpace {
+  id: string;
+  userId: string;
+  syncSpaceId: string;
+  name: string;
+  isDefault: boolean;
+  lastUsedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AccountData {
   profile: AccountProfile;
   preferences: AccountPreferences;
+  homeSpaces: HomeSpace[];
 }
+
+export type ClaimHomeSpaceResult =
+  | { status: "created"; homeSpace: HomeSpace }
+  | { status: "already-claimed"; homeSpace: HomeSpace };

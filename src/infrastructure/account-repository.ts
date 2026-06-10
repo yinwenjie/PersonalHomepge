@@ -1,8 +1,15 @@
-import type { AccountData, AccountPreferences, AccountProfile } from "@/domain/account";
+import type {
+  AccountData,
+  AccountPreferences,
+  AccountProfile,
+  ClaimHomeSpaceResult,
+  HomeSpace
+} from "@/domain/account";
 import { getSupabaseBrowserClient } from "@/infrastructure/supabase-client";
 
 const PROFILE_SELECT = "id, email, display_name, created_at, updated_at";
 const PREFERENCES_SELECT = "user_id, locale, theme_preference, default_space_id, created_at, updated_at";
+const HOME_SPACE_SELECT = "id, user_id, sync_space_id, name, is_default, last_used_at, created_at, updated_at";
 
 interface ProfileRow {
   id: string;
@@ -21,15 +28,96 @@ interface PreferencesRow {
   updated_at: string;
 }
 
+interface HomeSpaceRow {
+  id: string;
+  user_id: string;
+  sync_space_id: string;
+  name: string;
+  is_default: boolean;
+  last_used_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export class AccountRepository {
   async ensureAccountData(userId: string, email: string | null): Promise<AccountData> {
     const profile = await this.ensureProfile(userId, email);
     const preferences = await this.ensurePreferences(userId);
+    const homeSpaces = await this.listHomeSpaces(userId);
 
     return {
       profile,
-      preferences
+      preferences,
+      homeSpaces
     };
+  }
+
+  async listHomeSpaces(userId: string): Promise<HomeSpace[]> {
+    const { data, error } = await getSupabaseBrowserClient()
+      .from("home_spaces")
+      .select(HOME_SPACE_SELECT)
+      .eq("user_id", userId)
+      .order("is_default", { ascending: false })
+      .order("last_used_at", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      throw error;
+    }
+
+    return ((data ?? []) as HomeSpaceRow[]).map(mapHomeSpace);
+  }
+
+  async claimHomeSpace(userId: string, syncSpaceId: string, name: string): Promise<ClaimHomeSpaceResult> {
+    const existingHomeSpace = await this.getHomeSpaceBySyncSpace(userId, syncSpaceId);
+    if (existingHomeSpace) {
+      return {
+        status: "already-claimed",
+        homeSpace: existingHomeSpace
+      };
+    }
+
+    const { data, error } = await getSupabaseBrowserClient()
+      .from("home_spaces")
+      .insert({
+        user_id: userId,
+        sync_space_id: syncSpaceId,
+        name: name.trim()
+      })
+      .select(HOME_SPACE_SELECT)
+      .single();
+
+    if (!error && data) {
+      return {
+        status: "created",
+        homeSpace: mapHomeSpace(data as HomeSpaceRow)
+      };
+    }
+
+    const homeSpaceAfterConflict = await this.getHomeSpaceBySyncSpace(userId, syncSpaceId);
+    if (homeSpaceAfterConflict) {
+      return {
+        status: "already-claimed",
+        homeSpace: homeSpaceAfterConflict
+      };
+    }
+
+    throw error ?? new Error("首页空间认领失败");
+  }
+
+  private async getHomeSpaceBySyncSpace(userId: string, syncSpaceId: string): Promise<HomeSpace | null> {
+    const { data, error } = await getSupabaseBrowserClient()
+      .from("home_spaces")
+      .select(HOME_SPACE_SELECT)
+      .eq("user_id", userId)
+      .eq("sync_space_id", syncSpaceId)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return data ? mapHomeSpace(data as HomeSpaceRow) : null;
   }
 
   private async ensureProfile(userId: string, email: string | null): Promise<AccountProfile> {
@@ -156,6 +244,19 @@ function mapPreferences(row: PreferencesRow): AccountPreferences {
     locale: row.locale,
     themePreference: row.theme_preference,
     defaultSpaceId: row.default_space_id,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
+function mapHomeSpace(row: HomeSpaceRow): HomeSpace {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    syncSpaceId: row.sync_space_id,
+    name: row.name,
+    isDefault: row.is_default,
+    lastUsedAt: row.last_used_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
