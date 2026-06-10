@@ -40,3 +40,4 @@
 
 - `backlog/SyncAutoRequestOptimization.md`：同步请求优化备忘。
 - `backlog/AccountHomeSyncBacklog.md`：账号系统、首页空间、同步码管理和未来会员权益 backlog。
+- `backlog/CodeOptimizationBacklog.md`：代码 review 发现的优化点，含 useSupabaseAuth 多订阅、SyncPanel 架构、round-trip 验证冗余等。
