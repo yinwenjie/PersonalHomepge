@@ -2,15 +2,20 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
-import type { AccountPreferences, AccountProfile } from "@/domain/account";
+import type { AccountPreferences, AccountProfile, HomeSpace } from "@/domain/account";
 import { AccountRepository } from "@/infrastructure/account-repository";
 
 export interface AccountDataState {
   profile: AccountProfile | null;
   preferences: AccountPreferences | null;
+  homeSpaces: HomeSpace[];
   loading: boolean;
   error: string;
+  claiming: boolean;
+  claimMessage: string;
+  claimError: string;
   refresh: () => Promise<void>;
+  claimHomeSpace: (syncSpaceId: string, name: string) => Promise<void>;
 }
 
 export function useAccountData(user: User | null): AccountDataState {
@@ -18,8 +23,12 @@ export function useAccountData(user: User | null): AccountDataState {
   const requestIdRef = useRef(0);
   const [profile, setProfile] = useState<AccountProfile | null>(null);
   const [preferences, setPreferences] = useState<AccountPreferences | null>(null);
+  const [homeSpaces, setHomeSpaces] = useState<HomeSpace[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [claiming, setClaiming] = useState(false);
+  const [claimMessage, setClaimMessage] = useState("");
+  const [claimError, setClaimError] = useState("");
 
   const userId = user?.id ?? null;
   const userEmail = user?.email ?? null;
@@ -31,8 +40,12 @@ export function useAccountData(user: User | null): AccountDataState {
     if (!userId) {
       setProfile(null);
       setPreferences(null);
+      setHomeSpaces([]);
       setLoading(false);
       setError("");
+      setClaiming(false);
+      setClaimMessage("");
+      setClaimError("");
       return;
     }
 
@@ -47,6 +60,7 @@ export function useAccountData(user: User | null): AccountDataState {
 
       setProfile(accountData.profile);
       setPreferences(accountData.preferences);
+      setHomeSpaces(accountData.homeSpaces);
     } catch (accountError) {
       if (requestIdRef.current !== requestId) {
         return;
@@ -54,6 +68,7 @@ export function useAccountData(user: User | null): AccountDataState {
 
       setProfile(null);
       setPreferences(null);
+      setHomeSpaces([]);
       setError(getErrorMessage(accountError));
     } finally {
       if (requestIdRef.current === requestId) {
@@ -61,6 +76,39 @@ export function useAccountData(user: User | null): AccountDataState {
       }
     }
   }, [repository, userEmail, userId]);
+
+  const claimHomeSpace = useCallback(async (syncSpaceId: string, name: string) => {
+    const normalizedName = name.trim();
+    if (!userId) {
+      setClaimError("请先登录账号。");
+      return;
+    }
+
+    if (!syncSpaceId) {
+      setClaimError("请先创建或绑定同步码。");
+      return;
+    }
+
+    if (!normalizedName) {
+      setClaimError("请输入首页空间名称。");
+      return;
+    }
+
+    setClaiming(true);
+    setClaimMessage("");
+    setClaimError("");
+
+    try {
+      const result = await repository.claimHomeSpace(userId, syncSpaceId, normalizedName);
+      const nextHomeSpaces = await repository.listHomeSpaces(userId);
+      setHomeSpaces(nextHomeSpaces);
+      setClaimMessage(result.status === "created" ? "首页空间已认领。" : "这个首页空间已在账号中。");
+    } catch (claimError) {
+      setClaimError(getErrorMessage(claimError));
+    } finally {
+      setClaiming(false);
+    }
+  }, [repository, userId]);
 
   useEffect(() => {
     const timerId = window.setTimeout(() => {
@@ -73,9 +121,14 @@ export function useAccountData(user: User | null): AccountDataState {
   return {
     profile,
     preferences,
+    homeSpaces,
     loading,
     error,
-    refresh
+    claiming,
+    claimMessage,
+    claimError,
+    refresh,
+    claimHomeSpace
   };
 }
 

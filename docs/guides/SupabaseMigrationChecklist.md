@@ -96,3 +96,4 @@ where table_schema = 'public'
 
 - `supabase/checks/004_account_spaces_verify.sql`：验证 `004_account_spaces.sql` 是否已执行到位，包括账号表、RLS、policy、敏感字段缺失、约束和角色权限。
 - `supabase/checks/004_account_spaces_repair_grants.sql`：当 `authenticated` 被授予 `TRUNCATE`、`TRIGGER`、`REFERENCES` 等过宽权限时，用于收敛账号表权限。
+- `supabase/checks/005_home_space_claim_verify.sql`：验证 Phase 1.5.4 登录账号与同步空间的认领关系；只使用同步码中的 `sync_space_id`，不要把完整同步码粘贴到 SQL Editor。

@@ -1,11 +1,13 @@
 "use client";
 
 import type { ChangeEvent } from "react";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { AccountPanel } from "@/components/account-panel";
 import { AccountPreferencesPanel } from "@/components/account-preferences-panel";
+import { HomeSpacesPanel } from "@/components/home-spaces-panel";
 import { SyncPanel } from "@/components/sync-panel";
+import type { StoredSyncBinding } from "@/domain/sync-code";
 import { useAccountData } from "@/hooks/use-account-data";
 import { useHomeDocumentController } from "@/hooks/use-home-document-controller";
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
@@ -13,6 +15,7 @@ import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
 export function SettingsDashboard() {
   const auth = useSupabaseAuth();
   const accountData = useAccountData(auth.user);
+  const [currentBinding, setCurrentBinding] = useState<StoredSyncBinding | null>(null);
   const {
     homeDocument,
     storageReady,
@@ -55,6 +58,14 @@ export function SettingsDashboard() {
           visible
           onReplaceDocument={replaceHomeDocument}
           onSyncMetaChange={updateSyncMeta}
+          onBindingChange={setCurrentBinding}
+        />
+
+        <HomeSpacesPanel
+          accountData={accountData}
+          authLoading={auth.loading}
+          signedIn={Boolean(auth.user)}
+          currentBinding={currentBinding}
         />
 
         <section className="settings-panel" aria-label="配置文件">
