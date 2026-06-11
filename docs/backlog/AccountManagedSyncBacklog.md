@@ -154,7 +154,7 @@ home_space_credentials
 
 新增账号托管同步作为重点。
 
-- 设计并执行 `home_space_credentials` 或等价凭证表。
+- Phase 1.6.0 已新增 `006_account_managed_sync_foundation.sql` 草案，包含 `home_spaces.access_mode`、`home_space_credentials`、RLS 和 `create_account_managed_home_space(...)` RPC。
 - 登录用户创建首页空间时默认创建 `account-managed` 空间。
 - 空白设备登录账号后，可直接恢复账号托管空间。
 - 已绑定同步码空间支持“迁移为账号托管”。
