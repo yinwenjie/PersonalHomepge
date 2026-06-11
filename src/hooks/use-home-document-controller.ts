@@ -5,6 +5,7 @@ import {
   createDefaultHomeDocument,
   HomeDocumentV2,
   HomeSyncMeta,
+  isDefaultHomeDocumentContent,
   migrateV1ToV2,
   nextRevision,
   normalizeHomeDocument
@@ -16,14 +17,19 @@ export function useHomeDocumentController() {
   const [storageReady, setStorageReady] = useState(false);
   const [saveStatus, setSaveStatus] = useState("");
   const [hasStoredDocument, setHasStoredDocument] = useState(false);
+  const [hasResetBackup, setHasResetBackup] = useState(false);
   const repositoryRef = useRef<LocalHomeRepository | null>(null);
+  const homeDocumentRef = useRef(homeDocument);
 
   useEffect(() => {
     repositoryRef.current = new LocalHomeRepository(window.localStorage);
     const storedDocumentExists = repositoryRef.current.hasStoredDocument();
+    const loadedDocument = repositoryRef.current.load();
 
-    setHomeDocument(repositoryRef.current.load());
+    homeDocumentRef.current = loadedDocument;
+    setHomeDocument(loadedDocument);
     setHasStoredDocument(storedDocumentExists);
+    setHasResetBackup(repositoryRef.current.hasResetBackup());
     setStorageReady(true);
   }, []);
 
@@ -36,6 +42,10 @@ export function useHomeDocumentController() {
     }).format(new Date(homeDocument.updatedAt));
   }, [homeDocument.updatedAt]);
 
+  const isDefaultDocument = useMemo(() => {
+    return isDefaultHomeDocumentContent(homeDocument);
+  }, [homeDocument]);
+
   const commitHomeDocument = useCallback((nextDocument: HomeDocumentV2, message = "已保存") => {
     const normalized = normalizeHomeDocument({
       ...nextDocument,
@@ -44,6 +54,7 @@ export function useHomeDocumentController() {
     });
 
     repositoryRef.current?.save(normalized);
+    homeDocumentRef.current = normalized;
     setHomeDocument(normalized);
     setHasStoredDocument(true);
     setSaveStatus(message);
@@ -53,6 +64,7 @@ export function useHomeDocumentController() {
     const normalized = normalizeHomeDocument(nextDocument);
 
     repositoryRef.current?.save(normalized);
+    homeDocumentRef.current = normalized;
     setHomeDocument(normalized);
     setHasStoredDocument(true);
     setSaveStatus(message);
@@ -66,6 +78,7 @@ export function useHomeDocumentController() {
       });
 
       repositoryRef.current?.save(normalized);
+      homeDocumentRef.current = normalized;
       setHasStoredDocument(true);
       return normalized;
     });
@@ -105,15 +118,55 @@ export function useHomeDocumentController() {
   }, [commitHomeDocument]);
 
   const resetDefault = useCallback(() => {
-    if (!window.confirm("恢复默认会清除当前浏览器中的本地编辑，继续？")) {
+    if (!window.confirm("清空内容并恢复默认会覆盖当前浏览器中的首页。重置前会自动保存一份本地备份，继续？")) {
       return;
     }
 
-    repositoryRef.current?.reset();
-    setHomeDocument(createDefaultHomeDocument());
+    const repository = repositoryRef.current;
+    if (!repository) {
+      window.alert("本地存储尚未就绪，请稍后重试。");
+      return;
+    }
+
+    const currentDocument = homeDocumentRef.current;
+    if (isDefaultHomeDocumentContent(currentDocument)) {
+      setSaveStatus("当前已经是默认首页，未覆盖重置前备份");
+      return;
+    }
+
+    try {
+      repository.saveResetBackup(currentDocument);
+    } catch (error) {
+      console.error(error);
+      window.alert("重置前备份失败，已取消恢复默认。");
+      return;
+    }
+
+    repository.reset();
+    const defaultDocument = createDefaultHomeDocument();
+    homeDocumentRef.current = defaultDocument;
+    setHasResetBackup(true);
+    setHomeDocument(defaultDocument);
     setHasStoredDocument(false);
-    setSaveStatus("已恢复默认");
+    setSaveStatus("已清空内容并恢复默认，重置前页面已备份");
   }, []);
+
+  const restoreResetBackup = useCallback(() => {
+    if (!window.confirm("恢复备份会覆盖当前本地首页，继续？")) {
+      return;
+    }
+
+    const repository = repositoryRef.current;
+    const backup = repository?.loadResetBackup();
+    if (!backup) {
+      repository?.clearResetBackup();
+      setHasResetBackup(false);
+      window.alert("没有可恢复的重置前备份。");
+      return;
+    }
+
+    commitHomeDocument(backup, "已恢复上一次重置前页面");
+  }, [commitHomeDocument]);
 
   return {
     homeDocument,
@@ -121,12 +174,15 @@ export function useHomeDocumentController() {
     saveStatus,
     updatedLabel,
     hasStoredDocument,
+    hasResetBackup,
+    isDefaultDocument,
     commitHomeDocument,
     replaceHomeDocument,
     updateSyncMeta,
     importJson,
     exportJson,
-    resetDefault
+    resetDefault,
+    restoreResetBackup
   };
 }
 

@@ -2,6 +2,7 @@ export const HOME_DOCUMENT_VERSION = 2;
 export const SYNC_REVISION_MAX = 999;
 export const V1_STORAGE_KEY = "homepage:data:v1";
 export const V2_STORAGE_KEY = "homepage:document:v2";
+export const RESET_BACKUP_STORAGE_KEY = "homepage:reset-backup:v1";
 export const UNGROUPED_GROUP_ID = "group-ungrouped";
 
 export type SyncMode = "local" | "sync-code";
@@ -335,6 +336,13 @@ export function normalizeHomeDocument(input: unknown): HomeDocumentV2 {
   };
 }
 
+export function isDefaultHomeDocumentContent(documentValue: HomeDocumentV2): boolean {
+  const current = toHomeDocumentContentSnapshot(normalizeHomeDocument(documentValue));
+  const defaults = toHomeDocumentContentSnapshot(createDefaultHomeDocument());
+
+  return JSON.stringify(current) === JSON.stringify(defaults);
+}
+
 export function migrateV1ToV2(input: unknown): HomeDocumentV2 {
   if (!isRecord(input) || input.version !== 1 || !Array.isArray(input.groups)) {
     throw new Error("Invalid legacy HomeDocument");
@@ -351,6 +359,14 @@ export function migrateV1ToV2(input: unknown): HomeDocumentV2 {
     syncMeta: DEFAULT_SYNC_META,
     billing: DEFAULT_BILLING_META
   });
+}
+
+function toHomeDocumentContentSnapshot(documentValue: HomeDocumentV2) {
+  return {
+    groups: documentValue.groups,
+    widgets: documentValue.widgets,
+    theme: documentValue.theme
+  };
 }
 
 function normalizeGroup(input: unknown, groupIndex: number): HomeGroup {
