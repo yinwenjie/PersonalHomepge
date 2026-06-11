@@ -4,13 +4,18 @@ import type {
   AccountProfile,
   ActivatedHomeSpaceResult,
   ClaimHomeSpaceResult,
+  CreatedAccountManagedHomeSpaceResult,
+  HomeSpaceAccessMode,
   HomeSpace
 } from "@/domain/account";
+import type { HomeDocumentV2 } from "@/domain/home-document";
+import { createSyncSecrets, SYNC_CODE_VERSION } from "@/domain/sync-code";
+import { encryptHomeDocument, type EncryptedHomeDocument } from "@/infrastructure/sync-crypto";
 import { getSupabaseBrowserClient } from "@/infrastructure/supabase-client";
 
 const PROFILE_SELECT = "id, email, display_name, created_at, updated_at";
 const PREFERENCES_SELECT = "user_id, locale, theme_preference, default_space_id, created_at, updated_at";
-const HOME_SPACE_SELECT = "id, user_id, sync_space_id, name, is_default, last_used_at, created_at, updated_at";
+const HOME_SPACE_SELECT = "id, user_id, sync_space_id, access_mode, name, is_default, last_used_at, created_at, updated_at";
 
 interface ProfileRow {
   id: string;
@@ -33,10 +38,18 @@ interface HomeSpaceRow {
   id: string;
   user_id: string;
   sync_space_id: string;
+  access_mode: HomeSpaceAccessMode;
   name: string;
   is_default: boolean;
   last_used_at: string | null;
   created_at: string;
+  updated_at: string;
+}
+
+interface CreateAccountManagedHomeSpaceRow {
+  home_space_id: string;
+  sync_space_id: string;
+  revision: number;
   updated_at: string;
 }
 
@@ -104,6 +117,43 @@ export class AccountRepository {
     }
 
     throw error ?? new Error("首页空间认领失败");
+  }
+
+  async createAccountManagedHomeSpace(
+    userId: string,
+    name: string,
+    documentValue: HomeDocumentV2
+  ): Promise<CreatedAccountManagedHomeSpaceResult> {
+    const secrets = createSyncSecrets();
+    const encryptedDocument = await encryptHomeDocument(documentValue, secrets.encryptionKey);
+    const row = await rpcSingle<CreateAccountManagedHomeSpaceRow>("create_account_managed_home_space", {
+      p_name: name.trim(),
+      p_access_token: secrets.accessToken,
+      p_encryption_key: secrets.encryptionKey,
+      ...toRpcEncryptedDocument(encryptedDocument)
+    });
+
+    const activated = await this.markHomeSpaceActive(userId, row.home_space_id);
+    const homeSpace = activated.homeSpaces.find((candidate) => candidate.id === row.home_space_id);
+    if (!homeSpace) {
+      throw new Error("账号托管空间创建后未能读取空间列表");
+    }
+
+    return {
+      ...activated,
+      homeSpace,
+      binding: {
+        version: SYNC_CODE_VERSION,
+        accessMode: "account-managed",
+        spaceId: row.sync_space_id,
+        accessToken: secrets.accessToken,
+        encryptionKey: secrets.encryptionKey,
+        remoteRevision: row.revision,
+        lastSyncedAt: row.updated_at,
+        lastSyncedDocumentRevision: documentValue.revision,
+        lastSyncedDocumentUpdatedAt: documentValue.updatedAt
+      }
+    };
   }
 
   async markHomeSpaceActive(userId: string, homeSpaceId: string): Promise<ActivatedHomeSpaceResult> {
@@ -276,10 +326,34 @@ function mapHomeSpace(row: HomeSpaceRow): HomeSpace {
     id: row.id,
     userId: row.user_id,
     syncSpaceId: row.sync_space_id,
+    accessMode: row.access_mode,
     name: row.name,
     isDefault: row.is_default,
     lastUsedAt: row.last_used_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at
+  };
+}
+
+async function rpcSingle<T>(functionName: string, args: Record<string, unknown>): Promise<T> {
+  const { data, error } = await getSupabaseBrowserClient().rpc(functionName, args);
+
+  if (error) {
+    throw error;
+  }
+
+  if (!Array.isArray(data) || data.length !== 1) {
+    throw new Error(`Unexpected RPC response from ${functionName}`);
+  }
+
+  return data[0] as T;
+}
+
+function toRpcEncryptedDocument(encryptedDocument: EncryptedHomeDocument) {
+  return {
+    p_document_ciphertext: encryptedDocument.documentCiphertext,
+    p_document_iv: encryptedDocument.documentIv,
+    p_document_salt: encryptedDocument.documentSalt,
+    p_document_schema_version: encryptedDocument.documentSchemaVersion
   };
 }

@@ -65,14 +65,20 @@ alter table public.home_space_credentials
 
 alter table public.home_space_credentials
   add constraint home_space_credentials_access_token_size
-  check (access_token ~ '^[A-Za-z0-9_-]{32,512}$');
+  check (
+    char_length(access_token) between 32 and 512
+    and access_token ~ '^[A-Za-z0-9_-]+$'
+  );
 
 alter table public.home_space_credentials
   drop constraint if exists home_space_credentials_encryption_key_size;
 
 alter table public.home_space_credentials
   add constraint home_space_credentials_encryption_key_size
-  check (encryption_key ~ '^[A-Za-z0-9_-]{32,512}$');
+  check (
+    char_length(encryption_key) between 32 and 512
+    and encryption_key ~ '^[A-Za-z0-9_-]+$'
+  );
 
 create index if not exists home_space_credentials_user_id_idx
   on public.home_space_credentials(user_id);
@@ -200,11 +206,17 @@ begin
     p_document_schema_version
   );
 
-  if p_access_token is null or p_access_token !~ '^[A-Za-z0-9_-]{32,512}$' then
+  if p_access_token is null
+    or char_length(p_access_token) < 32
+    or char_length(p_access_token) > 512
+    or p_access_token !~ '^[A-Za-z0-9_-]+$' then
     raise exception 'Invalid managed access token' using errcode = '22023';
   end if;
 
-  if p_encryption_key is null or p_encryption_key !~ '^[A-Za-z0-9_-]{32,512}$' then
+  if p_encryption_key is null
+    or char_length(p_encryption_key) < 32
+    or char_length(p_encryption_key) > 512
+    or p_encryption_key !~ '^[A-Za-z0-9_-]+$' then
     raise exception 'Invalid managed encryption key' using errcode = '22023';
   end if;
 

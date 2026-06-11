@@ -22,7 +22,10 @@ export interface SyncCodeParts {
   encryptionKey: string;
 }
 
+export type StoredSyncAccessMode = "sync-code" | "account-managed";
+
 export interface StoredSyncBinding extends SyncCodeParts {
+  accessMode: StoredSyncAccessMode;
   remoteRevision: number;
   lastSyncedAt: string | null;
   lastSyncedDocumentRevision: number;
@@ -83,6 +86,7 @@ export function normalizeStoredSyncBinding(input: unknown): StoredSyncBinding | 
 
     return {
       ...parts,
+      accessMode: normalizeStoredSyncAccessMode(value.accessMode),
       remoteRevision: normalizeRevision(value.remoteRevision),
       lastSyncedAt: typeof value.lastSyncedAt === "string" ? value.lastSyncedAt : null,
       lastSyncedDocumentRevision: normalizeRevision(value.lastSyncedDocumentRevision),
@@ -93,6 +97,10 @@ export function normalizeStoredSyncBinding(input: unknown): StoredSyncBinding | 
   } catch {
     return null;
   }
+}
+
+function normalizeStoredSyncAccessMode(value: unknown): StoredSyncAccessMode {
+  return value === "account-managed" ? "account-managed" : "sync-code";
 }
 
 export function randomBase64Url(byteLength: number): string {

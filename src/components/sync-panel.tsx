@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { getErrorMessage } from "@/domain/errors";
 import { HomeDocumentV2, HomeSyncMeta } from "@/domain/home-document";
 import {
   createSyncSecrets,
@@ -100,7 +101,7 @@ export function SyncPanel({
     } catch (actionError) {
       console.error(actionError);
       const activeBinding = bindingRef.current;
-      setError(actionError instanceof Error ? actionError.message : "同步操作失败。");
+      setError(getErrorMessage(actionError, "同步操作失败。"));
       if (activeBinding) {
         setSyncMetaFromBinding(activeBinding, isLikelyOfflineError(actionError) ? "offline" : "error", "同步失败");
       }
@@ -301,7 +302,11 @@ export function SyncPanel({
 
     persistBinding(storedBinding);
     setSyncCode(formatSyncCode(storedBinding));
-    setSyncMetaFromBinding(storedBinding, "linked", "已读取本机同步码");
+    setSyncMetaFromBinding(
+      storedBinding,
+      "linked",
+      storedBinding.accessMode === "account-managed" ? "已读取本机账号托管凭证" : "已读取本机同步码"
+    );
     window.setTimeout(() => {
       performPull({ forceApply: false, source: "startup" });
     }, 0);
@@ -362,8 +367,9 @@ export function SyncPanel({
     }
 
     const syncedAt = binding.lastSyncedAt ? formatShortDateTime(binding.lastSyncedAt) : "未同步";
-    return `已绑定 rev ${binding.remoteRevision}，最后同步 ${syncedAt}`;
+    return `${binding.accessMode === "account-managed" ? "账号托管" : "同步码"} rev ${binding.remoteRevision}，最后同步 ${syncedAt}`;
   }, [binding]);
+  const isAccountManaged = binding?.accessMode === "account-managed";
 
   async function createCode() {
     await runSyncAction(async () => {
@@ -371,6 +377,7 @@ export function SyncPanel({
       const result = await getSyncRepository().create(documentRef.current, secrets);
       const nextBinding: StoredSyncBinding = {
         version: 1,
+        accessMode: "sync-code",
         spaceId: result.spaceId,
         accessToken: secrets.accessToken,
         encryptionKey: secrets.encryptionKey,
@@ -398,6 +405,7 @@ export function SyncPanel({
 
       const nextBinding: StoredSyncBinding = {
         ...parsed,
+        accessMode: "sync-code",
         remoteRevision: pulled.revision,
         lastSyncedAt: pulled.updatedAt,
         lastSyncedDocumentRevision: pulled.document.revision,
@@ -415,7 +423,7 @@ export function SyncPanel({
   }
 
   async function copyCode() {
-    if (!syncCode) {
+    if (!syncCode || bindingRef.current?.accessMode === "account-managed") {
       return;
     }
 
@@ -438,7 +446,7 @@ export function SyncPanel({
     setBinding(null);
     onBindingChange?.(null);
     setSyncCode("");
-    onSyncMetaChange(localSyncMeta(), "已解除本机同步码");
+    onSyncMetaChange(localSyncMeta(), binding?.accessMode === "account-managed" ? "已解除本机账号托管凭证" : "已解除本机同步码");
     setMessage("已解除本机绑定。");
     setError("");
   }
@@ -446,6 +454,12 @@ export function SyncPanel({
   async function revokeCode() {
     const activeBinding = bindingRef.current;
     if (!activeBinding) {
+      return;
+    }
+
+    if (activeBinding.accessMode === "account-managed") {
+      setMessage("账号托管空间暂不支持从同步码面板废弃。");
+      setError("");
       return;
     }
 
@@ -499,10 +513,14 @@ export function SyncPanel({
 
       <div className="sync-code-grid">
         <label className="field">
-          <span>当前同步码</span>
-          <input value={syncCode} readOnly placeholder="创建后显示，用于其他设备绑定" />
+          <span>{isAccountManaged ? "当前凭证" : "当前同步码"}</span>
+          <input
+            value={isAccountManaged ? "账号托管，不显示完整同步码" : syncCode}
+            readOnly
+            placeholder="创建后显示，用于其他设备绑定"
+          />
         </label>
-        <button className="utility-button" type="button" onClick={copyCode} disabled={!syncCode}>复制</button>
+        <button className="utility-button" type="button" onClick={copyCode} disabled={!syncCode || isAccountManaged}>复制</button>
       </div>
 
       <div className="sync-code-grid">
@@ -516,7 +534,15 @@ export function SyncPanel({
       <div className="sync-panel-footer">
         <div className="sync-panel-actions">
           <button className="utility-button" type="button" onClick={unbindLocal} disabled={!binding}>解除本机</button>
-          <button className="danger-button" type="button" onClick={revokeCode} disabled={busy || !binding}>废弃同步码</button>
+          <button
+            className="danger-button"
+            type="button"
+            onClick={revokeCode}
+            disabled={busy || !binding || isAccountManaged}
+            title={isAccountManaged ? "账号托管空间删除会在后续空间管理中实现" : undefined}
+          >
+            {isAccountManaged ? "托管空间暂不可废弃" : "废弃同步码"}
+          </button>
         </div>
         <p className={error ? "form-error" : "save-status"}>{error || message}</p>
       </div>

@@ -1129,7 +1129,8 @@ h1 {
   white-space: nowrap;
 }
 
-.home-space-claim-form {
+.home-space-claim-form,
+.home-space-create-form {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
@@ -1408,6 +1409,7 @@ h1 {
 
   .auth-form,
   .home-space-claim-form,
+  .home-space-create-form,
   .home-space-activate-form {
     grid-template-columns: 1fr;
   }

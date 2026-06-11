@@ -52,6 +52,7 @@ export function SettingsDashboard() {
     const pulled = await syncRepository.pull(parsed);
     const nextBinding: StoredSyncBinding = {
       ...parsed,
+      accessMode: "sync-code",
       remoteRevision: pulled.revision,
       lastSyncedAt: pulled.updatedAt,
       lastSyncedDocumentRevision: pulled.document.revision,
@@ -71,6 +72,13 @@ export function SettingsDashboard() {
     }, "已激活首页空间并拉取云端首页");
     setSyncPanelKey((value) => value + 1);
     return true;
+  }
+
+  function handleManagedHomeSpaceCreated(binding: StoredSyncBinding) {
+    new LocalSyncBindingRepository(window.localStorage).save(binding);
+    setCurrentBinding(binding);
+    updateSyncMeta(toSyncMeta(binding), "账号托管空间已创建并绑定本机");
+    setSyncPanelKey((value) => value + 1);
   }
 
   return (
@@ -102,7 +110,10 @@ export function SettingsDashboard() {
           authLoading={auth.loading}
           signedIn={Boolean(auth.user)}
           currentBinding={currentBinding}
+          documentValue={homeDocument}
+          storageReady={storageReady}
           onActivateHomeSpace={activateHomeSpace}
+          onManagedHomeSpaceCreated={handleManagedHomeSpaceCreated}
         />
 
         <section className="settings-panel" aria-label="配置文件">

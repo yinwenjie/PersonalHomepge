@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import type { AccountPreferences, AccountProfile, HomeSpace } from "@/domain/account";
+import { getActionErrorMessage } from "@/domain/errors";
+import type { HomeDocumentV2 } from "@/domain/home-document";
+import type { StoredSyncBinding } from "@/domain/sync-code";
 import { AccountRepository } from "@/infrastructure/account-repository";
 
 export interface AccountDataState {
@@ -13,12 +16,16 @@ export interface AccountDataState {
   error: string;
   claiming: boolean;
   activating: boolean;
+  creatingManaged: boolean;
   claimMessage: string;
   claimError: string;
+  managedCreateMessage: string;
+  managedCreateError: string;
   activationMessage: string;
   activationError: string;
   refresh: () => Promise<void>;
   claimHomeSpace: (syncSpaceId: string, name: string) => Promise<void>;
+  createAccountManagedHomeSpace: (name: string, documentValue: HomeDocumentV2) => Promise<StoredSyncBinding | null>;
   markHomeSpaceActive: (homeSpaceId: string) => Promise<boolean>;
 }
 
@@ -32,8 +39,11 @@ export function useAccountData(user: User | null): AccountDataState {
   const [error, setError] = useState("");
   const [claiming, setClaiming] = useState(false);
   const [activating, setActivating] = useState(false);
+  const [creatingManaged, setCreatingManaged] = useState(false);
   const [claimMessage, setClaimMessage] = useState("");
   const [claimError, setClaimError] = useState("");
+  const [managedCreateMessage, setManagedCreateMessage] = useState("");
+  const [managedCreateError, setManagedCreateError] = useState("");
   const [activationMessage, setActivationMessage] = useState("");
   const [activationError, setActivationError] = useState("");
 
@@ -52,8 +62,11 @@ export function useAccountData(user: User | null): AccountDataState {
       setError("");
       setClaiming(false);
       setActivating(false);
+      setCreatingManaged(false);
       setClaimMessage("");
       setClaimError("");
+      setManagedCreateMessage("");
+      setManagedCreateError("");
       setActivationMessage("");
       setActivationError("");
       return;
@@ -79,7 +92,7 @@ export function useAccountData(user: User | null): AccountDataState {
       setProfile(null);
       setPreferences(null);
       setHomeSpaces([]);
-      setError(getErrorMessage(accountError));
+      setError(getActionErrorMessage("账号资料加载失败", accountError));
     } finally {
       if (requestIdRef.current === requestId) {
         setLoading(false);
@@ -114,9 +127,46 @@ export function useAccountData(user: User | null): AccountDataState {
       setHomeSpaces(nextHomeSpaces);
       setClaimMessage(result.status === "created" ? "首页空间已认领。" : "这个首页空间已在账号中。");
     } catch (claimError) {
-      setClaimError(getErrorMessage(claimError));
+      setClaimError(getActionErrorMessage("首页空间认领失败", claimError));
     } finally {
       setClaiming(false);
+    }
+  }, [repository, userId]);
+
+  const createAccountManagedHomeSpace = useCallback(async (
+    name: string,
+    documentValue: HomeDocumentV2
+  ): Promise<StoredSyncBinding | null> => {
+    const normalizedName = name.trim();
+    if (!userId) {
+      setManagedCreateError("请先登录账号。");
+      return null;
+    }
+
+    if (!normalizedName) {
+      setManagedCreateError("请输入首页空间名称。");
+      return null;
+    }
+
+    setCreatingManaged(true);
+    setManagedCreateMessage("");
+    setManagedCreateError("");
+    setClaimMessage("");
+    setClaimError("");
+    setActivationMessage("");
+    setActivationError("");
+
+    try {
+      const result = await repository.createAccountManagedHomeSpace(userId, normalizedName, documentValue);
+      setPreferences(result.preferences);
+      setHomeSpaces(result.homeSpaces);
+      setManagedCreateMessage("账号托管空间已创建。");
+      return result.binding;
+    } catch (createError) {
+      setManagedCreateError(getActionErrorMessage("账号托管空间创建失败", createError));
+      return null;
+    } finally {
+      setCreatingManaged(false);
     }
   }, [repository, userId]);
 
@@ -142,7 +192,7 @@ export function useAccountData(user: User | null): AccountDataState {
       setActivationMessage("当前首页空间已更新。");
       return true;
     } catch (activationError) {
-      setActivationError(getErrorMessage(activationError));
+      setActivationError(getActionErrorMessage("首页空间激活失败", activationError));
       return false;
     } finally {
       setActivating(false);
@@ -157,28 +207,31 @@ export function useAccountData(user: User | null): AccountDataState {
     return () => window.clearTimeout(timerId);
   }, [refresh]);
 
+  const accountLoadedForUser = Boolean(
+    userId
+      && profile?.id === userId
+      && preferences?.userId === userId
+  );
+  const effectiveLoading = loading || Boolean(userId && !accountLoadedForUser && !error);
+
   return {
-    profile,
-    preferences,
-    homeSpaces,
-    loading,
+    profile: accountLoadedForUser ? profile : null,
+    preferences: accountLoadedForUser ? preferences : null,
+    homeSpaces: accountLoadedForUser ? homeSpaces : [],
+    loading: effectiveLoading,
     error,
     claiming,
     activating,
+    creatingManaged,
     claimMessage,
     claimError,
+    managedCreateMessage,
+    managedCreateError,
     activationMessage,
     activationError,
     refresh,
     claimHomeSpace,
+    createAccountManagedHomeSpace,
     markHomeSpaceActive
   };
-}
-
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return "账号资料加载失败。";
 }

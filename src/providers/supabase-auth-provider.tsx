@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { SupabaseAuthContext, type SupabaseAuthState } from "@/contexts/supabase-auth-context";
+import { getErrorMessage } from "@/domain/errors";
 import { getSupabaseBrowserClient } from "@/infrastructure/supabase-client";
 
 interface SupabaseAuthProviderProps {
@@ -53,7 +54,7 @@ export function SupabaseAuthProvider({ children }: SupabaseAuthProviderProps) {
         subscriptionData.subscription.unsubscribe();
       };
     } catch (authError) {
-      const message = getErrorMessage(authError);
+      const message = getErrorMessage(authError, "账号服务暂时不可用。");
       const timerId = window.setTimeout(() => {
         if (!mounted) {
           return;
@@ -98,7 +99,7 @@ export function SupabaseAuthProvider({ children }: SupabaseAuthProviderProps) {
 
       setMessage("登录链接已发送，请打开邮件完成登录。");
     } catch (authError) {
-      setError(getErrorMessage(authError));
+      setError(getErrorMessage(authError, "账号服务暂时不可用。"));
     } finally {
       setActionPending(false);
     }
@@ -121,7 +122,7 @@ export function SupabaseAuthProvider({ children }: SupabaseAuthProviderProps) {
       setSession(null);
       setMessage("已退出账号。本地首页数据不会被删除。");
     } catch (authError) {
-      setError(getErrorMessage(authError));
+      setError(getErrorMessage(authError, "账号服务暂时不可用。"));
     } finally {
       setActionPending(false);
     }
@@ -154,12 +155,4 @@ function getAuthRedirectUrl(): string | undefined {
   url.hash = "";
   url.search = "";
   return url.toString();
-}
-
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return "账号服务暂时不可用。";
 }
