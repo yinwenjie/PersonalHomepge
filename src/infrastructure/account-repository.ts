@@ -107,41 +107,24 @@ export class AccountRepository {
   }
 
   async markHomeSpaceActive(userId: string, homeSpaceId: string): Promise<ActivatedHomeSpaceResult> {
-    await this.updateHomeSpaceLastUsed(userId, homeSpaceId);
-    const preferences = await this.updateDefaultHomeSpace(userId, homeSpaceId);
+    const { error } = await getSupabaseBrowserClient()
+      .rpc("activate_home_space", { p_home_space_id: homeSpaceId });
+
+    if (error) {
+      throw error;
+    }
+
+    const preferences = await this.getPreferences(userId);
+    if (!preferences) {
+      throw new Error("账号偏好更新失败");
+    }
+
     const homeSpaces = await this.listHomeSpaces(userId);
 
     return {
       preferences,
       homeSpaces
     };
-  }
-
-  private async updateHomeSpaceLastUsed(userId: string, homeSpaceId: string): Promise<void> {
-    const { error } = await getSupabaseBrowserClient()
-      .from("home_spaces")
-      .update({ last_used_at: new Date().toISOString() })
-      .eq("id", homeSpaceId)
-      .eq("user_id", userId);
-
-    if (error) {
-      throw error;
-    }
-  }
-
-  private async updateDefaultHomeSpace(userId: string, homeSpaceId: string): Promise<AccountPreferences> {
-    const { data, error } = await getSupabaseBrowserClient()
-      .from("account_preferences")
-      .update({ default_space_id: homeSpaceId })
-      .eq("user_id", userId)
-      .select(PREFERENCES_SELECT)
-      .single();
-
-    if (error) {
-      throw error;
-    }
-
-    return mapPreferences(data as PreferencesRow);
   }
 
   private async getHomeSpaceBySyncSpace(userId: string, syncSpaceId: string): Promise<HomeSpace | null> {
