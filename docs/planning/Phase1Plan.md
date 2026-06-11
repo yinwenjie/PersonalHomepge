@@ -15,6 +15,36 @@
 
 ## Phase Plan
 
+### Current Status And Next Plan
+
+截至当前实现，Phase 1.1 到 Phase 1.5 已完成并部署到 GitHub Pages。下一条主线是 Phase 1.6：账号托管同步与 Beta 打磨。
+
+| 阶段 | 当前状态 | 已落地能力 | 后续动作 |
+|---|---|---|---|
+| Phase 1.1：本地可编辑首页 | 已完成 | 分组、网站、本地保存、导入导出、恢复默认 | 只做缺陷修复 |
+| Phase 1.2：统一数据结构与 Next.js 迁移 | 已完成 | `HomeDocumentV2`、Next.js App Router、静态导出 | 继续保持 schema 兼容 |
+| Phase 1.3：同步码跨设备同步 | 已完成 | 加密同步码、Supabase RPC、revision check、冲突处理 | 后续优化多标签同步和请求协调 |
+| Phase 1.4：展示页与设置页优化 | 已完成 | 首页轻量展示、设置页、未分组、首页直编、恢复默认前本地备份 | 后续统一确认弹窗和设置页体验 |
+| Phase 1.5：账号登录与首页空间管理 | 已完成 | Magic Link、Resend SMTP、账号资料、偏好骨架、同步码认领、空间切换、安全收口 | 进入 Phase 1.6，不再扩展本阶段范围 |
+| Phase 1.6：账号托管同步与 Beta 打磨 | 下一步 | 尚未实现 | 账号托管凭证、空白设备恢复、空间 CRUD、偏好编辑、主域名准备 |
+| Phase 1.7：凭证、设备和模板能力 | 待规划 | 尚未实现 | 多设备凭证、多同步码、模板库、操作审计 |
+| Phase 1.8：分享与账号治理 | 待规划 | 尚未实现 | 只读分享、账号删除、更完整设备移除 |
+| Phase 2：商业化与平台能力 | 远期 | 尚未实现 | Stripe、VIP、自定义域名、高级组件、公开主页、团队协作 |
+
+#### Phase 1.6 Recommended Breakdown
+
+| 子阶段 | 目标 | 主要交付 |
+|---|---|---|
+| Phase 1.6.0 | 账号托管同步设计收口 | 凭证表、RLS、RPC、迁移和验证 SQL 设计 |
+| Phase 1.6.1 | 账号托管凭证落地 | `account-managed` 空间和仅本人可读的托管凭证 |
+| Phase 1.6.2 | 空白设备账号恢复 | 登录后直接恢复账号托管空间内容 |
+| Phase 1.6.3 | 同步码迁移为账号托管 | 当前同步码空间解密后迁移为账号托管空间，可选择废弃旧同步码 |
+| Phase 1.6.4 | 首页空间 CRUD | 创建、重命名、删除、默认空间稳定化 |
+| Phase 1.6.5 | 同步码入口降级 | 账号托管空间默认隐藏同步码，把同步码移动到高级/恢复区域 |
+| Phase 1.6.6 | 全局偏好编辑 | 语言、主题、字体、默认搜索引擎等账号偏好可编辑 |
+| Phase 1.6.7 | 数据导出和 Beta 质量 | 账号数据导出、空状态、错误状态、保存/同步状态统一 |
+| Phase 1.6.8 | 主域名准备 | 自购主域名、`basePath`、Auth redirect 和缓存隔离回归 |
+
 ### 第 1 阶段：本地可编辑首页，约 1-2 周
 
 - 在当前首页上加入编辑模式：
@@ -87,7 +117,8 @@
   - DuckDuckGo 搜索。
   - 拖拽排序。
   - 同步码自动同步。
-  - 导入 JSON、导出 JSON、恢复默认。
+  - 导入 JSON、导出 JSON、清空内容并恢复默认。
+  - 恢复默认前自动保存最近一次本地备份，可恢复上一次重置前页面。
 - 预留后续能力：
   - 设置页展示登录界面占位，但不实现登录功能。
 - 本阶段边界：
@@ -162,12 +193,26 @@
 
 ```json
 {
-  "version": 1,
+  "version": 2,
+  "documentId": "home_xxx",
   "updatedAt": "ISO_DATE",
+  "revision": 0,
   "theme": {
     "bannerUrl": null,
     "backgroundUrl": null,
     "accent": "#246bfe"
+  },
+  "syncMeta": {
+    "mode": "local",
+    "status": "local-only",
+    "provider": null,
+    "spaceId": null,
+    "remoteRevision": null,
+    "lastSyncedAt": null
+  },
+  "billing": {
+    "plan": "free",
+    "stripeCustomerId": null
   },
   "groups": [
     {
@@ -198,8 +243,11 @@
 ```
 
 - 本地存储 key：
-  - `homepage:data:v1`
-  - `homepage:sync:v1`
+  - `homepage:data:v1`：旧版本地首页数据，加载后迁移到 v2。
+  - `homepage:document:v2`：当前本地首页文档。
+  - `homepage:sync-code:v1`：当前浏览器保存的同步码绑定。
+  - `homepage:reset-backup:v1`：最近一次恢复默认前的本地备份。
+  - `homepage:onboarding:v1`：首页初次使用引导状态。
 - 云端最小表：
   - `sync_spaces`: 匿名同步码空间，保存密文首页文档、revision、token hash。
   - `profiles`: 用户基础资料，绑定 Supabase Auth 用户。
@@ -213,7 +261,8 @@
   - `push_sync_space`
   - `force_push_sync_space`
   - `revoke_sync_space`
-  - Phase 1.5 新增账号空间相关读写，可优先用 Supabase table API + RLS，必要时再补 RPC。
+  - `activate_home_space`
+  - Phase 1.5 账号资料、偏好和空间索引主要使用 Supabase table API + RLS；默认空间激活使用 RPC 保证原子一致性。
 
 ## Security Requirements
 
