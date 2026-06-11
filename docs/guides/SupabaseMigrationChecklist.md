@@ -42,10 +42,17 @@
    - 新增 `create_account_managed_home_space(...)` RPC，供 Phase 1.6.1+ 创建账号托管空间。
    - 不改变当前前端行为，不隐藏同步码入口，不改变现有同步码 RPC。
 
+7. `supabase/migrations/007_account_managed_credential_regex_fix.sql`
+   - 修复 `home_space_credentials` 凭证校验中的 PostgreSQL 正则 `{32,512}` 运行时错误。
+   - 将凭证校验改为长度检查加 Base64URL 字符集检查。
+   - 重新创建 `create_account_managed_home_space(...)` RPC。
+   - 不删除数据，不改变 RLS 规则，不改变同步码 RPC。
+
 ## 执行规则
 
-- 新 Supabase project：按 `001 -> 002 -> 003 -> 004 -> 005 -> 006` 顺序执行。
-- 已经执行过 `001`、`002`、`003`、`004`、`005` 的项目：只执行 `006`。
+- 新 Supabase project：按 `001 -> 002 -> 003 -> 004 -> 005 -> 006 -> 007` 顺序执行。
+- 已经执行过 `001`、`002`、`003`、`004`、`005` 的项目：先执行 `006`，再执行 `007`。
+- 已经执行过 `006` 的项目：只需补执行 `007`。
 - 执行前确认目标 project 是线上使用的 Supabase project。
 - 执行 `003` 后可以在 SQL Editor 中检查 revision 函数是否存在：
 
@@ -105,6 +112,7 @@ where table_schema = 'public'
 - `004_account_spaces.sql` 只建立账号空间索引，不会改变现有同步码 RPC 行为。
 - `005_account_space_activation.sql` 只收口默认空间激活和 RLS 校验，不引入账号托管凭证，不改变同步码密文同步模型。
 - `006_account_managed_sync_foundation.sql` 会保存账号托管凭证字段，但只在 `home_space_credentials` 表中保存，并通过 RLS 限制为本人可读；本阶段前端还不会使用这些凭证。
+- `007_account_managed_credential_regex_fix.sql` 是 Phase 1.6.1 热修复；如果创建账号托管空间时报 `invalid regular expression: invalid repetition count(s)`，说明线上数据库需要执行该脚本。
 - 新设备登录后看到账号空间列表，不代表已经拥有该空间的同步凭证；没有本地绑定时仍需输入完整同步码。
 
 ## 辅助检查脚本
@@ -114,3 +122,4 @@ where table_schema = 'public'
 - `supabase/checks/005_home_space_claim_verify.sql`：验证 Phase 1.5.4 登录账号与同步空间的认领关系；只使用同步码中的 `sync_space_id`，不要把完整同步码粘贴到 SQL Editor。
 - `supabase/checks/006_account_security_verify.sql`：验证 Phase 1.5.6 安全收口，包括账号表隔离、`sync_spaces` 直接表权限、`activate_home_space` RPC 权限、默认空间一致性和 A/B 用户 RLS 模拟。
 - `supabase/checks/007_account_managed_sync_verify.sql`：验证 Phase 1.6.0 账号托管同步基础，包括 `access_mode`、`home_space_credentials`、RLS、角色权限、RPC 权限和现有同步码 RPC 回归。
+- `supabase/checks/008_account_managed_credential_regex_fix_verify.sql`：验证 Phase 1.6.1 账号托管凭证正则热修复，确认约束和 RPC 中不再包含 `{32,512}`。

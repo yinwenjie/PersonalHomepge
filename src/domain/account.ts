@@ -1,3 +1,7 @@
+import type { StoredSyncBinding } from "@/domain/sync-code";
+
+export type HomeSpaceAccessMode = "sync-code" | "account-managed" | "password-protected";
+
 export interface AccountProfile {
   id: string;
   email: string | null;
@@ -19,6 +23,7 @@ export interface HomeSpace {
   id: string;
   userId: string;
   syncSpaceId: string;
+  accessMode: HomeSpaceAccessMode;
   name: string;
   isDefault: boolean;
   lastUsedAt: string | null;
@@ -39,4 +44,9 @@ export type ClaimHomeSpaceResult =
 export interface ActivatedHomeSpaceResult {
   preferences: AccountPreferences;
   homeSpaces: HomeSpace[];
+}
+
+export interface CreatedAccountManagedHomeSpaceResult extends ActivatedHomeSpaceResult {
+  homeSpace: HomeSpace;
+  binding: StoredSyncBinding;
 }

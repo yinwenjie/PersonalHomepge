@@ -3,6 +3,7 @@
 import type { FormEvent } from "react";
 import { useMemo, useState } from "react";
 import type { HomeSpace } from "@/domain/account";
+import type { HomeDocumentV2 } from "@/domain/home-document";
 import { parseSyncCode, type StoredSyncBinding } from "@/domain/sync-code";
 import type { AccountDataState } from "@/hooks/use-account-data";
 
@@ -11,7 +12,10 @@ interface HomeSpacesPanelProps {
   authLoading: boolean;
   signedIn: boolean;
   currentBinding: StoredSyncBinding | null;
+  documentValue: HomeDocumentV2;
+  storageReady: boolean;
   onActivateHomeSpace: (homeSpace: HomeSpace, syncCode: string) => Promise<boolean>;
+  onManagedHomeSpaceCreated: (binding: StoredSyncBinding) => void;
 }
 
 export function HomeSpacesPanel({
@@ -19,13 +23,18 @@ export function HomeSpacesPanel({
   authLoading,
   signedIn,
   currentBinding,
-  onActivateHomeSpace
+  documentValue,
+  storageReady,
+  onActivateHomeSpace,
+  onManagedHomeSpaceCreated
 }: HomeSpacesPanelProps) {
-  const [spaceName, setSpaceName] = useState("我的首页");
+  const [claimSpaceName, setClaimSpaceName] = useState("我的首页");
+  const [managedSpaceName, setManagedSpaceName] = useState("我的首页");
   const [activeSpaceId, setActiveSpaceId] = useState<string | null>(null);
   const [activationCode, setActivationCode] = useState("");
   const [activationError, setActivationError] = useState("");
   const [activationPending, setActivationPending] = useState(false);
+  const accountReady = Boolean(accountData.profile && accountData.preferences && !accountData.loading);
   const currentHomeSpace = useMemo(() => {
     if (!currentBinding) {
       return null;
@@ -36,7 +45,19 @@ export function HomeSpacesPanel({
 
   async function handleClaim(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    await accountData.claimHomeSpace(currentBinding?.spaceId ?? "", spaceName);
+    await accountData.claimHomeSpace(currentBinding?.spaceId ?? "", claimSpaceName);
+  }
+
+  async function handleCreateManaged(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!storageReady || !accountReady || accountData.creatingManaged) {
+      return;
+    }
+
+    const binding = await accountData.createAccountManagedHomeSpace(managedSpaceName, documentValue);
+    if (binding) {
+      onManagedHomeSpaceCreated(binding);
+    }
   }
 
   async function handleActivate(event: FormEvent<HTMLFormElement>, homeSpace: HomeSpace) {
@@ -97,14 +118,30 @@ export function HomeSpacesPanel({
         </div>
       ) : (
         <>
+          <form className="home-space-create-form" onSubmit={handleCreateManaged}>
+            <label className="field">
+              <span>账号托管空间名称</span>
+              <input
+                type="text"
+                value={managedSpaceName}
+                maxLength={80}
+                disabled={!storageReady || !accountReady || accountData.creatingManaged}
+                onChange={(event) => setManagedSpaceName(event.target.value)}
+              />
+            </label>
+            <button className="utility-button" type="submit" disabled={!storageReady || !accountReady || accountData.creatingManaged}>
+              {accountData.creatingManaged ? "创建中" : "创建账号托管空间"}
+            </button>
+          </form>
+
           {!currentBinding ? (
             <div className="settings-placeholder">
               <strong>当前浏览器未绑定同步码</strong>
-              <p>请先在同步码区域创建或绑定同步码，再将这个首页空间认领到账号。</p>
+              <p>可创建账号托管空间，或先在同步码区域创建/绑定同步码后再认领。</p>
             </div>
           ) : currentHomeSpace ? (
             <div className="settings-placeholder">
-              <strong>当前同步空间已认领</strong>
+              <strong>当前首页空间已在账号中</strong>
               <p>{currentHomeSpace.name} 已在当前账号的首页空间列表中。</p>
             </div>
           ) : (
@@ -113,10 +150,10 @@ export function HomeSpacesPanel({
                 <span>空间名称</span>
                 <input
                   type="text"
-                  value={spaceName}
+                  value={claimSpaceName}
                   maxLength={80}
                   disabled={accountData.claiming}
-                  onChange={(event) => setSpaceName(event.target.value)}
+                  onChange={(event) => setClaimSpaceName(event.target.value)}
                 />
               </label>
               <button className="utility-button" type="submit" disabled={accountData.claiming}>
@@ -141,12 +178,14 @@ export function HomeSpacesPanel({
             }}
           />
 
-          <p className={accountData.claimError || accountData.activationError ? "form-error" : "save-status"}>
-            {accountData.claimError
+          <p className={accountData.claimError || accountData.activationError || accountData.managedCreateError ? "form-error" : "save-status"}>
+            {accountData.managedCreateError
+              || accountData.claimError
               || accountData.activationError
+              || accountData.managedCreateMessage
               || accountData.claimMessage
               || accountData.activationMessage
-              || "空间列表只保存账号索引；新设备仍需完整同步码才能激活空间。"}
+              || "账号托管空间不显示完整同步码；同步码空间仍需完整同步码激活。"}
           </p>
         </>
       )}
@@ -194,12 +233,14 @@ function HomeSpaceList({
             <div className="home-space-row">
               <div>
                 <strong>{homeSpace.name}</strong>
-                <span>{shortenId(homeSpace.syncSpaceId)}{isCurrent ? " · 当前本机" : ""}</span>
+                <span>{accessModeLabel(homeSpace.accessMode)} · {shortenId(homeSpace.syncSpaceId)}{isCurrent ? " · 当前本机" : ""}</span>
               </div>
               <div className="home-space-row-actions">
                 <span>{homeSpace.isDefault ? "默认" : "空间"}</span>
                 {isCurrent ? (
                   <span>已激活</span>
+                ) : homeSpace.accessMode === "account-managed" ? (
+                  <span>待恢复</span>
                 ) : (
                   <button
                     className="utility-button"
@@ -240,4 +281,16 @@ function HomeSpaceList({
 
 function shortenId(value: string): string {
   return `${value.slice(0, 8)}...${value.slice(-4)}`;
+}
+
+function accessModeLabel(accessMode: HomeSpace["accessMode"]): string {
+  if (accessMode === "account-managed") {
+    return "账号托管";
+  }
+
+  if (accessMode === "password-protected") {
+    return "密码保护";
+  }
+
+  return "同步码";
 }
