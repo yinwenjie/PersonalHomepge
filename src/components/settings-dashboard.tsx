@@ -25,11 +25,14 @@ export function SettingsDashboard() {
     homeDocument,
     storageReady,
     saveStatus,
+    hasResetBackup,
+    isDefaultDocument,
     replaceHomeDocument,
     updateSyncMeta,
     importJson,
     exportJson,
-    resetDefault
+    resetDefault,
+    restoreResetBackup
   } = useHomeDocumentController();
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -111,7 +114,10 @@ export function SettingsDashboard() {
             <button className="utility-button" type="button" onClick={exportJson}>导出 JSON</button>
             <label className="file-button" htmlFor="settingsImportInput">导入 JSON</label>
             <input ref={importInputRef} id="settingsImportInput" type="file" accept="application/json" hidden onChange={handleFileChange} />
-            <button className="danger-button" type="button" onClick={resetDefault}>恢复默认</button>
+            {hasResetBackup ? (
+              <button className="utility-button" type="button" onClick={restoreResetBackup}>恢复上一次重置前页面</button>
+            ) : null}
+            <button className="danger-button" type="button" onClick={resetDefault} disabled={!storageReady || isDefaultDocument}>清空内容并恢复默认</button>
           </div>
           <p className="save-status">{saveStatus || "导入会覆盖当前浏览器中的本地首页配置。"}</p>
         </section>

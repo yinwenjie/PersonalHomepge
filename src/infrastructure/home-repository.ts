@@ -3,6 +3,7 @@ import {
   HomeDocumentV2,
   migrateV1ToV2,
   normalizeHomeDocument,
+  RESET_BACKUP_STORAGE_KEY,
   V1_STORAGE_KEY,
   V2_STORAGE_KEY
 } from "@/domain/home-document";
@@ -11,6 +12,10 @@ export interface HomeRepository {
   load(): HomeDocumentV2;
   save(documentValue: HomeDocumentV2): void;
   reset(): void;
+  hasResetBackup(): boolean;
+  loadResetBackup(): HomeDocumentV2 | null;
+  saveResetBackup(documentValue: HomeDocumentV2): void;
+  clearResetBackup(): void;
 }
 
 export interface CloudHomeRepository {
@@ -47,6 +52,28 @@ export class LocalHomeRepository implements HomeRepository {
   reset(): void {
     this.storage.removeItem(V2_STORAGE_KEY);
     this.storage.removeItem(V1_STORAGE_KEY);
+  }
+
+  hasResetBackup(): boolean {
+    return Boolean(this.storage.getItem(RESET_BACKUP_STORAGE_KEY));
+  }
+
+  loadResetBackup(): HomeDocumentV2 | null {
+    try {
+      const raw = this.storage.getItem(RESET_BACKUP_STORAGE_KEY);
+      return raw ? normalizeHomeDocument(JSON.parse(raw)) : null;
+    } catch (error) {
+      console.warn("Ignoring invalid reset backup:", error);
+      return null;
+    }
+  }
+
+  saveResetBackup(documentValue: HomeDocumentV2): void {
+    this.storage.setItem(RESET_BACKUP_STORAGE_KEY, JSON.stringify(normalizeHomeDocument(documentValue)));
+  }
+
+  clearResetBackup(): void {
+    this.storage.removeItem(RESET_BACKUP_STORAGE_KEY);
   }
 
   private loadV2(): HomeDocumentV2 | null {
