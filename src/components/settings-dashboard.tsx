@@ -46,6 +46,19 @@ export function SettingsDashboard() {
     }
   }
 
+  function handleResetDefault() {
+    if (!currentBinding) {
+      resetDefault();
+      return;
+    }
+
+    resetDefault({
+      confirmMessage: "清空内容并恢复默认会覆盖当前浏览器中的首页，并自动保存一份重置前备份。当前浏览器已绑定同步空间，本次重置后会暂停自动同步，不会立刻覆盖云端首页。继续？",
+      syncMeta: toSyncMeta(currentBinding, "paused"),
+      successMessage: "已清空内容并恢复默认，自动同步已暂停，云端暂未覆盖"
+    });
+  }
+
   async function activateHomeSpace(homeSpace: HomeSpace, syncCode: string): Promise<boolean> {
     const parsed = parseSyncCode(syncCode);
     const syncRepository = new SyncCodeRepository();
@@ -103,6 +116,8 @@ export function SettingsDashboard() {
           onReplaceDocument={replaceHomeDocument}
           onSyncMetaChange={updateSyncMeta}
           onBindingChange={setCurrentBinding}
+          hasResetBackup={hasResetBackup}
+          onRestoreResetBackup={restoreResetBackup}
         />
 
         <HomeSpacesPanel
@@ -128,7 +143,7 @@ export function SettingsDashboard() {
             {hasResetBackup ? (
               <button className="utility-button" type="button" onClick={restoreResetBackup}>恢复上一次重置前页面</button>
             ) : null}
-            <button className="danger-button" type="button" onClick={resetDefault} disabled={!storageReady || isDefaultDocument}>清空内容并恢复默认</button>
+            <button className="danger-button" type="button" onClick={handleResetDefault} disabled={!storageReady || isDefaultDocument}>清空内容并恢复默认</button>
           </div>
           <p className="save-status">{saveStatus || "导入会覆盖当前浏览器中的本地首页配置。"}</p>
         </section>
@@ -143,10 +158,10 @@ export function SettingsDashboard() {
   );
 }
 
-function toSyncMeta(binding: StoredSyncBinding): HomeSyncMeta {
+function toSyncMeta(binding: StoredSyncBinding, status: HomeSyncMeta["status"] = "synced"): HomeSyncMeta {
   return {
     mode: "sync-code",
-    status: "synced",
+    status,
     provider: "supabase",
     spaceId: binding.spaceId,
     remoteRevision: binding.remoteRevision,

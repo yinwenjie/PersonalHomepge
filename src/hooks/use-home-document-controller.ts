@@ -12,6 +12,12 @@ import {
 } from "@/domain/home-document";
 import { LocalHomeRepository } from "@/infrastructure/home-repository";
 
+interface ResetDefaultOptions {
+  confirmMessage?: string;
+  syncMeta?: HomeSyncMeta;
+  successMessage?: string;
+}
+
 export function useHomeDocumentController() {
   const [homeDocument, setHomeDocument] = useState<HomeDocumentV2>(() => createDefaultHomeDocument());
   const [storageReady, setStorageReady] = useState(false);
@@ -117,8 +123,8 @@ export function useHomeDocumentController() {
     }
   }, [commitHomeDocument]);
 
-  const resetDefault = useCallback(() => {
-    if (!window.confirm("清空内容并恢复默认会覆盖当前浏览器中的首页。重置前会自动保存一份本地备份，继续？")) {
+  const resetDefault = useCallback((options: ResetDefaultOptions = {}) => {
+    if (!window.confirm(options.confirmMessage ?? "清空内容并恢复默认会覆盖当前浏览器中的首页。重置前会自动保存一份本地备份，继续？")) {
       return;
     }
 
@@ -142,13 +148,24 @@ export function useHomeDocumentController() {
       return;
     }
 
-    repository.reset();
-    const defaultDocument = createDefaultHomeDocument();
+    const defaultDocument = normalizeHomeDocument({
+      ...createDefaultHomeDocument(),
+      revision: nextRevision(currentDocument.revision),
+      updatedAt: new Date().toISOString(),
+      syncMeta: options.syncMeta ?? createDefaultHomeDocument().syncMeta
+    });
+
+    if (options.syncMeta) {
+      repository.save(defaultDocument);
+    } else {
+      repository.reset();
+    }
+
     homeDocumentRef.current = defaultDocument;
     setHasResetBackup(true);
     setHomeDocument(defaultDocument);
-    setHasStoredDocument(false);
-    setSaveStatus("已清空内容并恢复默认，重置前页面已备份");
+    setHasStoredDocument(Boolean(options.syncMeta));
+    setSaveStatus(options.successMessage ?? "已清空内容并恢复默认，重置前页面已备份");
   }, []);
 
   const restoreResetBackup = useCallback(() => {
