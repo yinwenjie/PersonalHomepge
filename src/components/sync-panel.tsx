@@ -20,6 +20,8 @@ interface SyncPanelProps {
   onReplaceDocument: (documentValue: HomeDocumentV2, message: string) => void;
   onSyncMetaChange: (syncMeta: HomeSyncMeta, message: string) => void;
   onBindingChange?: (binding: StoredSyncBinding | null) => void;
+  hasResetBackup?: boolean;
+  onRestoreResetBackup?: () => void;
 }
 
 const AUTO_PUSH_DEBOUNCE_MS = 1800;
@@ -33,7 +35,9 @@ export function SyncPanel({
   visible,
   onReplaceDocument,
   onSyncMetaChange,
-  onBindingChange
+  onBindingChange,
+  hasResetBackup = false,
+  onRestoreResetBackup
 }: SyncPanelProps) {
   const [binding, setBinding] = useState<StoredSyncBinding | null>(null);
   const [syncCode, setSyncCode] = useState("");
@@ -89,6 +93,10 @@ export function SyncPanel({
       return;
     }
 
+    const pausedBinding = bindingRef.current && isSyncPausedForBinding(documentRef.current, bindingRef.current)
+      ? bindingRef.current
+      : null;
+
     busyRef.current = true;
     if (options.exposeBusy ?? true) {
       setBusy(true);
@@ -102,6 +110,12 @@ export function SyncPanel({
       console.error(actionError);
       const activeBinding = bindingRef.current;
       setError(getErrorMessage(actionError, "同步操作失败。"));
+      if (pausedBinding) {
+        setSyncMetaFromBinding(pausedBinding, "paused", "恢复默认后同步已暂停");
+        setMessage("恢复默认后同步仍暂停，请重试或选择其他操作。");
+        return;
+      }
+
       if (activeBinding) {
         setSyncMetaFromBinding(activeBinding, isLikelyOfflineError(actionError) ? "offline" : "error", "同步失败");
       }
@@ -143,14 +157,16 @@ export function SyncPanel({
     }
 
     await runSyncAction(async () => {
+      const localDocument = documentRef.current;
+      const shouldApplyCloudVersion = options.forceApply
+        && (localDocument.syncMeta.status === "conflict" || isSyncPausedForBinding(localDocument, activeBinding));
+
       setSyncMetaFromBinding(activeBinding, "syncing", "正在拉取云端");
       const pulled = await getSyncRepository().pull(activeBinding);
-      const localDocument = documentRef.current;
       const hasRemoteChanges = hasRemoteSnapshotChanged(pulled.revision, pulled.updatedAt, activeBinding);
       const hasPendingLocalChanges = hasLocalDocumentChanges(localDocument, activeBinding);
-      const shouldApplyConflictCloudVersion = options.forceApply && localDocument.syncMeta.status === "conflict";
 
-      if (!hasRemoteChanges && !shouldApplyConflictCloudVersion) {
+      if (!hasRemoteChanges && !shouldApplyCloudVersion) {
         const nextBinding: StoredSyncBinding = {
           ...activeBinding,
           remoteRevision: pulled.revision,
@@ -189,7 +205,13 @@ export function SyncPanel({
 
   const performAutoRevisionCheck = useCallback(async () => {
     const activeBinding = bindingRef.current;
-    if (!activeBinding || busyRef.current || documentRef.current.syncMeta.status === "conflict" || editorOpenRef.current) {
+    if (
+      !activeBinding
+      || busyRef.current
+      || documentRef.current.syncMeta.status === "conflict"
+      || isSyncPausedForBinding(documentRef.current, activeBinding)
+      || editorOpenRef.current
+    ) {
       return;
     }
 
@@ -302,6 +324,11 @@ export function SyncPanel({
 
     persistBinding(storedBinding);
     setSyncCode(formatSyncCode(storedBinding));
+    if (isSyncPausedForBinding(documentRef.current, storedBinding)) {
+      setMessage("恢复默认后同步已暂停。请选择上传默认、拉取云端、解除本机或恢复备份。");
+      return;
+    }
+
     setSyncMetaFromBinding(
       storedBinding,
       "linked",
@@ -319,6 +346,7 @@ export function SyncPanel({
         && bindingRef.current
         && !busyRef.current
         && documentRef.current.syncMeta.status !== "conflict"
+        && !isSyncPausedForBinding(documentRef.current, bindingRef.current)
       ) {
         performAutoRevisionCheck();
       }
@@ -338,7 +366,12 @@ export function SyncPanel({
 
   useEffect(() => {
     const activeBinding = binding;
-    if (!activeBinding || documentValue.syncMeta.status === "conflict" || busyRef.current) {
+    if (
+      !activeBinding
+      || documentValue.syncMeta.status === "conflict"
+      || isSyncPausedForBinding(documentValue, activeBinding)
+      || busyRef.current
+    ) {
       return;
     }
 
@@ -361,14 +394,20 @@ export function SyncPanel({
     };
   }, [binding, documentValue, performPush]);
 
+  const isPaused = Boolean(binding && isSyncPausedForBinding(documentValue, binding));
+
   const statusText = useMemo(() => {
     if (!binding) {
       return "未绑定";
     }
 
     const syncedAt = binding.lastSyncedAt ? formatShortDateTime(binding.lastSyncedAt) : "未同步";
+    if (isPaused) {
+      return `${binding.accessMode === "account-managed" ? "账号托管" : "同步码"} 已暂停，最后同步 ${syncedAt}`;
+    }
+
     return `${binding.accessMode === "account-managed" ? "账号托管" : "同步码"} rev ${binding.remoteRevision}，最后同步 ${syncedAt}`;
-  }, [binding]);
+  }, [binding, isPaused]);
   const isAccountManaged = binding?.accessMode === "account-managed";
 
   async function createCode() {
@@ -451,6 +490,16 @@ export function SyncPanel({
     setError("");
   }
 
+  function restoreResetBackupFromPause() {
+    if (!onRestoreResetBackup) {
+      return;
+    }
+
+    onRestoreResetBackup();
+    setMessage("已恢复上一次重置前页面。");
+    setError("");
+  }
+
   async function revokeCode() {
     const activeBinding = bindingRef.current;
     if (!activeBinding) {
@@ -491,11 +540,26 @@ export function SyncPanel({
           <p>{statusText}</p>
         </div>
         <div className="sync-panel-actions">
-          <button className="utility-button" type="button" onClick={createCode} disabled={busy}>创建</button>
-          <button className="utility-button" type="button" onClick={() => performPull({ forceApply: false, source: "manual" })} disabled={busy || !binding}>拉取</button>
-          <button className="utility-button" type="button" onClick={() => performPush({ force: false, source: "manual" })} disabled={busy || !binding || documentValue.syncMeta.status === "conflict"}>上传</button>
+          <button className="utility-button" type="button" onClick={createCode} disabled={busy || isPaused}>创建</button>
+          <button className="utility-button" type="button" onClick={() => performPull({ forceApply: false, source: "manual" })} disabled={busy || !binding || isPaused}>拉取</button>
+          <button className="utility-button" type="button" onClick={() => performPush({ force: false, source: "manual" })} disabled={busy || !binding || isPaused || documentValue.syncMeta.status === "conflict"}>上传</button>
         </div>
       </div>
+
+      {isPaused ? (
+        <div className="sync-paused" role="status">
+          <div>
+            <strong>恢复默认后同步已暂停</strong>
+            <p>当前默认首页还没有上传到云端。请选择下一步，避免误覆盖已有同步空间。</p>
+          </div>
+          <div className="sync-panel-actions">
+            <button className="utility-button" type="button" onClick={() => performPush({ force: false, source: "manual" })} disabled={busy}>上传默认</button>
+            <button className="utility-button" type="button" onClick={() => performPull({ forceApply: true, source: "manual" })} disabled={busy}>拉取云端</button>
+            <button className="utility-button" type="button" onClick={unbindLocal} disabled={busy}>解除本机</button>
+            <button className="utility-button" type="button" onClick={restoreResetBackupFromPause} disabled={busy || !hasResetBackup || !onRestoreResetBackup}>恢复备份</button>
+          </div>
+        </div>
+      ) : null}
 
       {documentValue.syncMeta.status === "conflict" ? (
         <div className="sync-conflict" role="status">
@@ -592,6 +656,12 @@ function hasLocalDocumentChanges(documentValue: HomeDocumentV2, binding: StoredS
 
   return documentValue.revision !== binding.lastSyncedDocumentRevision
     || documentValue.updatedAt !== binding.lastSyncedDocumentUpdatedAt;
+}
+
+function isSyncPausedForBinding(documentValue: HomeDocumentV2, binding: StoredSyncBinding): boolean {
+  return documentValue.syncMeta.status === "paused"
+    && documentValue.syncMeta.mode === "sync-code"
+    && documentValue.syncMeta.spaceId === binding.spaceId;
 }
 
 function isLikelyOfflineError(error: unknown): boolean {

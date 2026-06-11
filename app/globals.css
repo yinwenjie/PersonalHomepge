@@ -341,22 +341,39 @@ h1 {
   align-items: end;
 }
 
-.sync-conflict {
+.sync-conflict,
+.sync-paused {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
   align-items: center;
   padding: 12px;
-  border: 1px solid #fed7aa;
   border-radius: var(--radius);
+}
+
+.sync-conflict {
+  border: 1px solid #fed7aa;
   background: var(--danger-soft);
 }
 
-.sync-conflict strong {
+.sync-paused {
+  border: 1px solid #bfdbfe;
+  background: var(--accent-soft);
+}
+
+.sync-conflict strong,
+.sync-paused strong {
   display: block;
-  color: var(--danger);
   font-size: 13px;
   font-weight: 680;
+}
+
+.sync-conflict strong {
+  color: var(--danger);
+}
+
+.sync-paused strong {
+  color: var(--accent);
 }
 
 .save-status {
@@ -1374,7 +1391,8 @@ h1 {
 
   .sync-panel-head,
   .sync-code-grid,
-  .sync-conflict {
+  .sync-conflict,
+  .sync-paused {
     grid-template-columns: 1fr;
   }
 

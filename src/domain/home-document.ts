@@ -11,6 +11,7 @@ export type SyncStatus =
   | "linked"
   | "syncing"
   | "synced"
+  | "paused"
   | "offline"
   | "conflict"
   | "error";
@@ -480,6 +481,7 @@ function isSyncStatus(value: unknown): value is SyncStatus {
     || value === "linked"
     || value === "syncing"
     || value === "synced"
+    || value === "paused"
     || value === "offline"
     || value === "conflict"
     || value === "error";
