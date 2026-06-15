@@ -5,17 +5,20 @@ import type {
   ActivatedHomeSpaceResult,
   ClaimHomeSpaceResult,
   CreatedAccountManagedHomeSpaceResult,
+  RestoredAccountManagedHomeSpaceResult,
   HomeSpaceAccessMode,
   HomeSpace
 } from "@/domain/account";
 import type { HomeDocumentV2 } from "@/domain/home-document";
 import { createSyncSecrets, SYNC_CODE_VERSION } from "@/domain/sync-code";
 import { encryptHomeDocument, type EncryptedHomeDocument } from "@/infrastructure/sync-crypto";
+import { SyncCodeRepository } from "@/infrastructure/sync-code-repository";
 import { getSupabaseBrowserClient } from "@/infrastructure/supabase-client";
 
 const PROFILE_SELECT = "id, email, display_name, created_at, updated_at";
 const PREFERENCES_SELECT = "user_id, locale, theme_preference, default_space_id, created_at, updated_at";
 const HOME_SPACE_SELECT = "id, user_id, sync_space_id, access_mode, name, is_default, last_used_at, created_at, updated_at";
+const HOME_SPACE_CREDENTIAL_SELECT = "access_token, encryption_key";
 
 interface ProfileRow {
   id: string;
@@ -51,6 +54,11 @@ interface CreateAccountManagedHomeSpaceRow {
   sync_space_id: string;
   revision: number;
   updated_at: string;
+}
+
+interface HomeSpaceCredentialRow {
+  access_token: string;
+  encryption_key: string;
 }
 
 export class AccountRepository {
@@ -156,6 +164,49 @@ export class AccountRepository {
     };
   }
 
+  async restoreAccountManagedHomeSpace(
+    userId: string,
+    homeSpaceId: string
+  ): Promise<RestoredAccountManagedHomeSpaceResult> {
+    const homeSpace = await this.getHomeSpaceById(userId, homeSpaceId);
+    if (!homeSpace) {
+      throw new Error("首页空间不存在或不属于当前账号");
+    }
+
+    if (homeSpace.accessMode !== "account-managed") {
+      throw new Error("该首页空间不是账号托管空间，仍需完整同步码激活");
+    }
+
+    const credential = await this.getActiveManagedCredential(userId, homeSpaceId);
+    const pulled = await new SyncCodeRepository().pull({
+      spaceId: homeSpace.syncSpaceId,
+      accessToken: credential.access_token,
+      encryptionKey: credential.encryption_key
+    });
+    const activated = await this.markHomeSpaceActive(userId, homeSpaceId);
+    const activatedHomeSpace = activated.homeSpaces.find((candidate) => candidate.id === homeSpaceId);
+    if (!activatedHomeSpace) {
+      throw new Error("账号托管空间恢复后未能读取空间列表");
+    }
+
+    return {
+      ...activated,
+      homeSpace: activatedHomeSpace,
+      document: pulled.document,
+      binding: {
+        version: SYNC_CODE_VERSION,
+        accessMode: "account-managed",
+        spaceId: homeSpace.syncSpaceId,
+        accessToken: credential.access_token,
+        encryptionKey: credential.encryption_key,
+        remoteRevision: pulled.revision,
+        lastSyncedAt: pulled.updatedAt,
+        lastSyncedDocumentRevision: pulled.document.revision,
+        lastSyncedDocumentUpdatedAt: pulled.document.updatedAt
+      }
+    };
+  }
+
   async markHomeSpaceActive(userId: string, homeSpaceId: string): Promise<ActivatedHomeSpaceResult> {
     const { error } = await getSupabaseBrowserClient()
       .rpc("activate_home_space", { p_home_space_id: homeSpaceId });
@@ -190,6 +241,42 @@ export class AccountRepository {
     }
 
     return data ? mapHomeSpace(data as HomeSpaceRow) : null;
+  }
+
+  private async getHomeSpaceById(userId: string, homeSpaceId: string): Promise<HomeSpace | null> {
+    const { data, error } = await getSupabaseBrowserClient()
+      .from("home_spaces")
+      .select(HOME_SPACE_SELECT)
+      .eq("user_id", userId)
+      .eq("id", homeSpaceId)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return data ? mapHomeSpace(data as HomeSpaceRow) : null;
+  }
+
+  private async getActiveManagedCredential(userId: string, homeSpaceId: string): Promise<HomeSpaceCredentialRow> {
+    const { data, error } = await getSupabaseBrowserClient()
+      .from("home_space_credentials")
+      .select(HOME_SPACE_CREDENTIAL_SELECT)
+      .eq("user_id", userId)
+      .eq("home_space_id", homeSpaceId)
+      .eq("credential_type", "sync-space-v1")
+      .is("revoked_at", null)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data) {
+      throw new Error("账号托管凭证不存在或已撤销");
+    }
+
+    return data as HomeSpaceCredentialRow;
   }
 
   private async ensureProfile(userId: string, email: string | null): Promise<AccountProfile> {

@@ -1,4 +1,5 @@
 import type { StoredSyncBinding } from "@/domain/sync-code";
+import type { HomeDocumentV2 } from "@/domain/home-document";
 
 export type HomeSpaceAccessMode = "sync-code" | "account-managed" | "password-protected";
 
@@ -49,4 +50,10 @@ export interface ActivatedHomeSpaceResult {
 export interface CreatedAccountManagedHomeSpaceResult extends ActivatedHomeSpaceResult {
   homeSpace: HomeSpace;
   binding: StoredSyncBinding;
+}
+
+export interface RestoredAccountManagedHomeSpaceResult extends ActivatedHomeSpaceResult {
+  homeSpace: HomeSpace;
+  binding: StoredSyncBinding;
+  document: HomeDocumentV2;
 }

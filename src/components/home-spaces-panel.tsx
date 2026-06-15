@@ -15,6 +15,7 @@ interface HomeSpacesPanelProps {
   documentValue: HomeDocumentV2;
   storageReady: boolean;
   onActivateHomeSpace: (homeSpace: HomeSpace, syncCode: string) => Promise<boolean>;
+  onRestoreManagedHomeSpace: (homeSpace: HomeSpace) => Promise<boolean>;
   onManagedHomeSpaceCreated: (binding: StoredSyncBinding) => void;
 }
 
@@ -26,6 +27,7 @@ export function HomeSpacesPanel({
   documentValue,
   storageReady,
   onActivateHomeSpace,
+  onRestoreManagedHomeSpace,
   onManagedHomeSpaceCreated
 }: HomeSpacesPanelProps) {
   const [claimSpaceName, setClaimSpaceName] = useState("我的首页");
@@ -34,6 +36,7 @@ export function HomeSpacesPanel({
   const [activationCode, setActivationCode] = useState("");
   const [activationError, setActivationError] = useState("");
   const [activationPending, setActivationPending] = useState(false);
+  const [managedRestoreSpaceId, setManagedRestoreSpaceId] = useState<string | null>(null);
   const accountReady = Boolean(accountData.profile && accountData.preferences && !accountData.loading);
   const currentHomeSpace = useMemo(() => {
     if (!currentBinding) {
@@ -50,7 +53,7 @@ export function HomeSpacesPanel({
 
   async function handleCreateManaged(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!storageReady || !accountReady || accountData.creatingManaged) {
+    if (!storageReady || !accountReady || accountData.creatingManaged || accountData.restoringManaged) {
       return;
     }
 
@@ -94,6 +97,23 @@ export function HomeSpacesPanel({
     }
   }
 
+  async function handleRestoreManaged(homeSpace: HomeSpace) {
+    setActivationError("");
+    setActivationCode("");
+    setActiveSpaceId(null);
+
+    if (!window.confirm("恢复该账号托管空间会拉取云端首页并覆盖当前浏览器本地首页，继续？")) {
+      return;
+    }
+
+    setManagedRestoreSpaceId(homeSpace.id);
+    try {
+      await onRestoreManagedHomeSpace(homeSpace);
+    } finally {
+      setManagedRestoreSpaceId(null);
+    }
+  }
+
   return (
     <section className="settings-panel" aria-label="首页空间">
       <div className="panel-header">
@@ -125,11 +145,11 @@ export function HomeSpacesPanel({
                 type="text"
                 value={managedSpaceName}
                 maxLength={80}
-                disabled={!storageReady || !accountReady || accountData.creatingManaged}
+                disabled={!storageReady || !accountReady || accountData.creatingManaged || accountData.restoringManaged}
                 onChange={(event) => setManagedSpaceName(event.target.value)}
               />
             </label>
-            <button className="utility-button" type="submit" disabled={!storageReady || !accountReady || accountData.creatingManaged}>
+            <button className="utility-button" type="submit" disabled={!storageReady || !accountReady || accountData.creatingManaged || accountData.restoringManaged}>
               {accountData.creatingManaged ? "创建中" : "创建账号托管空间"}
             </button>
           </form>
@@ -169,8 +189,11 @@ export function HomeSpacesPanel({
             activeSpaceId={activeSpaceId}
             activationPending={activationPending}
             currentSpaceId={currentBinding?.spaceId ?? null}
+            managedRestoreSpaceId={managedRestoreSpaceId}
+            storageReady={storageReady}
             onActivate={handleActivate}
             onChangeActivationCode={setActivationCode}
+            onRestoreManaged={handleRestoreManaged}
             onSelectSpace={(spaceId) => {
               setActivationError("");
               setActivationCode("");
@@ -178,10 +201,12 @@ export function HomeSpacesPanel({
             }}
           />
 
-          <p className={accountData.claimError || accountData.activationError || accountData.managedCreateError ? "form-error" : "save-status"}>
+          <p className={accountData.claimError || accountData.activationError || accountData.managedCreateError || accountData.managedRestoreError ? "form-error" : "save-status"}>
             {accountData.managedCreateError
+              || accountData.managedRestoreError
               || accountData.claimError
               || accountData.activationError
+              || accountData.managedRestoreMessage
               || accountData.managedCreateMessage
               || accountData.claimMessage
               || accountData.activationMessage
@@ -200,8 +225,11 @@ function HomeSpaceList({
   activationPending,
   activeSpaceId,
   currentSpaceId,
+  managedRestoreSpaceId,
+  storageReady,
   onActivate,
   onChangeActivationCode,
+  onRestoreManaged,
   onSelectSpace
 }: {
   accountData: AccountDataState;
@@ -210,8 +238,11 @@ function HomeSpaceList({
   activationPending: boolean;
   activeSpaceId: string | null;
   currentSpaceId: string | null;
+  managedRestoreSpaceId: string | null;
+  storageReady: boolean;
   onActivate: (event: FormEvent<HTMLFormElement>, homeSpace: HomeSpace) => Promise<void>;
   onChangeActivationCode: (value: string) => void;
+  onRestoreManaged: (homeSpace: HomeSpace) => Promise<void>;
   onSelectSpace: (spaceId: string) => void;
 }) {
   if (accountData.loading) {
@@ -240,12 +271,19 @@ function HomeSpaceList({
                 {isCurrent ? (
                   <span>已激活</span>
                 ) : homeSpace.accessMode === "account-managed" ? (
-                  <span>待恢复</span>
+                  <button
+                    className="utility-button"
+                    type="button"
+                    disabled={!storageReady || accountData.restoringManaged || accountData.activating || activationPending}
+                    onClick={() => onRestoreManaged(homeSpace)}
+                  >
+                    {accountData.restoringManaged && managedRestoreSpaceId === homeSpace.id ? "恢复中" : "恢复"}
+                  </button>
                 ) : (
                   <button
                     className="utility-button"
                     type="button"
-                    disabled={accountData.activating || activationPending}
+                    disabled={!storageReady || accountData.activating || activationPending}
                     onClick={() => onSelectSpace(homeSpace.id)}
                   >
                     {isActive ? "取消" : "激活"}

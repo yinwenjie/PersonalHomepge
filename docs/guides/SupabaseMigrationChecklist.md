@@ -113,6 +113,7 @@ where table_schema = 'public'
 - `005_account_space_activation.sql` 只收口默认空间激活和 RLS 校验，不引入账号托管凭证，不改变同步码密文同步模型。
 - `006_account_managed_sync_foundation.sql` 会保存账号托管凭证字段，但只在 `home_space_credentials` 表中保存，并通过 RLS 限制为本人可读；本阶段前端还不会使用这些凭证。
 - `007_account_managed_credential_regex_fix.sql` 是 Phase 1.6.1 热修复；如果创建账号托管空间时报 `invalid regular expression: invalid repetition count(s)`，说明线上数据库需要执行该脚本。
+- Phase 1.6.2 空白设备账号恢复不新增迁移；它复用 `home_space_credentials` 的本人可读 RLS。上线前可重新执行 `007_account_managed_sync_verify.sql` 和 `008_account_managed_credential_regex_fix_verify.sql` 确认凭证表权限与正则修复仍满足要求。
 - 新设备登录后看到账号空间列表，不代表已经拥有该空间的同步凭证；没有本地绑定时仍需输入完整同步码。
 
 ## 辅助检查脚本

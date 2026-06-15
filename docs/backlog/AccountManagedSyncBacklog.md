@@ -157,7 +157,7 @@ home_space_credentials
 - Phase 1.6.0 已新增 `006_account_managed_sync_foundation.sql` 草案，包含 `home_spaces.access_mode`、`home_space_credentials`、RLS 和 `create_account_managed_home_space(...)` RPC。
 - Phase 1.6.1 已接入前端创建 `account-managed` 空间，创建成功后自动绑定当前浏览器。
 - Phase 1.6.1a 已补齐恢复默认同步保护：已绑定同步码或账号托管空间时，清空恢复默认会进入 `paused` 状态，暂停自动上传/拉取；用户可选择上传默认、拉取云端、解除本机或恢复备份，避免误以为重新登录会自动恢复云端旧内容。
-- Phase 1.6.2 实现空白设备登录账号后直接恢复账号托管空间。
+- Phase 1.6.2 已实现空白设备登录账号后直接恢复账号托管空间：前端读取本人 `home_space_credentials`，拉取并解密账号托管空间，再保存当前浏览器绑定。
 - Phase 1.6.3 实现已绑定同步码空间“迁移为账号托管”，迁移后提示用户废弃旧同步码。
 - Phase 1.6.5 将同步码入口降级到高级/恢复区域。
 

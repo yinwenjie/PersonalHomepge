@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
-import type { AccountPreferences, AccountProfile, HomeSpace } from "@/domain/account";
+import type {
+  AccountPreferences,
+  AccountProfile,
+  HomeSpace,
+  RestoredAccountManagedHomeSpaceResult
+} from "@/domain/account";
 import { getActionErrorMessage } from "@/domain/errors";
 import type { HomeDocumentV2 } from "@/domain/home-document";
 import type { StoredSyncBinding } from "@/domain/sync-code";
@@ -17,15 +22,19 @@ export interface AccountDataState {
   claiming: boolean;
   activating: boolean;
   creatingManaged: boolean;
+  restoringManaged: boolean;
   claimMessage: string;
   claimError: string;
   managedCreateMessage: string;
   managedCreateError: string;
+  managedRestoreMessage: string;
+  managedRestoreError: string;
   activationMessage: string;
   activationError: string;
   refresh: () => Promise<void>;
   claimHomeSpace: (syncSpaceId: string, name: string) => Promise<void>;
   createAccountManagedHomeSpace: (name: string, documentValue: HomeDocumentV2) => Promise<StoredSyncBinding | null>;
+  restoreAccountManagedHomeSpace: (homeSpaceId: string) => Promise<RestoredAccountManagedHomeSpaceResult | null>;
   markHomeSpaceActive: (homeSpaceId: string) => Promise<boolean>;
 }
 
@@ -40,10 +49,13 @@ export function useAccountData(user: User | null): AccountDataState {
   const [claiming, setClaiming] = useState(false);
   const [activating, setActivating] = useState(false);
   const [creatingManaged, setCreatingManaged] = useState(false);
+  const [restoringManaged, setRestoringManaged] = useState(false);
   const [claimMessage, setClaimMessage] = useState("");
   const [claimError, setClaimError] = useState("");
   const [managedCreateMessage, setManagedCreateMessage] = useState("");
   const [managedCreateError, setManagedCreateError] = useState("");
+  const [managedRestoreMessage, setManagedRestoreMessage] = useState("");
+  const [managedRestoreError, setManagedRestoreError] = useState("");
   const [activationMessage, setActivationMessage] = useState("");
   const [activationError, setActivationError] = useState("");
 
@@ -63,10 +75,13 @@ export function useAccountData(user: User | null): AccountDataState {
       setClaiming(false);
       setActivating(false);
       setCreatingManaged(false);
+      setRestoringManaged(false);
       setClaimMessage("");
       setClaimError("");
       setManagedCreateMessage("");
       setManagedCreateError("");
+      setManagedRestoreMessage("");
+      setManagedRestoreError("");
       setActivationMessage("");
       setActivationError("");
       return;
@@ -151,6 +166,8 @@ export function useAccountData(user: User | null): AccountDataState {
     setCreatingManaged(true);
     setManagedCreateMessage("");
     setManagedCreateError("");
+    setManagedRestoreMessage("");
+    setManagedRestoreError("");
     setClaimMessage("");
     setClaimError("");
     setActivationMessage("");
@@ -170,6 +187,43 @@ export function useAccountData(user: User | null): AccountDataState {
     }
   }, [repository, userId]);
 
+  const restoreAccountManagedHomeSpace = useCallback(async (
+    homeSpaceId: string
+  ): Promise<RestoredAccountManagedHomeSpaceResult | null> => {
+    if (!userId) {
+      setManagedRestoreError("请先登录账号。");
+      return null;
+    }
+
+    if (!homeSpaceId) {
+      setManagedRestoreError("请选择账号托管空间。");
+      return null;
+    }
+
+    setRestoringManaged(true);
+    setManagedRestoreMessage("");
+    setManagedRestoreError("");
+    setManagedCreateMessage("");
+    setManagedCreateError("");
+    setClaimMessage("");
+    setClaimError("");
+    setActivationMessage("");
+    setActivationError("");
+
+    try {
+      const result = await repository.restoreAccountManagedHomeSpace(userId, homeSpaceId);
+      setPreferences(result.preferences);
+      setHomeSpaces(result.homeSpaces);
+      setManagedRestoreMessage("账号托管空间已恢复到本机。");
+      return result;
+    } catch (restoreError) {
+      setManagedRestoreError(getActionErrorMessage("账号托管空间恢复失败", restoreError));
+      return null;
+    } finally {
+      setRestoringManaged(false);
+    }
+  }, [repository, userId]);
+
   const markHomeSpaceActive = useCallback(async (homeSpaceId: string): Promise<boolean> => {
     if (!userId) {
       setActivationError("请先登录账号。");
@@ -184,6 +238,8 @@ export function useAccountData(user: User | null): AccountDataState {
     setActivating(true);
     setActivationMessage("");
     setActivationError("");
+    setManagedRestoreMessage("");
+    setManagedRestoreError("");
 
     try {
       const result = await repository.markHomeSpaceActive(userId, homeSpaceId);
@@ -223,15 +279,19 @@ export function useAccountData(user: User | null): AccountDataState {
     claiming,
     activating,
     creatingManaged,
+    restoringManaged,
     claimMessage,
     claimError,
     managedCreateMessage,
     managedCreateError,
+    managedRestoreMessage,
+    managedRestoreError,
     activationMessage,
     activationError,
     refresh,
     claimHomeSpace,
     createAccountManagedHomeSpace,
+    restoreAccountManagedHomeSpace,
     markHomeSpaceActive
   };
 }

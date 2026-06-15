@@ -87,6 +87,22 @@ export function SettingsDashboard() {
     return true;
   }
 
+  async function restoreManagedHomeSpace(homeSpace: HomeSpace): Promise<boolean> {
+    const result = await accountData.restoreAccountManagedHomeSpace(homeSpace.id);
+    if (!result) {
+      return false;
+    }
+
+    new LocalSyncBindingRepository(window.localStorage).save(result.binding);
+    setCurrentBinding(result.binding);
+    replaceHomeDocument({
+      ...result.document,
+      syncMeta: toSyncMeta(result.binding)
+    }, "已恢复账号托管空间到本机");
+    setSyncPanelKey((value) => value + 1);
+    return true;
+  }
+
   function handleManagedHomeSpaceCreated(binding: StoredSyncBinding) {
     new LocalSyncBindingRepository(window.localStorage).save(binding);
     setCurrentBinding(binding);
@@ -128,6 +144,7 @@ export function SettingsDashboard() {
           documentValue={homeDocument}
           storageReady={storageReady}
           onActivateHomeSpace={activateHomeSpace}
+          onRestoreManagedHomeSpace={restoreManagedHomeSpace}
           onManagedHomeSpaceCreated={handleManagedHomeSpaceCreated}
         />
 
