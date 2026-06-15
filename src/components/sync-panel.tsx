@@ -15,6 +15,7 @@ import { SyncCodeRepository, PullSyncSpaceResult } from "@/infrastructure/sync-c
 interface SyncPanelProps {
   documentValue: HomeDocumentV2;
   editorOpen: boolean;
+  presentation?: "primary" | "advanced";
   storageReady: boolean;
   visible: boolean;
   onReplaceDocument: (documentValue: HomeDocumentV2, message: string) => void;
@@ -31,6 +32,7 @@ const AUTO_PULL_INTERVAL_MS = 60000;
 export function SyncPanel({
   documentValue,
   editorOpen,
+  presentation = "primary",
   storageReady,
   visible,
   onReplaceDocument,
@@ -45,6 +47,7 @@ export function SyncPanel({
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const bindingRepositoryRef = useRef<LocalSyncBindingRepository | null>(null);
   const syncRepositoryRef = useRef<SyncCodeRepository | null>(null);
   const bindingRef = useRef<StoredSyncBinding | null>(null);
@@ -395,6 +398,9 @@ export function SyncPanel({
   }, [binding, documentValue, performPush]);
 
   const isPaused = Boolean(binding && isSyncPausedForBinding(documentValue, binding));
+  const isAdvanced = presentation === "advanced";
+  const needsAttention = isPaused || documentValue.syncMeta.status === "conflict";
+  const controlsVisible = !isAdvanced || advancedOpen || needsAttention;
 
   const statusText = useMemo(() => {
     if (!binding) {
@@ -409,6 +415,7 @@ export function SyncPanel({
     return `${binding.accessMode === "account-managed" ? "账号托管" : "同步码"} rev ${binding.remoteRevision}，最后同步 ${syncedAt}`;
   }, [binding, isPaused]);
   const isAccountManaged = binding?.accessMode === "account-managed";
+  const panelTitle = isAdvanced ? "高级同步码与恢复" : "同步码";
 
   async function createCode() {
     await runSyncAction(async () => {
@@ -533,17 +540,33 @@ export function SyncPanel({
   }
 
   return (
-    <section className="sync-panel" aria-label="同步码">
+    <section className={`sync-panel${isAdvanced ? " sync-panel-advanced" : ""}`} aria-label={panelTitle}>
       <div className="sync-panel-head">
         <div>
-          <h2>同步码</h2>
+          <h2>{panelTitle}</h2>
           <p>{statusText}</p>
         </div>
-        <div className="sync-panel-actions">
-          <button className="utility-button" type="button" onClick={createCode} disabled={busy || isPaused}>创建</button>
-          <button className="utility-button" type="button" onClick={() => performPull({ forceApply: false, source: "manual" })} disabled={busy || !binding || isPaused}>拉取</button>
-          <button className="utility-button" type="button" onClick={() => performPush({ force: false, source: "manual" })} disabled={busy || !binding || isPaused || documentValue.syncMeta.status === "conflict"}>上传</button>
-        </div>
+        {isAdvanced ? (
+          <button
+            className="utility-button"
+            type="button"
+            disabled={needsAttention}
+            onClick={() => setAdvancedOpen((value) => !value)}
+          >
+            {controlsVisible ? "收起高级" : "展开高级"}
+          </button>
+        ) : (
+          <SyncActionButtons
+            binding={binding}
+            busy={busy}
+            isAccountManaged={isAccountManaged}
+            isPaused={isPaused}
+            status={documentValue.syncMeta.status}
+            onCreate={createCode}
+            onPull={() => performPull({ forceApply: false, source: "manual" })}
+            onPush={() => performPush({ force: false, source: "manual" })}
+          />
+        )}
       </div>
 
       {isPaused ? (
@@ -575,42 +598,96 @@ export function SyncPanel({
         </div>
       ) : null}
 
-      <div className="sync-code-grid">
-        <label className="field">
-          <span>{isAccountManaged ? "当前凭证" : "当前同步码"}</span>
-          <input
-            value={isAccountManaged ? "账号托管，不显示完整同步码" : syncCode}
-            readOnly
-            placeholder="创建后显示，用于其他设备绑定"
-          />
-        </label>
-        <button className="utility-button" type="button" onClick={copyCode} disabled={!syncCode || isAccountManaged}>复制</button>
-      </div>
+      {controlsVisible ? (
+        <>
+          {isAdvanced ? (
+            <SyncActionButtons
+              binding={binding}
+              busy={busy}
+              isAccountManaged={isAccountManaged}
+              isPaused={isPaused}
+              status={documentValue.syncMeta.status}
+              onCreate={createCode}
+              onPull={() => performPull({ forceApply: false, source: "manual" })}
+              onPush={() => performPush({ force: false, source: "manual" })}
+            />
+          ) : null}
 
-      <div className="sync-code-grid">
-        <label className="field">
-          <span>输入同步码</span>
-          <input value={inputCode} onChange={(event) => setInputCode(event.target.value)} placeholder="hp1_..." />
-        </label>
-        <button className="utility-button" type="button" onClick={bindCode} disabled={busy || !inputCode.trim()}>绑定</button>
-      </div>
+          {isAccountManaged ? (
+            <p className="sync-managed-note">当前空间由账号托管恢复凭证，不显示完整同步码。</p>
+          ) : (
+            <div className="sync-code-grid">
+              <label className="field">
+                <span>当前同步码</span>
+                <input
+                  value={syncCode}
+                  readOnly
+                  placeholder="创建后显示，用于其他设备绑定"
+                />
+              </label>
+              <button className="utility-button" type="button" onClick={copyCode} disabled={!syncCode}>复制</button>
+            </div>
+          )}
 
-      <div className="sync-panel-footer">
-        <div className="sync-panel-actions">
-          <button className="utility-button" type="button" onClick={unbindLocal} disabled={!binding}>解除本机</button>
-          <button
-            className="danger-button"
-            type="button"
-            onClick={revokeCode}
-            disabled={busy || !binding || isAccountManaged}
-            title={isAccountManaged ? "账号托管空间不能从同步码面板废弃，请到首页空间中从账号移除" : undefined}
-          >
-            {isAccountManaged ? "托管空间暂不可废弃" : "废弃同步码"}
-          </button>
-        </div>
-        <p className={error ? "form-error" : "save-status"}>{error || message}</p>
-      </div>
+          <div className="sync-code-grid">
+            <label className="field">
+              <span>{isAdvanced ? "输入同步码恢复" : "输入同步码"}</span>
+              <input value={inputCode} onChange={(event) => setInputCode(event.target.value)} placeholder="hp1_..." />
+            </label>
+            <button className="utility-button" type="button" onClick={bindCode} disabled={busy || !inputCode.trim()}>绑定</button>
+          </div>
+
+          <div className="sync-panel-footer">
+            <div className="sync-panel-actions">
+              <button className="utility-button" type="button" onClick={unbindLocal} disabled={!binding}>解除本机</button>
+              {!isAccountManaged ? (
+                <button
+                  className="danger-button"
+                  type="button"
+                  onClick={revokeCode}
+                  disabled={busy || !binding}
+                >
+                  废弃同步码
+                </button>
+              ) : null}
+            </div>
+            <p className={error ? "form-error" : "save-status"}>{error || message}</p>
+          </div>
+        </>
+      ) : (
+        <p className="save-status">{error || message || "同步码创建、绑定和旧空间维护已收起。"}</p>
+      )}
     </section>
+  );
+}
+
+function SyncActionButtons({
+  binding,
+  busy,
+  isAccountManaged,
+  isPaused,
+  status,
+  onCreate,
+  onPull,
+  onPush
+}: {
+  binding: StoredSyncBinding | null;
+  busy: boolean;
+  isAccountManaged: boolean;
+  isPaused: boolean;
+  status: HomeSyncMeta["status"];
+  onCreate: () => void;
+  onPull: () => void;
+  onPush: () => void;
+}) {
+  return (
+    <div className="sync-panel-actions">
+      {!isAccountManaged ? (
+        <button className="utility-button" type="button" onClick={onCreate} disabled={busy || isPaused}>创建</button>
+      ) : null}
+      <button className="utility-button" type="button" onClick={onPull} disabled={busy || !binding || isPaused}>拉取</button>
+      <button className="utility-button" type="button" onClick={onPush} disabled={busy || !binding || isPaused || status === "conflict"}>上传</button>
+    </div>
   );
 }
 

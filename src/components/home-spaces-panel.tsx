@@ -257,7 +257,7 @@ export function HomeSpacesPanel({
           {!currentBinding ? (
             <div className="settings-placeholder">
               <strong>当前浏览器未绑定同步码</strong>
-              <p>可创建账号托管空间，或先在同步码区域创建/绑定同步码后再认领。</p>
+              <p>可创建账号托管空间，或在高级同步码与恢复中创建/绑定普通同步码后再认领。</p>
             </div>
           ) : currentHomeSpace ? (
             <div className="settings-placeholder">

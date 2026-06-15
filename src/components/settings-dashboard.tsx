@@ -130,6 +130,37 @@ export function SettingsDashboard() {
     setSyncPanelKey((value) => value + 1);
   }
 
+  const signedIn = Boolean(auth.user);
+  const syncPanel = (
+    <SyncPanel
+      key={syncPanelKey}
+      documentValue={homeDocument}
+      editorOpen={false}
+      presentation={signedIn ? "advanced" : "primary"}
+      storageReady={storageReady}
+      visible
+      onReplaceDocument={replaceHomeDocument}
+      onSyncMetaChange={updateSyncMeta}
+      onBindingChange={setCurrentBinding}
+      hasResetBackup={hasResetBackup}
+      onRestoreResetBackup={restoreResetBackup}
+    />
+  );
+  const homeSpacesPanel = (
+    <HomeSpacesPanel
+      accountData={accountData}
+      authLoading={auth.loading}
+      signedIn={signedIn}
+      currentBinding={currentBinding}
+      documentValue={homeDocument}
+      storageReady={storageReady}
+      onActivateHomeSpace={activateHomeSpace}
+      onRestoreManagedHomeSpace={restoreManagedHomeSpace}
+      onMigrateSyncCodeHomeSpace={migrateSyncCodeHomeSpace}
+      onManagedHomeSpaceCreated={handleManagedHomeSpaceCreated}
+    />
+  );
+
   return (
     <main className="page settings-page">
       <header className="settings-page-header">
@@ -143,31 +174,17 @@ export function SettingsDashboard() {
       <div className="settings-stack">
         <AccountPanel accountData={accountData} />
 
-        <SyncPanel
-          key={syncPanelKey}
-          documentValue={homeDocument}
-          editorOpen={false}
-          storageReady={storageReady}
-          visible
-          onReplaceDocument={replaceHomeDocument}
-          onSyncMetaChange={updateSyncMeta}
-          onBindingChange={setCurrentBinding}
-          hasResetBackup={hasResetBackup}
-          onRestoreResetBackup={restoreResetBackup}
-        />
-
-        <HomeSpacesPanel
-          accountData={accountData}
-          authLoading={auth.loading}
-          signedIn={Boolean(auth.user)}
-          currentBinding={currentBinding}
-          documentValue={homeDocument}
-          storageReady={storageReady}
-          onActivateHomeSpace={activateHomeSpace}
-          onRestoreManagedHomeSpace={restoreManagedHomeSpace}
-          onMigrateSyncCodeHomeSpace={migrateSyncCodeHomeSpace}
-          onManagedHomeSpaceCreated={handleManagedHomeSpaceCreated}
-        />
+        {signedIn ? (
+          <>
+            {homeSpacesPanel}
+            {syncPanel}
+          </>
+        ) : (
+          <>
+            {syncPanel}
+            {homeSpacesPanel}
+          </>
+        )}
 
         <section className="settings-panel" aria-label="配置文件">
           <div className="panel-header">
@@ -189,7 +206,7 @@ export function SettingsDashboard() {
         <AccountPreferencesPanel
           accountData={accountData}
           authLoading={auth.loading}
-          signedIn={Boolean(auth.user)}
+          signedIn={signedIn}
         />
       </div>
     </main>

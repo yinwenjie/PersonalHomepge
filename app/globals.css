@@ -306,6 +306,10 @@ h1 {
   background: rgba(255, 255, 255, 0.82);
 }
 
+.sync-panel-advanced {
+  background: rgba(255, 255, 255, 0.74);
+}
+
 .sync-panel-head,
 .sync-panel-footer,
 .sync-code-grid {
@@ -334,6 +338,13 @@ h1 {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.sync-managed-note {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.68);
 }
 
 .sync-code-grid {
