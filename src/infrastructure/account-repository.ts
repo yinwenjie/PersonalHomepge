@@ -5,12 +5,13 @@ import type {
   ActivatedHomeSpaceResult,
   ClaimHomeSpaceResult,
   CreatedAccountManagedHomeSpaceResult,
+  MigratedAccountManagedHomeSpaceResult,
   RestoredAccountManagedHomeSpaceResult,
   HomeSpaceAccessMode,
   HomeSpace
 } from "@/domain/account";
 import type { HomeDocumentV2 } from "@/domain/home-document";
-import { createSyncSecrets, SYNC_CODE_VERSION } from "@/domain/sync-code";
+import { createSyncSecrets, SYNC_CODE_VERSION, type StoredSyncBinding } from "@/domain/sync-code";
 import { encryptHomeDocument, type EncryptedHomeDocument } from "@/infrastructure/sync-crypto";
 import { SyncCodeRepository } from "@/infrastructure/sync-code-repository";
 import { getSupabaseBrowserClient } from "@/infrastructure/supabase-client";
@@ -53,6 +54,14 @@ interface CreateAccountManagedHomeSpaceRow {
   home_space_id: string;
   sync_space_id: string;
   revision: number;
+  updated_at: string;
+}
+
+interface MigrateSyncCodeHomeSpaceRow {
+  status: "migrated" | "already-managed";
+  home_space_id: string;
+  sync_space_id: string;
+  access_mode: "account-managed";
   updated_at: string;
 }
 
@@ -199,6 +208,60 @@ export class AccountRepository {
         spaceId: homeSpace.syncSpaceId,
         accessToken: credential.access_token,
         encryptionKey: credential.encryption_key,
+        remoteRevision: pulled.revision,
+        lastSyncedAt: pulled.updatedAt,
+        lastSyncedDocumentRevision: pulled.document.revision,
+        lastSyncedDocumentUpdatedAt: pulled.document.updatedAt
+      }
+    };
+  }
+
+  async migrateSyncCodeHomeSpaceToAccountManaged(
+    userId: string,
+    homeSpaceId: string,
+    binding: StoredSyncBinding
+  ): Promise<MigratedAccountManagedHomeSpaceResult> {
+    if (binding.accessMode !== "sync-code") {
+      throw new Error("当前本机不是普通同步码绑定");
+    }
+
+    const homeSpace = await this.getHomeSpaceById(userId, homeSpaceId);
+    if (!homeSpace) {
+      throw new Error("首页空间不存在或不属于当前账号");
+    }
+
+    if (homeSpace.syncSpaceId !== binding.spaceId) {
+      throw new Error("当前同步码不属于所选首页空间");
+    }
+
+    if (homeSpace.accessMode !== "sync-code" && homeSpace.accessMode !== "account-managed") {
+      throw new Error("该首页空间不能迁移为账号托管");
+    }
+
+    const pulled = await new SyncCodeRepository().pull(binding);
+    if (pulled.revision !== binding.remoteRevision || pulled.updatedAt !== binding.lastSyncedAt) {
+      throw new Error("云端首页已有更新，请先拉取云端后再迁移");
+    }
+
+    const row = await rpcSingle<MigrateSyncCodeHomeSpaceRow>("migrate_sync_code_home_space_to_account_managed", {
+      p_home_space_id: homeSpaceId,
+      p_access_token: binding.accessToken,
+      p_encryption_key: binding.encryptionKey
+    });
+    const activated = await this.markHomeSpaceActive(userId, row.home_space_id);
+    const migratedHomeSpace = activated.homeSpaces.find((candidate) => candidate.id === row.home_space_id);
+    if (!migratedHomeSpace) {
+      throw new Error("首页空间迁移后未能读取空间列表");
+    }
+
+    return {
+      ...activated,
+      status: row.status,
+      homeSpace: migratedHomeSpace,
+      binding: {
+        ...binding,
+        accessMode: "account-managed",
+        spaceId: row.sync_space_id,
         remoteRevision: pulled.revision,
         lastSyncedAt: pulled.updatedAt,
         lastSyncedDocumentRevision: pulled.document.revision,

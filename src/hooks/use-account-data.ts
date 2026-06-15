@@ -23,18 +23,22 @@ export interface AccountDataState {
   activating: boolean;
   creatingManaged: boolean;
   restoringManaged: boolean;
+  migratingManaged: boolean;
   claimMessage: string;
   claimError: string;
   managedCreateMessage: string;
   managedCreateError: string;
   managedRestoreMessage: string;
   managedRestoreError: string;
+  managedMigrationMessage: string;
+  managedMigrationError: string;
   activationMessage: string;
   activationError: string;
   refresh: () => Promise<void>;
   claimHomeSpace: (syncSpaceId: string, name: string) => Promise<void>;
   createAccountManagedHomeSpace: (name: string, documentValue: HomeDocumentV2) => Promise<StoredSyncBinding | null>;
   restoreAccountManagedHomeSpace: (homeSpaceId: string) => Promise<RestoredAccountManagedHomeSpaceResult | null>;
+  migrateSyncCodeHomeSpaceToAccountManaged: (homeSpaceId: string, binding: StoredSyncBinding) => Promise<StoredSyncBinding | null>;
   markHomeSpaceActive: (homeSpaceId: string) => Promise<boolean>;
 }
 
@@ -50,12 +54,15 @@ export function useAccountData(user: User | null): AccountDataState {
   const [activating, setActivating] = useState(false);
   const [creatingManaged, setCreatingManaged] = useState(false);
   const [restoringManaged, setRestoringManaged] = useState(false);
+  const [migratingManaged, setMigratingManaged] = useState(false);
   const [claimMessage, setClaimMessage] = useState("");
   const [claimError, setClaimError] = useState("");
   const [managedCreateMessage, setManagedCreateMessage] = useState("");
   const [managedCreateError, setManagedCreateError] = useState("");
   const [managedRestoreMessage, setManagedRestoreMessage] = useState("");
   const [managedRestoreError, setManagedRestoreError] = useState("");
+  const [managedMigrationMessage, setManagedMigrationMessage] = useState("");
+  const [managedMigrationError, setManagedMigrationError] = useState("");
   const [activationMessage, setActivationMessage] = useState("");
   const [activationError, setActivationError] = useState("");
 
@@ -76,12 +83,15 @@ export function useAccountData(user: User | null): AccountDataState {
       setActivating(false);
       setCreatingManaged(false);
       setRestoringManaged(false);
+      setMigratingManaged(false);
       setClaimMessage("");
       setClaimError("");
       setManagedCreateMessage("");
       setManagedCreateError("");
       setManagedRestoreMessage("");
       setManagedRestoreError("");
+      setManagedMigrationMessage("");
+      setManagedMigrationError("");
       setActivationMessage("");
       setActivationError("");
       return;
@@ -135,6 +145,8 @@ export function useAccountData(user: User | null): AccountDataState {
     setClaiming(true);
     setClaimMessage("");
     setClaimError("");
+    setManagedMigrationMessage("");
+    setManagedMigrationError("");
 
     try {
       const result = await repository.claimHomeSpace(userId, syncSpaceId, normalizedName);
@@ -168,6 +180,8 @@ export function useAccountData(user: User | null): AccountDataState {
     setManagedCreateError("");
     setManagedRestoreMessage("");
     setManagedRestoreError("");
+    setManagedMigrationMessage("");
+    setManagedMigrationError("");
     setClaimMessage("");
     setClaimError("");
     setActivationMessage("");
@@ -205,6 +219,8 @@ export function useAccountData(user: User | null): AccountDataState {
     setManagedRestoreError("");
     setManagedCreateMessage("");
     setManagedCreateError("");
+    setManagedMigrationMessage("");
+    setManagedMigrationError("");
     setClaimMessage("");
     setClaimError("");
     setActivationMessage("");
@@ -224,6 +240,51 @@ export function useAccountData(user: User | null): AccountDataState {
     }
   }, [repository, userId]);
 
+  const migrateSyncCodeHomeSpaceToAccountManaged = useCallback(async (
+    homeSpaceId: string,
+    binding: StoredSyncBinding
+  ): Promise<StoredSyncBinding | null> => {
+    if (!userId) {
+      setManagedMigrationError("请先登录账号。");
+      return null;
+    }
+
+    if (!homeSpaceId) {
+      setManagedMigrationError("请选择已认领的同步码首页空间。");
+      return null;
+    }
+
+    if (binding.accessMode !== "sync-code") {
+      setManagedMigrationError("当前本机不是普通同步码绑定。");
+      return null;
+    }
+
+    setMigratingManaged(true);
+    setManagedMigrationMessage("");
+    setManagedMigrationError("");
+    setManagedCreateMessage("");
+    setManagedCreateError("");
+    setManagedRestoreMessage("");
+    setManagedRestoreError("");
+    setClaimMessage("");
+    setClaimError("");
+    setActivationMessage("");
+    setActivationError("");
+
+    try {
+      const result = await repository.migrateSyncCodeHomeSpaceToAccountManaged(userId, homeSpaceId, binding);
+      setPreferences(result.preferences);
+      setHomeSpaces(result.homeSpaces);
+      setManagedMigrationMessage(result.status === "migrated" ? "同步码空间已迁移为账号托管。" : "该空间已经是账号托管。");
+      return result.binding;
+    } catch (migrationError) {
+      setManagedMigrationError(getActionErrorMessage("账号托管迁移失败", migrationError));
+      return null;
+    } finally {
+      setMigratingManaged(false);
+    }
+  }, [repository, userId]);
+
   const markHomeSpaceActive = useCallback(async (homeSpaceId: string): Promise<boolean> => {
     if (!userId) {
       setActivationError("请先登录账号。");
@@ -240,6 +301,8 @@ export function useAccountData(user: User | null): AccountDataState {
     setActivationError("");
     setManagedRestoreMessage("");
     setManagedRestoreError("");
+    setManagedMigrationMessage("");
+    setManagedMigrationError("");
 
     try {
       const result = await repository.markHomeSpaceActive(userId, homeSpaceId);
@@ -280,18 +343,22 @@ export function useAccountData(user: User | null): AccountDataState {
     activating,
     creatingManaged,
     restoringManaged,
+    migratingManaged,
     claimMessage,
     claimError,
     managedCreateMessage,
     managedCreateError,
     managedRestoreMessage,
     managedRestoreError,
+    managedMigrationMessage,
+    managedMigrationError,
     activationMessage,
     activationError,
     refresh,
     claimHomeSpace,
     createAccountManagedHomeSpace,
     restoreAccountManagedHomeSpace,
+    migrateSyncCodeHomeSpaceToAccountManaged,
     markHomeSpaceActive
   };
 }

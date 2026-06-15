@@ -16,6 +16,7 @@ interface HomeSpacesPanelProps {
   storageReady: boolean;
   onActivateHomeSpace: (homeSpace: HomeSpace, syncCode: string) => Promise<boolean>;
   onRestoreManagedHomeSpace: (homeSpace: HomeSpace) => Promise<boolean>;
+  onMigrateSyncCodeHomeSpace: (homeSpace: HomeSpace) => Promise<boolean>;
   onManagedHomeSpaceCreated: (binding: StoredSyncBinding) => void;
 }
 
@@ -28,6 +29,7 @@ export function HomeSpacesPanel({
   storageReady,
   onActivateHomeSpace,
   onRestoreManagedHomeSpace,
+  onMigrateSyncCodeHomeSpace,
   onManagedHomeSpaceCreated
 }: HomeSpacesPanelProps) {
   const [claimSpaceName, setClaimSpaceName] = useState("我的首页");
@@ -37,6 +39,7 @@ export function HomeSpacesPanel({
   const [activationError, setActivationError] = useState("");
   const [activationPending, setActivationPending] = useState(false);
   const [managedRestoreSpaceId, setManagedRestoreSpaceId] = useState<string | null>(null);
+  const [managedMigrationSpaceId, setManagedMigrationSpaceId] = useState<string | null>(null);
   const accountReady = Boolean(accountData.profile && accountData.preferences && !accountData.loading);
   const currentHomeSpace = useMemo(() => {
     if (!currentBinding) {
@@ -45,6 +48,12 @@ export function HomeSpacesPanel({
 
     return accountData.homeSpaces.find((homeSpace) => homeSpace.syncSpaceId === currentBinding.spaceId) ?? null;
   }, [accountData.homeSpaces, currentBinding]);
+  const migrationBlockReason = getMigrationBlockReason(documentValue.syncMeta.status);
+  const canMigrateCurrentHomeSpace = Boolean(
+    currentHomeSpace
+      && currentBinding?.accessMode === "sync-code"
+      && currentHomeSpace.accessMode === "sync-code"
+  );
 
   async function handleClaim(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -53,7 +62,7 @@ export function HomeSpacesPanel({
 
   async function handleCreateManaged(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!storageReady || !accountReady || accountData.creatingManaged || accountData.restoringManaged) {
+    if (!storageReady || !accountReady || accountData.creatingManaged || accountData.restoringManaged || accountData.migratingManaged) {
       return;
     }
 
@@ -114,6 +123,27 @@ export function HomeSpacesPanel({
     }
   }
 
+  async function handleMigrateSyncCode(homeSpace: HomeSpace) {
+    setActivationError("");
+    setActivationCode("");
+    setActiveSpaceId(null);
+
+    if (migrationBlockReason) {
+      return;
+    }
+
+    if (!window.confirm("迁移为账号托管后，当前账号会保存该空间的托管恢复凭证，空白设备可登录账号恢复。旧同步码本阶段不会自动废弃，仍可继续使用。继续？")) {
+      return;
+    }
+
+    setManagedMigrationSpaceId(homeSpace.id);
+    try {
+      await onMigrateSyncCodeHomeSpace(homeSpace);
+    } finally {
+      setManagedMigrationSpaceId(null);
+    }
+  }
+
   return (
     <section className="settings-panel" aria-label="首页空间">
       <div className="panel-header">
@@ -145,11 +175,11 @@ export function HomeSpacesPanel({
                 type="text"
                 value={managedSpaceName}
                 maxLength={80}
-                disabled={!storageReady || !accountReady || accountData.creatingManaged || accountData.restoringManaged}
+                disabled={!storageReady || !accountReady || accountData.creatingManaged || accountData.restoringManaged || accountData.migratingManaged}
                 onChange={(event) => setManagedSpaceName(event.target.value)}
               />
             </label>
-            <button className="utility-button" type="submit" disabled={!storageReady || !accountReady || accountData.creatingManaged || accountData.restoringManaged}>
+            <button className="utility-button" type="submit" disabled={!storageReady || !accountReady || accountData.creatingManaged || accountData.restoringManaged || accountData.migratingManaged}>
               {accountData.creatingManaged ? "创建中" : "创建账号托管空间"}
             </button>
           </form>
@@ -163,6 +193,19 @@ export function HomeSpacesPanel({
             <div className="settings-placeholder">
               <strong>当前首页空间已在账号中</strong>
               <p>{currentHomeSpace.name} 已在当前账号的首页空间列表中。</p>
+              {canMigrateCurrentHomeSpace ? (
+                <>
+                  <button
+                    className="utility-button"
+                    type="button"
+                    disabled={!storageReady || !accountReady || accountData.migratingManaged || Boolean(migrationBlockReason)}
+                    onClick={() => handleMigrateSyncCode(currentHomeSpace)}
+                  >
+                    {accountData.migratingManaged && managedMigrationSpaceId === currentHomeSpace.id ? "迁移中" : "迁移为账号托管"}
+                  </button>
+                  {migrationBlockReason ? <p className="form-error">{migrationBlockReason}</p> : null}
+                </>
+              ) : null}
             </div>
           ) : (
             <form className="home-space-claim-form" onSubmit={handleClaim}>
@@ -172,11 +215,11 @@ export function HomeSpacesPanel({
                   type="text"
                   value={claimSpaceName}
                   maxLength={80}
-                  disabled={accountData.claiming}
+                  disabled={accountData.claiming || accountData.migratingManaged}
                   onChange={(event) => setClaimSpaceName(event.target.value)}
                 />
               </label>
-              <button className="utility-button" type="submit" disabled={accountData.claiming}>
+              <button className="utility-button" type="submit" disabled={accountData.claiming || accountData.migratingManaged}>
                 {accountData.claiming ? "认领中" : "认领当前首页空间"}
               </button>
             </form>
@@ -201,11 +244,13 @@ export function HomeSpacesPanel({
             }}
           />
 
-          <p className={accountData.claimError || accountData.activationError || accountData.managedCreateError || accountData.managedRestoreError ? "form-error" : "save-status"}>
+          <p className={accountData.claimError || accountData.activationError || accountData.managedCreateError || accountData.managedRestoreError || accountData.managedMigrationError ? "form-error" : "save-status"}>
             {accountData.managedCreateError
               || accountData.managedRestoreError
+              || accountData.managedMigrationError
               || accountData.claimError
               || accountData.activationError
+              || accountData.managedMigrationMessage
               || accountData.managedRestoreMessage
               || accountData.managedCreateMessage
               || accountData.claimMessage
@@ -274,7 +319,7 @@ function HomeSpaceList({
                   <button
                     className="utility-button"
                     type="button"
-                    disabled={!storageReady || accountData.restoringManaged || accountData.activating || activationPending}
+                    disabled={!storageReady || accountData.restoringManaged || accountData.migratingManaged || accountData.activating || activationPending}
                     onClick={() => onRestoreManaged(homeSpace)}
                   >
                     {accountData.restoringManaged && managedRestoreSpaceId === homeSpace.id ? "恢复中" : "恢复"}
@@ -283,7 +328,7 @@ function HomeSpaceList({
                   <button
                     className="utility-button"
                     type="button"
-                    disabled={!storageReady || accountData.activating || activationPending}
+                    disabled={!storageReady || accountData.migratingManaged || accountData.activating || activationPending}
                     onClick={() => onSelectSpace(homeSpace.id)}
                   >
                     {isActive ? "取消" : "激活"}
@@ -315,6 +360,18 @@ function HomeSpaceList({
       })}
     </div>
   );
+}
+
+function getMigrationBlockReason(status: HomeDocumentV2["syncMeta"]["status"]): string {
+  if (status === "conflict") {
+    return "当前存在同步冲突，请先选择云端版本或本地版本后再迁移。";
+  }
+
+  if (status === "paused") {
+    return "恢复默认后同步已暂停，请先选择上传默认、拉取云端、解除本机或恢复备份。";
+  }
+
+  return "";
 }
 
 function shortenId(value: string): string {

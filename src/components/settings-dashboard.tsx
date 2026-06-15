@@ -103,6 +103,26 @@ export function SettingsDashboard() {
     return true;
   }
 
+  async function migrateSyncCodeHomeSpace(homeSpace: HomeSpace): Promise<boolean> {
+    if (!currentBinding) {
+      return false;
+    }
+
+    const binding = await accountData.migrateSyncCodeHomeSpaceToAccountManaged(homeSpace.id, currentBinding);
+    if (!binding) {
+      return false;
+    }
+
+    new LocalSyncBindingRepository(window.localStorage).save(binding);
+    setCurrentBinding(binding);
+    updateSyncMeta(
+      toSyncMeta(binding, homeDocument.syncMeta.status === "linked" ? "linked" : "synced"),
+      "同步码空间已迁移为账号托管"
+    );
+    setSyncPanelKey((value) => value + 1);
+    return true;
+  }
+
   function handleManagedHomeSpaceCreated(binding: StoredSyncBinding) {
     new LocalSyncBindingRepository(window.localStorage).save(binding);
     setCurrentBinding(binding);
@@ -145,6 +165,7 @@ export function SettingsDashboard() {
           storageReady={storageReady}
           onActivateHomeSpace={activateHomeSpace}
           onRestoreManagedHomeSpace={restoreManagedHomeSpace}
+          onMigrateSyncCodeHomeSpace={migrateSyncCodeHomeSpace}
           onManagedHomeSpaceCreated={handleManagedHomeSpaceCreated}
         />
 

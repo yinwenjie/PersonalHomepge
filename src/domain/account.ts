@@ -57,3 +57,9 @@ export interface RestoredAccountManagedHomeSpaceResult extends ActivatedHomeSpac
   binding: StoredSyncBinding;
   document: HomeDocumentV2;
 }
+
+export interface MigratedAccountManagedHomeSpaceResult extends ActivatedHomeSpaceResult {
+  status: "migrated" | "already-managed";
+  homeSpace: HomeSpace;
+  binding: StoredSyncBinding;
+}
