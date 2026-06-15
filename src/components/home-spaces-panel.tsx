@@ -469,21 +469,21 @@ function HomeSpaceList({
                 >
                   重命名
                 </button>
-                <button
-                  className="danger-button"
-                  type="button"
-                  disabled={removeDisabled}
-                  title={currentManagedRemovalBlocked ? "先解除本机或切换空间后再从账号移除" : undefined}
-                  onClick={() => onRemove(homeSpace)}
+                <span
+                  className="home-space-action-tooltip"
+                  title={currentManagedRemovalBlocked ? "当前本机账号托管空间不能直接从账号移除；请先解除本机或切换到其他空间。" : undefined}
                 >
-                  {accountData.removingHomeSpace && removingSpaceId === homeSpace.id ? "移除中" : "从账号移除"}
-                </button>
+                  <button
+                    className="danger-button"
+                    type="button"
+                    disabled={removeDisabled}
+                    onClick={() => onRemove(homeSpace)}
+                  >
+                    {accountData.removingHomeSpace && removingSpaceId === homeSpace.id ? "移除中" : "从账号移除"}
+                  </button>
+                </span>
               </div>
             </div>
-
-            {currentManagedRemovalBlocked ? (
-              <p className="home-space-item-note">当前本机账号托管空间不能直接从账号移除；请先解除本机或切换到其他空间。</p>
-            ) : null}
 
             {isEditing ? (
               <form className="home-space-inline-form" onSubmit={(event) => onRename(event, homeSpace)}>

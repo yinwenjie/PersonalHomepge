@@ -1164,12 +1164,6 @@ h1 {
   gap: 8px;
 }
 
-.home-space-item-note {
-  margin: -2px 0 0;
-  color: var(--muted);
-  font-size: 12px;
-}
-
 .home-space-row {
   display: flex;
   align-items: center;
@@ -1189,6 +1183,10 @@ h1 {
   justify-content: flex-end;
   gap: 8px;
   flex: 0 0 auto;
+}
+
+.home-space-action-tooltip {
+  display: inline-flex;
 }
 
 .home-space-row > div:first-child {
