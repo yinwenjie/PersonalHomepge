@@ -507,7 +507,7 @@ export function SyncPanel({
     }
 
     if (activeBinding.accessMode === "account-managed") {
-      setMessage("账号托管空间暂不支持从同步码面板废弃。");
+      setMessage("账号托管空间不能从同步码面板废弃；如需取消账号恢复入口，请在首页空间中从账号移除。");
       setError("");
       return;
     }
@@ -603,7 +603,7 @@ export function SyncPanel({
             type="button"
             onClick={revokeCode}
             disabled={busy || !binding || isAccountManaged}
-            title={isAccountManaged ? "账号托管空间删除会在后续空间管理中实现" : undefined}
+            title={isAccountManaged ? "账号托管空间不能从同步码面板废弃，请到首页空间中从账号移除" : undefined}
           >
             {isAccountManaged ? "托管空间暂不可废弃" : "废弃同步码"}
           </button>

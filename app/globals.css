@@ -1164,6 +1164,12 @@ h1 {
   gap: 8px;
 }
 
+.home-space-item-note {
+  margin: -2px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .home-space-row {
   display: flex;
   align-items: center;

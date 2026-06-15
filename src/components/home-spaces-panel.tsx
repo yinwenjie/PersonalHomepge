@@ -342,7 +342,7 @@ export function HomeSpacesPanel({
               || accountData.managedCreateMessage
               || accountData.claimMessage
               || accountData.activationMessage
-              || "账号托管空间不显示完整同步码；同步码空间仍需完整同步码激活。"}
+              || "账号托管空间不显示完整同步码；从账号移除不会废弃底层同步空间。"}
           </p>
         </>
       )}
@@ -418,7 +418,8 @@ function HomeSpaceList({
           || accountData.settingDefaultHomeSpace
           || accountData.removingHomeSpace
           || activationPending;
-        const removeDisabled = actionPending || (isCurrent && homeSpace.accessMode === "account-managed");
+        const currentManagedRemovalBlocked = isCurrent && homeSpace.accessMode === "account-managed";
+        const removeDisabled = actionPending || currentManagedRemovalBlocked;
 
         return (
           <div className="home-space-item" key={homeSpace.id}>
@@ -472,13 +473,17 @@ function HomeSpaceList({
                   className="danger-button"
                   type="button"
                   disabled={removeDisabled}
-                  title={isCurrent && homeSpace.accessMode === "account-managed" ? "先解除本机或切换空间后再移除账号托管空间" : undefined}
+                  title={currentManagedRemovalBlocked ? "先解除本机或切换空间后再从账号移除" : undefined}
                   onClick={() => onRemove(homeSpace)}
                 >
-                  {accountData.removingHomeSpace && removingSpaceId === homeSpace.id ? "移除中" : "移除"}
+                  {accountData.removingHomeSpace && removingSpaceId === homeSpace.id ? "移除中" : "从账号移除"}
                 </button>
               </div>
             </div>
+
+            {currentManagedRemovalBlocked ? (
+              <p className="home-space-item-note">当前本机账号托管空间不能直接从账号移除；请先解除本机或切换到其他空间。</p>
+            ) : null}
 
             {isEditing ? (
               <form className="home-space-inline-form" onSubmit={(event) => onRename(event, homeSpace)}>
@@ -539,23 +544,25 @@ function getMigrationBlockReason(status: HomeDocumentV2["syncMeta"]["status"]): 
 }
 
 function removeConfirmMessage(homeSpace: HomeSpace, isCurrent: boolean): string {
-  const defaultNote = homeSpace.isDefault ? "它当前是默认空间，移除后默认空间设置会被清空。" : "";
+  const defaultNote = homeSpace.isDefault ? "它当前是默认空间，从账号移除后默认空间设置会被清空。" : "";
   const currentSyncNote = isCurrent && homeSpace.accessMode === "sync-code"
-    ? "当前浏览器仍会保留本机同步码绑定。"
+    ? "当前浏览器仍会保留本机同步码绑定，并可继续作为普通同步码空间同步。"
     : "";
 
   if (homeSpace.accessMode === "account-managed") {
     return [
       `从账号移除“${homeSpace.name}”？`,
-      "账号将删除该首页空间索引和托管恢复凭证，空白设备不能再通过账号恢复它。",
-      "底层同步空间不会废弃。",
+      "这只会删除账号侧首页空间索引和托管恢复凭证。",
+      "空白设备将不能再通过账号恢复它。",
+      "底层同步空间不会删除、不会废弃，也不会执行密钥轮换。",
       defaultNote
     ].filter(Boolean).join("\n");
   }
 
   return [
     `从账号移除“${homeSpace.name}”？`,
-    "同步码本身和云端内容不会删除。",
+    "这只会删除账号侧首页空间索引。",
+    "同步码本身和云端内容不会删除，也不会废弃旧同步码。",
     currentSyncNote,
     defaultNote
   ].filter(Boolean).join("\n");

@@ -459,7 +459,7 @@ export function useAccountData(user: User | null): AccountDataState {
       const result = await repository.removeHomeSpaceFromAccount(userId, homeSpaceId);
       setPreferences(result.preferences);
       setHomeSpaces(result.homeSpaces);
-      setHomeSpaceMessage("首页空间已从账号移除，底层同步空间未废弃。");
+      setHomeSpaceMessage("首页空间已从账号移除；底层同步空间未删除、未废弃。");
       return true;
     } catch (removeError) {
       setHomeSpaceError(getActionErrorMessage("首页空间移除失败", removeError));

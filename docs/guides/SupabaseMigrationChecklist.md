@@ -127,6 +127,7 @@ where table_schema = 'public'
 - Phase 1.6.2 空白设备账号恢复不新增迁移；它复用 `home_space_credentials` 的本人可读 RLS。上线前可重新执行 `007_account_managed_sync_verify.sql` 和 `008_account_managed_credential_regex_fix_verify.sql` 确认凭证表权限与正则修复仍满足要求。
 - `008_sync_code_to_account_managed.sql` 不会废弃旧同步码。迁移后旧同步码仍可继续使用，这是 Phase 1.6.3 的保守设计。
 - `009_home_space_crud.sql` 只管理账号侧空间索引。`remove_home_space_from_account(...)` 会删除账号托管凭证，但不会删除或废弃底层 `sync_spaces`。
+- Phase 1.6.4a 不新增迁移；如果需要复核删除策略，执行 `supabase/checks/011_home_space_removal_policy_verify.sql`。
 - 新设备登录后看到账号空间列表，不代表已经拥有该空间的同步凭证；只有 `account-managed` 空间可以通过账号托管凭证直接恢复，普通 `sync-code` 空间仍需输入完整同步码。
 
 ## 辅助检查脚本
@@ -139,3 +140,4 @@ where table_schema = 'public'
 - `supabase/checks/008_account_managed_credential_regex_fix_verify.sql`：验证 Phase 1.6.1 账号托管凭证正则热修复，确认约束和 RPC 中不再包含 `{32,512}`。
 - `supabase/checks/009_sync_code_to_account_managed_verify.sql`：验证 Phase 1.6.3 同步码迁移 RPC、权限、凭证一致性和可选 A/B 功能回归。
 - `supabase/checks/010_home_space_crud_verify.sql`：验证 Phase 1.6.4 首页空间 CRUD RPC、权限、默认空间一致性、凭证约束和可选 A/B 回滚测试。
+- `supabase/checks/011_home_space_removal_policy_verify.sql`：验证 Phase 1.6.4a 删除策略，确认从账号移除不会删除、废弃或改写底层 `sync_spaces`。
