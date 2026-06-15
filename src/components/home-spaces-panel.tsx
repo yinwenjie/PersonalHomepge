@@ -40,7 +40,19 @@ export function HomeSpacesPanel({
   const [activationPending, setActivationPending] = useState(false);
   const [managedRestoreSpaceId, setManagedRestoreSpaceId] = useState<string | null>(null);
   const [managedMigrationSpaceId, setManagedMigrationSpaceId] = useState<string | null>(null);
+  const [editingSpaceId, setEditingSpaceId] = useState<string | null>(null);
+  const [editingSpaceName, setEditingSpaceName] = useState("");
+  const [defaultPendingSpaceId, setDefaultPendingSpaceId] = useState<string | null>(null);
+  const [removingSpaceId, setRemovingSpaceId] = useState<string | null>(null);
   const accountReady = Boolean(accountData.profile && accountData.preferences && !accountData.loading);
+  const accountActionPending = accountData.claiming
+    || accountData.activating
+    || accountData.creatingManaged
+    || accountData.restoringManaged
+    || accountData.migratingManaged
+    || accountData.renamingHomeSpace
+    || accountData.settingDefaultHomeSpace
+    || accountData.removingHomeSpace;
   const currentHomeSpace = useMemo(() => {
     if (!currentBinding) {
       return null;
@@ -62,7 +74,7 @@ export function HomeSpacesPanel({
 
   async function handleCreateManaged(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!storageReady || !accountReady || accountData.creatingManaged || accountData.restoringManaged || accountData.migratingManaged) {
+    if (!storageReady || !accountReady || accountActionPending) {
       return;
     }
 
@@ -144,6 +156,64 @@ export function HomeSpacesPanel({
     }
   }
 
+  function startRename(homeSpace: HomeSpace) {
+    setActivationError("");
+    setActivationCode("");
+    setActiveSpaceId(null);
+    setEditingSpaceId(homeSpace.id);
+    setEditingSpaceName(homeSpace.name);
+  }
+
+  async function handleRename(event: FormEvent<HTMLFormElement>, homeSpace: HomeSpace) {
+    event.preventDefault();
+    const renamed = await accountData.renameHomeSpace(homeSpace.id, editingSpaceName);
+    if (renamed) {
+      setEditingSpaceId(null);
+      setEditingSpaceName("");
+    }
+  }
+
+  async function handleSetDefault(homeSpace: HomeSpace) {
+    if (homeSpace.isDefault) {
+      return;
+    }
+
+    setActivationError("");
+    setActivationCode("");
+    setActiveSpaceId(null);
+    setDefaultPendingSpaceId(homeSpace.id);
+    try {
+      await accountData.setDefaultHomeSpace(homeSpace.id);
+    } finally {
+      setDefaultPendingSpaceId(null);
+    }
+  }
+
+  async function handleRemove(homeSpace: HomeSpace) {
+    const isCurrent = currentBinding?.spaceId === homeSpace.syncSpaceId;
+    if (isCurrent && homeSpace.accessMode === "account-managed") {
+      return;
+    }
+
+    if (!window.confirm(removeConfirmMessage(homeSpace, isCurrent))) {
+      return;
+    }
+
+    setActivationError("");
+    setActivationCode("");
+    setActiveSpaceId(null);
+    setRemovingSpaceId(homeSpace.id);
+    try {
+      const removed = await accountData.removeHomeSpaceFromAccount(homeSpace.id);
+      if (removed && editingSpaceId === homeSpace.id) {
+        setEditingSpaceId(null);
+        setEditingSpaceName("");
+      }
+    } finally {
+      setRemovingSpaceId(null);
+    }
+  }
+
   return (
     <section className="settings-panel" aria-label="首页空间">
       <div className="panel-header">
@@ -175,11 +245,11 @@ export function HomeSpacesPanel({
                 type="text"
                 value={managedSpaceName}
                 maxLength={80}
-                disabled={!storageReady || !accountReady || accountData.creatingManaged || accountData.restoringManaged || accountData.migratingManaged}
+                disabled={!storageReady || !accountReady || accountActionPending}
                 onChange={(event) => setManagedSpaceName(event.target.value)}
               />
             </label>
-            <button className="utility-button" type="submit" disabled={!storageReady || !accountReady || accountData.creatingManaged || accountData.restoringManaged || accountData.migratingManaged}>
+            <button className="utility-button" type="submit" disabled={!storageReady || !accountReady || accountActionPending}>
               {accountData.creatingManaged ? "创建中" : "创建账号托管空间"}
             </button>
           </form>
@@ -198,7 +268,7 @@ export function HomeSpacesPanel({
                   <button
                     className="utility-button"
                     type="button"
-                    disabled={!storageReady || !accountReady || accountData.migratingManaged || Boolean(migrationBlockReason)}
+                    disabled={!storageReady || !accountReady || accountActionPending || Boolean(migrationBlockReason)}
                     onClick={() => handleMigrateSyncCode(currentHomeSpace)}
                   >
                     {accountData.migratingManaged && managedMigrationSpaceId === currentHomeSpace.id ? "迁移中" : "迁移为账号托管"}
@@ -215,11 +285,11 @@ export function HomeSpacesPanel({
                   type="text"
                   value={claimSpaceName}
                   maxLength={80}
-                  disabled={accountData.claiming || accountData.migratingManaged}
+                  disabled={accountActionPending}
                   onChange={(event) => setClaimSpaceName(event.target.value)}
                 />
               </label>
-              <button className="utility-button" type="submit" disabled={accountData.claiming || accountData.migratingManaged}>
+              <button className="utility-button" type="submit" disabled={accountActionPending}>
                 {accountData.claiming ? "认领中" : "认领当前首页空间"}
               </button>
             </form>
@@ -232,24 +302,41 @@ export function HomeSpacesPanel({
             activeSpaceId={activeSpaceId}
             activationPending={activationPending}
             currentSpaceId={currentBinding?.spaceId ?? null}
+            defaultPendingSpaceId={defaultPendingSpaceId}
+            editingSpaceId={editingSpaceId}
+            editingSpaceName={editingSpaceName}
             managedRestoreSpaceId={managedRestoreSpaceId}
+            removingSpaceId={removingSpaceId}
             storageReady={storageReady}
             onActivate={handleActivate}
+            onCancelRename={() => {
+              setEditingSpaceId(null);
+              setEditingSpaceName("");
+            }}
             onChangeActivationCode={setActivationCode}
+            onChangeEditingName={setEditingSpaceName}
+            onRemove={handleRemove}
+            onRename={handleRename}
             onRestoreManaged={handleRestoreManaged}
             onSelectSpace={(spaceId) => {
               setActivationError("");
               setActivationCode("");
+              setEditingSpaceId(null);
+              setEditingSpaceName("");
               setActiveSpaceId((current) => current === spaceId ? null : spaceId);
             }}
+            onSetDefault={handleSetDefault}
+            onStartRename={startRename}
           />
 
-          <p className={accountData.claimError || accountData.activationError || accountData.managedCreateError || accountData.managedRestoreError || accountData.managedMigrationError ? "form-error" : "save-status"}>
-            {accountData.managedCreateError
+          <p className={accountData.homeSpaceError || accountData.claimError || accountData.activationError || accountData.managedCreateError || accountData.managedRestoreError || accountData.managedMigrationError ? "form-error" : "save-status"}>
+            {accountData.homeSpaceError
+              || accountData.managedCreateError
               || accountData.managedRestoreError
               || accountData.managedMigrationError
               || accountData.claimError
               || accountData.activationError
+              || accountData.homeSpaceMessage
               || accountData.managedMigrationMessage
               || accountData.managedRestoreMessage
               || accountData.managedCreateMessage
@@ -270,12 +357,22 @@ function HomeSpaceList({
   activationPending,
   activeSpaceId,
   currentSpaceId,
+  defaultPendingSpaceId,
+  editingSpaceId,
+  editingSpaceName,
   managedRestoreSpaceId,
+  removingSpaceId,
   storageReady,
   onActivate,
+  onCancelRename,
   onChangeActivationCode,
+  onChangeEditingName,
+  onRemove,
+  onRename,
   onRestoreManaged,
-  onSelectSpace
+  onSelectSpace,
+  onSetDefault,
+  onStartRename
 }: {
   accountData: AccountDataState;
   activationCode: string;
@@ -283,12 +380,22 @@ function HomeSpaceList({
   activationPending: boolean;
   activeSpaceId: string | null;
   currentSpaceId: string | null;
+  defaultPendingSpaceId: string | null;
+  editingSpaceId: string | null;
+  editingSpaceName: string;
   managedRestoreSpaceId: string | null;
+  removingSpaceId: string | null;
   storageReady: boolean;
   onActivate: (event: FormEvent<HTMLFormElement>, homeSpace: HomeSpace) => Promise<void>;
+  onCancelRename: () => void;
   onChangeActivationCode: (value: string) => void;
+  onChangeEditingName: (value: string) => void;
+  onRemove: (homeSpace: HomeSpace) => Promise<void>;
+  onRename: (event: FormEvent<HTMLFormElement>, homeSpace: HomeSpace) => Promise<void>;
   onRestoreManaged: (homeSpace: HomeSpace) => Promise<void>;
   onSelectSpace: (spaceId: string) => void;
+  onSetDefault: (homeSpace: HomeSpace) => Promise<void>;
+  onStartRename: (homeSpace: HomeSpace) => void;
 }) {
   if (accountData.loading) {
     return <p className="save-status">正在读取首页空间。</p>;
@@ -303,6 +410,15 @@ function HomeSpaceList({
       {accountData.homeSpaces.map((homeSpace) => {
         const isCurrent = homeSpace.syncSpaceId === currentSpaceId;
         const isActive = activeSpaceId === homeSpace.id;
+        const isEditing = editingSpaceId === homeSpace.id;
+        const actionPending = accountData.activating
+          || accountData.restoringManaged
+          || accountData.migratingManaged
+          || accountData.renamingHomeSpace
+          || accountData.settingDefaultHomeSpace
+          || accountData.removingHomeSpace
+          || activationPending;
+        const removeDisabled = actionPending || (isCurrent && homeSpace.accessMode === "account-managed");
 
         return (
           <div className="home-space-item" key={homeSpace.id}>
@@ -313,13 +429,23 @@ function HomeSpaceList({
               </div>
               <div className="home-space-row-actions">
                 <span>{homeSpace.isDefault ? "默认" : "空间"}</span>
+                {!homeSpace.isDefault ? (
+                  <button
+                    className="utility-button"
+                    type="button"
+                    disabled={actionPending}
+                    onClick={() => onSetDefault(homeSpace)}
+                  >
+                    {accountData.settingDefaultHomeSpace && defaultPendingSpaceId === homeSpace.id ? "设置中" : "设默认"}
+                  </button>
+                ) : null}
                 {isCurrent ? (
                   <span>已激活</span>
                 ) : homeSpace.accessMode === "account-managed" ? (
                   <button
                     className="utility-button"
                     type="button"
-                    disabled={!storageReady || accountData.restoringManaged || accountData.migratingManaged || accountData.activating || activationPending}
+                    disabled={!storageReady || actionPending}
                     onClick={() => onRestoreManaged(homeSpace)}
                   >
                     {accountData.restoringManaged && managedRestoreSpaceId === homeSpace.id ? "恢复中" : "恢复"}
@@ -328,14 +454,52 @@ function HomeSpaceList({
                   <button
                     className="utility-button"
                     type="button"
-                    disabled={!storageReady || accountData.migratingManaged || accountData.activating || activationPending}
+                    disabled={!storageReady || actionPending}
                     onClick={() => onSelectSpace(homeSpace.id)}
                   >
                     {isActive ? "取消" : "激活"}
                   </button>
                 )}
+                <button
+                  className="utility-button"
+                  type="button"
+                  disabled={actionPending}
+                  onClick={() => onStartRename(homeSpace)}
+                >
+                  重命名
+                </button>
+                <button
+                  className="danger-button"
+                  type="button"
+                  disabled={removeDisabled}
+                  title={isCurrent && homeSpace.accessMode === "account-managed" ? "先解除本机或切换空间后再移除账号托管空间" : undefined}
+                  onClick={() => onRemove(homeSpace)}
+                >
+                  {accountData.removingHomeSpace && removingSpaceId === homeSpace.id ? "移除中" : "移除"}
+                </button>
               </div>
             </div>
+
+            {isEditing ? (
+              <form className="home-space-inline-form" onSubmit={(event) => onRename(event, homeSpace)}>
+                <label className="field">
+                  <span>空间名称</span>
+                  <input
+                    type="text"
+                    value={editingSpaceName}
+                    maxLength={80}
+                    disabled={accountData.renamingHomeSpace}
+                    onChange={(event) => onChangeEditingName(event.target.value)}
+                  />
+                </label>
+                <div className="home-space-inline-actions">
+                  <button className="utility-button" type="button" disabled={accountData.renamingHomeSpace} onClick={onCancelRename}>取消</button>
+                  <button className="utility-button" type="submit" disabled={accountData.renamingHomeSpace || !editingSpaceName.trim()}>
+                    {accountData.renamingHomeSpace ? "保存中" : "保存"}
+                  </button>
+                </div>
+              </form>
+            ) : null}
 
             {isActive ? (
               <form className="home-space-activate-form" onSubmit={(event) => onActivate(event, homeSpace)}>
@@ -372,6 +536,29 @@ function getMigrationBlockReason(status: HomeDocumentV2["syncMeta"]["status"]): 
   }
 
   return "";
+}
+
+function removeConfirmMessage(homeSpace: HomeSpace, isCurrent: boolean): string {
+  const defaultNote = homeSpace.isDefault ? "它当前是默认空间，移除后默认空间设置会被清空。" : "";
+  const currentSyncNote = isCurrent && homeSpace.accessMode === "sync-code"
+    ? "当前浏览器仍会保留本机同步码绑定。"
+    : "";
+
+  if (homeSpace.accessMode === "account-managed") {
+    return [
+      `从账号移除“${homeSpace.name}”？`,
+      "账号将删除该首页空间索引和托管恢复凭证，空白设备不能再通过账号恢复它。",
+      "底层同步空间不会废弃。",
+      defaultNote
+    ].filter(Boolean).join("\n");
+  }
+
+  return [
+    `从账号移除“${homeSpace.name}”？`,
+    "同步码本身和云端内容不会删除。",
+    currentSyncNote,
+    defaultNote
+  ].filter(Boolean).join("\n");
 }
 
 function shortenId(value: string): string {

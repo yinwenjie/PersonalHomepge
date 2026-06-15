@@ -53,11 +53,17 @@
    - 支持把当前账号已认领的普通同步码空间原地迁移为账号托管。
    - 写入 `home_space_credentials`，但不修改 `sync_spaces` 密文，不废弃旧同步码。
 
+9. `supabase/migrations/009_home_space_crud.sql`
+   - 新增 `rename_home_space(...)`、`set_default_home_space(...)`、`remove_home_space_from_account(...)` RPC。
+   - 支持账号首页空间重命名、设默认和从账号移除。
+   - 移除账号托管空间时删除账号侧托管凭证，但不删除、不 revoke、不修改底层 `sync_spaces`。
+
 ## 执行规则
 
-- 新 Supabase project：按 `001 -> 002 -> 003 -> 004 -> 005 -> 006 -> 007 -> 008` 顺序执行。
-- 已经执行过 `001`、`002`、`003`、`004`、`005` 的项目：先执行 `006`，再执行 `007` 和 `008`。
-- 已经执行过 `006`、`007` 的项目：只需补执行 `008`。
+- 新 Supabase project：按 `001 -> 002 -> 003 -> 004 -> 005 -> 006 -> 007 -> 008 -> 009` 顺序执行。
+- 已经执行过 `001`、`002`、`003`、`004`、`005` 的项目：先执行 `006`，再执行 `007`、`008` 和 `009`。
+- 已经执行过 `006`、`007` 但未执行 `008` 的项目：先执行 `008`，再执行 `009`。
+- 已经执行过 `006`、`007`、`008` 的项目：只需补执行 `009`。
 - 执行前确认目标 project 是线上使用的 Supabase project。
 - 执行 `003` 后可以在 SQL Editor 中检查 revision 函数是否存在：
 
@@ -120,7 +126,8 @@ where table_schema = 'public'
 - `007_account_managed_credential_regex_fix.sql` 是 Phase 1.6.1 热修复；如果创建账号托管空间时报 `invalid regular expression: invalid repetition count(s)`，说明线上数据库需要执行该脚本。
 - Phase 1.6.2 空白设备账号恢复不新增迁移；它复用 `home_space_credentials` 的本人可读 RLS。上线前可重新执行 `007_account_managed_sync_verify.sql` 和 `008_account_managed_credential_regex_fix_verify.sql` 确认凭证表权限与正则修复仍满足要求。
 - `008_sync_code_to_account_managed.sql` 不会废弃旧同步码。迁移后旧同步码仍可继续使用，这是 Phase 1.6.3 的保守设计。
-- 新设备登录后看到账号空间列表，不代表已经拥有该空间的同步凭证；没有本地绑定时仍需输入完整同步码。
+- `009_home_space_crud.sql` 只管理账号侧空间索引。`remove_home_space_from_account(...)` 会删除账号托管凭证，但不会删除或废弃底层 `sync_spaces`。
+- 新设备登录后看到账号空间列表，不代表已经拥有该空间的同步凭证；只有 `account-managed` 空间可以通过账号托管凭证直接恢复，普通 `sync-code` 空间仍需输入完整同步码。
 
 ## 辅助检查脚本
 
@@ -131,3 +138,4 @@ where table_schema = 'public'
 - `supabase/checks/007_account_managed_sync_verify.sql`：验证 Phase 1.6.0 账号托管同步基础，包括 `access_mode`、`home_space_credentials`、RLS、角色权限、RPC 权限和现有同步码 RPC 回归。
 - `supabase/checks/008_account_managed_credential_regex_fix_verify.sql`：验证 Phase 1.6.1 账号托管凭证正则热修复，确认约束和 RPC 中不再包含 `{32,512}`。
 - `supabase/checks/009_sync_code_to_account_managed_verify.sql`：验证 Phase 1.6.3 同步码迁移 RPC、权限、凭证一致性和可选 A/B 功能回归。
+- `supabase/checks/010_home_space_crud_verify.sql`：验证 Phase 1.6.4 首页空间 CRUD RPC、权限、默认空间一致性、凭证约束和可选 A/B 回滚测试。

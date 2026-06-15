@@ -24,6 +24,9 @@ export interface AccountDataState {
   creatingManaged: boolean;
   restoringManaged: boolean;
   migratingManaged: boolean;
+  renamingHomeSpace: boolean;
+  settingDefaultHomeSpace: boolean;
+  removingHomeSpace: boolean;
   claimMessage: string;
   claimError: string;
   managedCreateMessage: string;
@@ -32,6 +35,8 @@ export interface AccountDataState {
   managedRestoreError: string;
   managedMigrationMessage: string;
   managedMigrationError: string;
+  homeSpaceMessage: string;
+  homeSpaceError: string;
   activationMessage: string;
   activationError: string;
   refresh: () => Promise<void>;
@@ -40,6 +45,9 @@ export interface AccountDataState {
   restoreAccountManagedHomeSpace: (homeSpaceId: string) => Promise<RestoredAccountManagedHomeSpaceResult | null>;
   migrateSyncCodeHomeSpaceToAccountManaged: (homeSpaceId: string, binding: StoredSyncBinding) => Promise<StoredSyncBinding | null>;
   markHomeSpaceActive: (homeSpaceId: string) => Promise<boolean>;
+  renameHomeSpace: (homeSpaceId: string, name: string) => Promise<boolean>;
+  setDefaultHomeSpace: (homeSpaceId: string) => Promise<boolean>;
+  removeHomeSpaceFromAccount: (homeSpaceId: string) => Promise<boolean>;
 }
 
 export function useAccountData(user: User | null): AccountDataState {
@@ -55,6 +63,9 @@ export function useAccountData(user: User | null): AccountDataState {
   const [creatingManaged, setCreatingManaged] = useState(false);
   const [restoringManaged, setRestoringManaged] = useState(false);
   const [migratingManaged, setMigratingManaged] = useState(false);
+  const [renamingHomeSpace, setRenamingHomeSpace] = useState(false);
+  const [settingDefaultHomeSpace, setSettingDefaultHomeSpace] = useState(false);
+  const [removingHomeSpace, setRemovingHomeSpace] = useState(false);
   const [claimMessage, setClaimMessage] = useState("");
   const [claimError, setClaimError] = useState("");
   const [managedCreateMessage, setManagedCreateMessage] = useState("");
@@ -63,6 +74,8 @@ export function useAccountData(user: User | null): AccountDataState {
   const [managedRestoreError, setManagedRestoreError] = useState("");
   const [managedMigrationMessage, setManagedMigrationMessage] = useState("");
   const [managedMigrationError, setManagedMigrationError] = useState("");
+  const [homeSpaceMessage, setHomeSpaceMessage] = useState("");
+  const [homeSpaceError, setHomeSpaceError] = useState("");
   const [activationMessage, setActivationMessage] = useState("");
   const [activationError, setActivationError] = useState("");
 
@@ -84,6 +97,9 @@ export function useAccountData(user: User | null): AccountDataState {
       setCreatingManaged(false);
       setRestoringManaged(false);
       setMigratingManaged(false);
+      setRenamingHomeSpace(false);
+      setSettingDefaultHomeSpace(false);
+      setRemovingHomeSpace(false);
       setClaimMessage("");
       setClaimError("");
       setManagedCreateMessage("");
@@ -92,6 +108,8 @@ export function useAccountData(user: User | null): AccountDataState {
       setManagedRestoreError("");
       setManagedMigrationMessage("");
       setManagedMigrationError("");
+      setHomeSpaceMessage("");
+      setHomeSpaceError("");
       setActivationMessage("");
       setActivationError("");
       return;
@@ -147,6 +165,8 @@ export function useAccountData(user: User | null): AccountDataState {
     setClaimError("");
     setManagedMigrationMessage("");
     setManagedMigrationError("");
+    setHomeSpaceMessage("");
+    setHomeSpaceError("");
 
     try {
       const result = await repository.claimHomeSpace(userId, syncSpaceId, normalizedName);
@@ -182,6 +202,8 @@ export function useAccountData(user: User | null): AccountDataState {
     setManagedRestoreError("");
     setManagedMigrationMessage("");
     setManagedMigrationError("");
+    setHomeSpaceMessage("");
+    setHomeSpaceError("");
     setClaimMessage("");
     setClaimError("");
     setActivationMessage("");
@@ -221,6 +243,8 @@ export function useAccountData(user: User | null): AccountDataState {
     setManagedCreateError("");
     setManagedMigrationMessage("");
     setManagedMigrationError("");
+    setHomeSpaceMessage("");
+    setHomeSpaceError("");
     setClaimMessage("");
     setClaimError("");
     setActivationMessage("");
@@ -266,6 +290,8 @@ export function useAccountData(user: User | null): AccountDataState {
     setManagedCreateError("");
     setManagedRestoreMessage("");
     setManagedRestoreError("");
+    setHomeSpaceMessage("");
+    setHomeSpaceError("");
     setClaimMessage("");
     setClaimError("");
     setActivationMessage("");
@@ -303,6 +329,8 @@ export function useAccountData(user: User | null): AccountDataState {
     setManagedRestoreError("");
     setManagedMigrationMessage("");
     setManagedMigrationError("");
+    setHomeSpaceMessage("");
+    setHomeSpaceError("");
 
     try {
       const result = await repository.markHomeSpaceActive(userId, homeSpaceId);
@@ -315,6 +343,129 @@ export function useAccountData(user: User | null): AccountDataState {
       return false;
     } finally {
       setActivating(false);
+    }
+  }, [repository, userId]);
+
+  const renameHomeSpace = useCallback(async (homeSpaceId: string, name: string): Promise<boolean> => {
+    const normalizedName = name.trim();
+    if (!userId) {
+      setHomeSpaceError("请先登录账号。");
+      return false;
+    }
+
+    if (!homeSpaceId) {
+      setHomeSpaceError("请选择首页空间。");
+      return false;
+    }
+
+    if (!normalizedName) {
+      setHomeSpaceError("请输入首页空间名称。");
+      return false;
+    }
+
+    setRenamingHomeSpace(true);
+    setHomeSpaceMessage("");
+    setHomeSpaceError("");
+    setManagedCreateMessage("");
+    setManagedCreateError("");
+    setManagedRestoreMessage("");
+    setManagedRestoreError("");
+    setManagedMigrationMessage("");
+    setManagedMigrationError("");
+    setClaimMessage("");
+    setClaimError("");
+    setActivationMessage("");
+    setActivationError("");
+
+    try {
+      const result = await repository.renameHomeSpace(userId, homeSpaceId, normalizedName);
+      setPreferences(result.preferences);
+      setHomeSpaces(result.homeSpaces);
+      setHomeSpaceMessage("首页空间已重命名。");
+      return true;
+    } catch (renameError) {
+      setHomeSpaceError(getActionErrorMessage("首页空间重命名失败", renameError));
+      return false;
+    } finally {
+      setRenamingHomeSpace(false);
+    }
+  }, [repository, userId]);
+
+  const setDefaultHomeSpace = useCallback(async (homeSpaceId: string): Promise<boolean> => {
+    if (!userId) {
+      setHomeSpaceError("请先登录账号。");
+      return false;
+    }
+
+    if (!homeSpaceId) {
+      setHomeSpaceError("请选择首页空间。");
+      return false;
+    }
+
+    setSettingDefaultHomeSpace(true);
+    setHomeSpaceMessage("");
+    setHomeSpaceError("");
+    setManagedCreateMessage("");
+    setManagedCreateError("");
+    setManagedRestoreMessage("");
+    setManagedRestoreError("");
+    setManagedMigrationMessage("");
+    setManagedMigrationError("");
+    setClaimMessage("");
+    setClaimError("");
+    setActivationMessage("");
+    setActivationError("");
+
+    try {
+      const result = await repository.setDefaultHomeSpace(userId, homeSpaceId);
+      setPreferences(result.preferences);
+      setHomeSpaces(result.homeSpaces);
+      setHomeSpaceMessage("默认首页空间已更新。");
+      return true;
+    } catch (defaultError) {
+      setHomeSpaceError(getActionErrorMessage("默认首页空间更新失败", defaultError));
+      return false;
+    } finally {
+      setSettingDefaultHomeSpace(false);
+    }
+  }, [repository, userId]);
+
+  const removeHomeSpaceFromAccount = useCallback(async (homeSpaceId: string): Promise<boolean> => {
+    if (!userId) {
+      setHomeSpaceError("请先登录账号。");
+      return false;
+    }
+
+    if (!homeSpaceId) {
+      setHomeSpaceError("请选择首页空间。");
+      return false;
+    }
+
+    setRemovingHomeSpace(true);
+    setHomeSpaceMessage("");
+    setHomeSpaceError("");
+    setManagedCreateMessage("");
+    setManagedCreateError("");
+    setManagedRestoreMessage("");
+    setManagedRestoreError("");
+    setManagedMigrationMessage("");
+    setManagedMigrationError("");
+    setClaimMessage("");
+    setClaimError("");
+    setActivationMessage("");
+    setActivationError("");
+
+    try {
+      const result = await repository.removeHomeSpaceFromAccount(userId, homeSpaceId);
+      setPreferences(result.preferences);
+      setHomeSpaces(result.homeSpaces);
+      setHomeSpaceMessage("首页空间已从账号移除，底层同步空间未废弃。");
+      return true;
+    } catch (removeError) {
+      setHomeSpaceError(getActionErrorMessage("首页空间移除失败", removeError));
+      return false;
+    } finally {
+      setRemovingHomeSpace(false);
     }
   }, [repository, userId]);
 
@@ -344,6 +495,9 @@ export function useAccountData(user: User | null): AccountDataState {
     creatingManaged,
     restoringManaged,
     migratingManaged,
+    renamingHomeSpace,
+    settingDefaultHomeSpace,
+    removingHomeSpace,
     claimMessage,
     claimError,
     managedCreateMessage,
@@ -352,6 +506,8 @@ export function useAccountData(user: User | null): AccountDataState {
     managedRestoreError,
     managedMigrationMessage,
     managedMigrationError,
+    homeSpaceMessage,
+    homeSpaceError,
     activationMessage,
     activationError,
     refresh,
@@ -359,6 +515,9 @@ export function useAccountData(user: User | null): AccountDataState {
     createAccountManagedHomeSpace,
     restoreAccountManagedHomeSpace,
     migrateSyncCodeHomeSpaceToAccountManaged,
-    markHomeSpaceActive
+    markHomeSpaceActive,
+    renameHomeSpace,
+    setDefaultHomeSpace,
+    removeHomeSpaceFromAccount
   };
 }

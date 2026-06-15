@@ -271,24 +271,30 @@ export class AccountRepository {
   }
 
   async markHomeSpaceActive(userId: string, homeSpaceId: string): Promise<ActivatedHomeSpaceResult> {
-    const { error } = await getSupabaseBrowserClient()
-      .rpc("activate_home_space", { p_home_space_id: homeSpaceId });
+    await rpcVoid("activate_home_space", { p_home_space_id: homeSpaceId });
 
-    if (error) {
-      throw error;
-    }
+    return this.getHomeSpaceState(userId);
+  }
 
-    const preferences = await this.getPreferences(userId);
-    if (!preferences) {
-      throw new Error("账号偏好更新失败");
-    }
+  async renameHomeSpace(userId: string, homeSpaceId: string, name: string): Promise<ActivatedHomeSpaceResult> {
+    await rpcVoid("rename_home_space", {
+      p_home_space_id: homeSpaceId,
+      p_name: name.trim()
+    });
 
-    const homeSpaces = await this.listHomeSpaces(userId);
+    return this.getHomeSpaceState(userId);
+  }
 
-    return {
-      preferences,
-      homeSpaces
-    };
+  async setDefaultHomeSpace(userId: string, homeSpaceId: string): Promise<ActivatedHomeSpaceResult> {
+    await rpcVoid("set_default_home_space", { p_home_space_id: homeSpaceId });
+
+    return this.getHomeSpaceState(userId);
+  }
+
+  async removeHomeSpaceFromAccount(userId: string, homeSpaceId: string): Promise<ActivatedHomeSpaceResult> {
+    await rpcVoid("remove_home_space_from_account", { p_home_space_id: homeSpaceId });
+
+    return this.getHomeSpaceState(userId);
   }
 
   private async getHomeSpaceBySyncSpace(userId: string, syncSpaceId: string): Promise<HomeSpace | null> {
@@ -340,6 +346,20 @@ export class AccountRepository {
     }
 
     return data as HomeSpaceCredentialRow;
+  }
+
+  private async getHomeSpaceState(userId: string): Promise<ActivatedHomeSpaceResult> {
+    const preferences = await this.getPreferences(userId);
+    if (!preferences) {
+      throw new Error("账号偏好更新失败");
+    }
+
+    const homeSpaces = await this.listHomeSpaces(userId);
+
+    return {
+      preferences,
+      homeSpaces
+    };
   }
 
   private async ensureProfile(userId: string, email: string | null): Promise<AccountProfile> {
@@ -497,6 +517,14 @@ async function rpcSingle<T>(functionName: string, args: Record<string, unknown>)
   }
 
   return data[0] as T;
+}
+
+async function rpcVoid(functionName: string, args: Record<string, unknown>): Promise<void> {
+  const { error } = await getSupabaseBrowserClient().rpc(functionName, args);
+
+  if (error) {
+    throw error;
+  }
 }
 
 function toRpcEncryptedDocument(encryptedDocument: EncryptedHomeDocument) {

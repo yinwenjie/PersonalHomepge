@@ -1178,13 +1178,14 @@ h1 {
 
 .home-space-row-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
   flex: 0 0 auto;
 }
 
-.home-space-row div {
+.home-space-row > div:first-child {
   display: grid;
   gap: 2px;
   min-width: 0;
@@ -1212,6 +1213,24 @@ h1 {
   border: 1px dashed var(--line-strong);
   border-radius: var(--radius);
   background: var(--surface-soft);
+}
+
+.home-space-inline-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+  padding: 10px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+}
+
+.home-space-inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 .home-space-activate-form .form-error {
@@ -1428,6 +1447,7 @@ h1 {
   .auth-form,
   .home-space-claim-form,
   .home-space-create-form,
+  .home-space-inline-form,
   .home-space-activate-form {
     grid-template-columns: 1fr;
   }
@@ -1438,6 +1458,10 @@ h1 {
   }
 
   .home-space-row-actions {
+    justify-content: flex-start;
+  }
+
+  .home-space-inline-actions {
     justify-content: flex-start;
   }
 }
