@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { HomeSpace } from "@/domain/account";
 import { getErrorMessage } from "@/domain/errors";
 import { HomeDocumentV2, HomeSyncMeta } from "@/domain/home-document";
 import {
@@ -22,6 +23,7 @@ interface SyncPanelProps {
   onSyncMetaChange: (syncMeta: HomeSyncMeta, message: string) => void;
   onBindingChange?: (binding: StoredSyncBinding | null) => void;
   hasResetBackup?: boolean;
+  currentAccountHomeSpace?: HomeSpace | null;
   onRestoreResetBackup?: () => void;
 }
 
@@ -39,6 +41,7 @@ export function SyncPanel({
   onSyncMetaChange,
   onBindingChange,
   hasResetBackup = false,
+  currentAccountHomeSpace = null,
   onRestoreResetBackup
 }: SyncPanelProps) {
   const [binding, setBinding] = useState<StoredSyncBinding | null>(null);
@@ -445,7 +448,7 @@ export function SyncPanel({
       const parsed = parseSyncCode(inputCode);
       const pulled = await getSyncRepository().pull(parsed);
 
-      if (!window.confirm("输入同步码会用云端首页覆盖当前本地首页，继续？")) {
+      if (!window.confirm(getBindConfirmMessage(isAdvanced))) {
         return;
       }
 
@@ -483,7 +486,7 @@ export function SyncPanel({
   }
 
   function unbindLocal() {
-    if (!window.confirm("解除后，本机不再同步，但云端同步空间不会删除。继续？")) {
+    if (!window.confirm(getUnbindConfirmMessage(currentAccountHomeSpace))) {
       return;
     }
 
@@ -514,12 +517,12 @@ export function SyncPanel({
     }
 
     if (activeBinding.accessMode === "account-managed") {
-      setMessage("账号托管空间不能从同步码面板废弃；如需取消账号恢复入口，请在首页空间中从账号移除。");
+      setMessage("账号托管空间不能在高级同步码区域废弃；如需取消账号恢复入口，请在首页空间中从账号移除。");
       setError("");
       return;
     }
 
-    if (!window.confirm("废弃后，所有设备都无法继续使用这个同步码。继续？")) {
+    if (!window.confirm(getRevokeConfirmMessage(currentAccountHomeSpace))) {
       return;
     }
 
@@ -614,7 +617,7 @@ export function SyncPanel({
           ) : null}
 
           {isAccountManaged ? (
-            <p className="sync-managed-note">当前空间由账号托管恢复凭证，不显示完整同步码。</p>
+            <p className="sync-managed-note">当前空间由账号托管恢复凭证，不显示完整同步码，也不能在这里废弃底层同步空间。</p>
           ) : (
             <div className="sync-code-grid">
               <label className="field">
@@ -636,6 +639,10 @@ export function SyncPanel({
             </label>
             <button className="utility-button" type="button" onClick={bindCode} disabled={busy || !inputCode.trim()}>绑定</button>
           </div>
+
+          {isAdvanced ? (
+            <p className="sync-boundary-note">{getBoundaryNote(currentAccountHomeSpace, isAccountManaged)}</p>
+          ) : null}
 
           <div className="sync-panel-footer">
             <div className="sync-panel-actions">
@@ -689,6 +696,64 @@ function SyncActionButtons({
       <button className="utility-button" type="button" onClick={onPush} disabled={busy || !binding || isPaused || status === "conflict"}>上传</button>
     </div>
   );
+}
+
+function getBoundaryNote(homeSpace: HomeSpace | null, isAccountManaged: boolean): string {
+  if (isAccountManaged) {
+    return homeSpace
+      ? `当前账号托管空间“${homeSpace.name}”由账号保存恢复凭证。这里的解除本机只影响当前浏览器；账号空间仍保留。`
+      : "当前账号托管空间由账号保存恢复凭证。这里的解除本机只影响当前浏览器；账号空间仍保留。";
+  }
+
+  if (homeSpace?.accessMode === "sync-code") {
+    return `当前普通同步码已在账号中记录为首页空间“${homeSpace.name}”。废弃同步码只会让底层同步码失效，不会自动从账号移除该空间。`;
+  }
+
+  return "这里只管理当前浏览器的同步码绑定和底层同步码；输入同步码不会自动认领到账号，也不会迁移为账号托管。";
+}
+
+function getBindConfirmMessage(isAdvanced: boolean): string {
+  return [
+    "输入同步码会用云端首页覆盖当前本地首页。",
+    isAdvanced ? "这只会绑定当前浏览器，不会自动认领到账号，也不会迁移为账号托管；账号空间请在上方“首页空间”中处理。" : "",
+    "继续？"
+  ].filter(Boolean).join("\n");
+}
+
+function getUnbindConfirmMessage(homeSpace: HomeSpace | null): string {
+  if (homeSpace?.accessMode === "account-managed") {
+    return [
+      `解除本机账号托管空间“${homeSpace.name}”？`,
+      "这只会清除当前浏览器的本机绑定，本地首页内容会保留。",
+      "账号中的首页空间和托管恢复凭证不会删除，之后仍可在“首页空间”中恢复。",
+      "继续？"
+    ].join("\n");
+  }
+
+  if (homeSpace?.accessMode === "sync-code") {
+    return [
+      `解除本机同步码空间“${homeSpace.name}”？`,
+      "这只会清除当前浏览器的本机同步码绑定，本地首页内容会保留。",
+      "账号中的首页空间索引不会删除，云端同步空间和同步码也不会废弃。",
+      "继续？"
+    ].join("\n");
+  }
+
+  return "解除后，本机不再同步，但云端同步空间不会删除。继续？";
+}
+
+function getRevokeConfirmMessage(homeSpace: HomeSpace | null): string {
+  if (homeSpace?.accessMode === "sync-code") {
+    return [
+      `废弃当前同步码空间“${homeSpace.name}”？`,
+      "废弃后，所有设备都无法继续使用这个同步码上传或拉取。",
+      "这不会自动从账号移除该首页空间索引；账号列表中仍可能保留一个无法用旧同步码激活的空间。",
+      "如只想让当前浏览器停止同步，请使用“解除本机”。",
+      "继续废弃？"
+    ].join("\n");
+  }
+
+  return "废弃后，所有设备都无法继续使用这个同步码。继续？";
 }
 
 function toSyncMeta(binding: StoredSyncBinding, status: HomeSyncMeta["status"]): HomeSyncMeta {

@@ -347,6 +347,13 @@ h1 {
   background: rgba(255, 255, 255, 0.68);
 }
 
+.sync-boundary-note {
+  padding: 10px 12px;
+  border: 1px solid #bfdbfe;
+  border-radius: var(--radius);
+  background: rgba(239, 246, 255, 0.78);
+}
+
 .sync-code-grid {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: end;

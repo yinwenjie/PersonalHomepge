@@ -131,6 +131,9 @@ export function SettingsDashboard() {
   }
 
   const signedIn = Boolean(auth.user);
+  const currentAccountHomeSpace = currentBinding
+    ? accountData.homeSpaces.find((homeSpace) => homeSpace.syncSpaceId === currentBinding.spaceId) ?? null
+    : null;
   const syncPanel = (
     <SyncPanel
       key={syncPanelKey}
@@ -143,6 +146,7 @@ export function SettingsDashboard() {
       onSyncMetaChange={updateSyncMeta}
       onBindingChange={setCurrentBinding}
       hasResetBackup={hasResetBackup}
+      currentAccountHomeSpace={currentAccountHomeSpace}
       onRestoreResetBackup={restoreResetBackup}
     />
   );
