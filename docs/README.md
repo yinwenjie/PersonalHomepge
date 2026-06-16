@@ -15,7 +15,7 @@
 - `implementation/phase-1/Phase1_3_Implement.md`：Phase 1.3，同步码跨设备同步；包含 Phase 1.3.1 之后的后续实施记录。
 - `implementation/phase-1/Phase1_4_Implement.md`：Phase 1.4，前端展示页与编辑交互优化。
 - `implementation/phase-1/Phase1_5_Implement.md`：Phase 1.5，账号登录与首页空间管理；包含完整实施记录、账号模型、数据库安全计划和 Phase 1.6 衔接。
-- `implementation/phase-1/Phase1_6_Implement.md`：Phase 1.6，账号托管同步与 Beta 打磨；包含账号托管同步基础、账号托管空间创建、恢复默认同步保护、空白设备账号恢复、同步码迁移为账号托管、首页空间 CRUD、同步码入口降级、管理边界补强、全局偏好编辑和后续补漏计划。
+- `implementation/phase-1/Phase1_6_Implement.md`：Phase 1.6，账号托管同步与 Beta 打磨；包含账号托管同步基础、账号托管空间创建、恢复默认同步保护、空白设备账号恢复、同步码迁移为账号托管、首页空间 CRUD、同步码入口降级、管理边界补强、全局偏好编辑、Beta 状态统一、数据导出、模板库 v1 和浏览器收藏/标签导入衔接计划。
 
 ## Tech Stack
 
