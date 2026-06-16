@@ -58,12 +58,19 @@
    - 支持账号首页空间重命名、设默认和从账号移除。
    - 移除账号托管空间时删除账号侧托管凭证，但不删除、不 revoke、不修改底层 `sync_spaces`。
 
+10. `supabase/migrations/010_account_preferences_editing.sql`
+    - 扩展 `account_preferences`，新增 `font_family`、`density`、`default_search_engine`。
+    - 将 `locale`、`theme_preference` 和新增偏好字段收紧为固定枚举值。
+    - 执行前先回填历史非法值为默认值，避免新增约束失败。
+    - 不修改 RLS、grants、`default_space_id` 或首页空间逻辑。
+
 ## 执行规则
 
-- 新 Supabase project：按 `001 -> 002 -> 003 -> 004 -> 005 -> 006 -> 007 -> 008 -> 009` 顺序执行。
-- 已经执行过 `001`、`002`、`003`、`004`、`005` 的项目：先执行 `006`，再执行 `007`、`008` 和 `009`。
-- 已经执行过 `006`、`007` 但未执行 `008` 的项目：先执行 `008`，再执行 `009`。
-- 已经执行过 `006`、`007`、`008` 的项目：只需补执行 `009`。
+- 新 Supabase project：按 `001 -> 002 -> 003 -> 004 -> 005 -> 006 -> 007 -> 008 -> 009 -> 010` 顺序执行。
+- 已经执行过 `001`、`002`、`003`、`004`、`005` 的项目：先执行 `006`，再执行 `007`、`008`、`009` 和 `010`。
+- 已经执行过 `006`、`007` 但未执行 `008` 的项目：先执行 `008`，再执行 `009` 和 `010`。
+- 已经执行过 `006`、`007`、`008` 的项目：先执行 `009`，再执行 `010`。
+- 已经执行过 `009` 的项目：只需补执行 `010`。
 - 执行前确认目标 project 是线上使用的 Supabase project。
 - 执行 `003` 后可以在 SQL Editor 中检查 revision 函数是否存在：
 
@@ -128,6 +135,7 @@ where table_schema = 'public'
 - `008_sync_code_to_account_managed.sql` 不会废弃旧同步码。迁移后旧同步码仍可继续使用，这是 Phase 1.6.3 的保守设计。
 - `009_home_space_crud.sql` 只管理账号侧空间索引。`remove_home_space_from_account(...)` 会删除账号托管凭证，但不会删除或废弃底层 `sync_spaces`。
 - Phase 1.6.4a 不新增迁移；如果需要复核删除策略，执行 `supabase/checks/011_home_space_removal_policy_verify.sql`。
+- `010_account_preferences_editing.sql` 是 Phase 1.6.6 偏好编辑迁移。建议先执行该脚本，再部署前端；如果前端先部署，账号偏好读取会降级到旧字段，但保存新偏好会提示需要先执行 `010`。
 - 新设备登录后看到账号空间列表，不代表已经拥有该空间的同步凭证；只有 `account-managed` 空间可以通过账号托管凭证直接恢复，普通 `sync-code` 空间仍需输入完整同步码。
 
 ## 辅助检查脚本
@@ -141,3 +149,4 @@ where table_schema = 'public'
 - `supabase/checks/009_sync_code_to_account_managed_verify.sql`：验证 Phase 1.6.3 同步码迁移 RPC、权限、凭证一致性和可选 A/B 功能回归。
 - `supabase/checks/010_home_space_crud_verify.sql`：验证 Phase 1.6.4 首页空间 CRUD RPC、权限、默认空间一致性、凭证约束和可选 A/B 回滚测试。
 - `supabase/checks/011_home_space_removal_policy_verify.sql`：验证 Phase 1.6.4a 删除策略，确认从账号移除不会删除、废弃或改写底层 `sync_spaces`。
+- `supabase/checks/012_account_preferences_editing_verify.sql`：验证 Phase 1.6.6 偏好编辑字段、默认值、约束、RLS、权限和默认空间 FK/RLS 边界。

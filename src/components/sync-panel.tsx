@@ -4,12 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { HomeSpace } from "@/domain/account";
 import { getErrorMessage } from "@/domain/errors";
 import { HomeDocumentV2, HomeSyncMeta } from "@/domain/home-document";
+import type { LocalePreference } from "@/domain/ui-preferences";
 import {
   createSyncSecrets,
   formatSyncCode,
   parseSyncCode,
   StoredSyncBinding
 } from "@/domain/sync-code";
+import { useUiPreferences } from "@/hooks/use-ui-preferences";
 import { LocalSyncBindingRepository } from "@/infrastructure/sync-binding-repository";
 import { SyncCodeRepository, PullSyncSpaceResult } from "@/infrastructure/sync-code-repository";
 
@@ -44,6 +46,7 @@ export function SyncPanel({
   currentAccountHomeSpace = null,
   onRestoreResetBackup
 }: SyncPanelProps) {
+  const { preferences } = useUiPreferences();
   const [binding, setBinding] = useState<StoredSyncBinding | null>(null);
   const [syncCode, setSyncCode] = useState("");
   const [inputCode, setInputCode] = useState("");
@@ -410,13 +413,13 @@ export function SyncPanel({
       return "未绑定";
     }
 
-    const syncedAt = binding.lastSyncedAt ? formatShortDateTime(binding.lastSyncedAt) : "未同步";
+    const syncedAt = binding.lastSyncedAt ? formatShortDateTime(binding.lastSyncedAt, preferences.locale) : "未同步";
     if (isPaused) {
       return `${binding.accessMode === "account-managed" ? "账号托管" : "同步码"} 已暂停，最后同步 ${syncedAt}`;
     }
 
     return `${binding.accessMode === "account-managed" ? "账号托管" : "同步码"} rev ${binding.remoteRevision}，最后同步 ${syncedAt}`;
-  }, [binding, isPaused]);
+  }, [binding, isPaused, preferences.locale]);
   const isAccountManaged = binding?.accessMode === "account-managed";
   const panelTitle = isAdvanced ? "高级同步码与恢复" : "同步码";
 
@@ -778,8 +781,8 @@ function localSyncMeta(): HomeSyncMeta {
   };
 }
 
-function formatShortDateTime(value: string): string {
-  return new Intl.DateTimeFormat("zh-CN", {
+function formatShortDateTime(value: string, locale: LocalePreference): string {
+  return new Intl.DateTimeFormat(locale, {
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",

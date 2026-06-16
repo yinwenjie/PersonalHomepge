@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import type {
   AccountPreferences,
+  AccountPreferencesUpdateInput,
   AccountProfile,
   HomeSpace,
   RestoredAccountManagedHomeSpaceResult
@@ -27,6 +28,7 @@ export interface AccountDataState {
   renamingHomeSpace: boolean;
   settingDefaultHomeSpace: boolean;
   removingHomeSpace: boolean;
+  updatingPreferences: boolean;
   claimMessage: string;
   claimError: string;
   managedCreateMessage: string;
@@ -37,6 +39,8 @@ export interface AccountDataState {
   managedMigrationError: string;
   homeSpaceMessage: string;
   homeSpaceError: string;
+  preferencesMessage: string;
+  preferencesError: string;
   activationMessage: string;
   activationError: string;
   refresh: () => Promise<void>;
@@ -48,6 +52,7 @@ export interface AccountDataState {
   renameHomeSpace: (homeSpaceId: string, name: string) => Promise<boolean>;
   setDefaultHomeSpace: (homeSpaceId: string) => Promise<boolean>;
   removeHomeSpaceFromAccount: (homeSpaceId: string) => Promise<boolean>;
+  updatePreferences: (input: AccountPreferencesUpdateInput) => Promise<AccountPreferences | null>;
 }
 
 export function useAccountData(user: User | null): AccountDataState {
@@ -66,6 +71,7 @@ export function useAccountData(user: User | null): AccountDataState {
   const [renamingHomeSpace, setRenamingHomeSpace] = useState(false);
   const [settingDefaultHomeSpace, setSettingDefaultHomeSpace] = useState(false);
   const [removingHomeSpace, setRemovingHomeSpace] = useState(false);
+  const [updatingPreferences, setUpdatingPreferences] = useState(false);
   const [claimMessage, setClaimMessage] = useState("");
   const [claimError, setClaimError] = useState("");
   const [managedCreateMessage, setManagedCreateMessage] = useState("");
@@ -76,6 +82,8 @@ export function useAccountData(user: User | null): AccountDataState {
   const [managedMigrationError, setManagedMigrationError] = useState("");
   const [homeSpaceMessage, setHomeSpaceMessage] = useState("");
   const [homeSpaceError, setHomeSpaceError] = useState("");
+  const [preferencesMessage, setPreferencesMessage] = useState("");
+  const [preferencesError, setPreferencesError] = useState("");
   const [activationMessage, setActivationMessage] = useState("");
   const [activationError, setActivationError] = useState("");
 
@@ -100,6 +108,7 @@ export function useAccountData(user: User | null): AccountDataState {
       setRenamingHomeSpace(false);
       setSettingDefaultHomeSpace(false);
       setRemovingHomeSpace(false);
+      setUpdatingPreferences(false);
       setClaimMessage("");
       setClaimError("");
       setManagedCreateMessage("");
@@ -110,6 +119,8 @@ export function useAccountData(user: User | null): AccountDataState {
       setManagedMigrationError("");
       setHomeSpaceMessage("");
       setHomeSpaceError("");
+      setPreferencesMessage("");
+      setPreferencesError("");
       setActivationMessage("");
       setActivationError("");
       return;
@@ -469,6 +480,29 @@ export function useAccountData(user: User | null): AccountDataState {
     }
   }, [repository, userId]);
 
+  const updatePreferences = useCallback(async (input: AccountPreferencesUpdateInput): Promise<AccountPreferences | null> => {
+    if (!userId) {
+      setPreferencesError("请先登录账号。");
+      return null;
+    }
+
+    setUpdatingPreferences(true);
+    setPreferencesMessage("");
+    setPreferencesError("");
+
+    try {
+      const result = await repository.updatePreferences(userId, input);
+      setPreferences(result);
+      setPreferencesMessage("账号偏好已保存。");
+      return result;
+    } catch (preferencesUpdateError) {
+      setPreferencesError(getActionErrorMessage("账号偏好保存失败", preferencesUpdateError));
+      return null;
+    } finally {
+      setUpdatingPreferences(false);
+    }
+  }, [repository, userId]);
+
   useEffect(() => {
     const timerId = window.setTimeout(() => {
       void refresh();
@@ -498,6 +532,7 @@ export function useAccountData(user: User | null): AccountDataState {
     renamingHomeSpace,
     settingDefaultHomeSpace,
     removingHomeSpace,
+    updatingPreferences,
     claimMessage,
     claimError,
     managedCreateMessage,
@@ -508,6 +543,8 @@ export function useAccountData(user: User | null): AccountDataState {
     managedMigrationError,
     homeSpaceMessage,
     homeSpaceError,
+    preferencesMessage,
+    preferencesError,
     activationMessage,
     activationError,
     refresh,
@@ -518,6 +555,7 @@ export function useAccountData(user: User | null): AccountDataState {
     markHomeSpaceActive,
     renameHomeSpace,
     setDefaultHomeSpace,
-    removeHomeSpaceFromAccount
+    removeHomeSpaceFromAccount,
+    updatePreferences
   };
 }

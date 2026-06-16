@@ -1,5 +1,13 @@
 import type { StoredSyncBinding } from "@/domain/sync-code";
 import type { HomeDocumentV2 } from "@/domain/home-document";
+import type {
+  DensityPreference,
+  FontFamilyPreference,
+  LocalePreference,
+  SearchEnginePreference,
+  ThemePreference,
+  UiPreferences
+} from "@/domain/ui-preferences";
 
 export type HomeSpaceAccessMode = "sync-code" | "account-managed" | "password-protected";
 
@@ -13,12 +21,17 @@ export interface AccountProfile {
 
 export interface AccountPreferences {
   userId: string;
-  locale: string;
-  themePreference: string;
+  locale: LocalePreference;
+  themePreference: ThemePreference;
+  fontFamily: FontFamilyPreference;
+  density: DensityPreference;
+  defaultSearchEngine: SearchEnginePreference;
   defaultSpaceId: string | null;
   createdAt: string;
   updatedAt: string;
 }
+
+export type AccountPreferencesUpdateInput = UiPreferences;
 
 export interface HomeSpace {
   id: string;

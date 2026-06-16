@@ -39,15 +39,6 @@ export function useHomeDocumentController() {
     setStorageReady(true);
   }, []);
 
-  const updatedLabel = useMemo(() => {
-    return new Intl.DateTimeFormat("zh-CN", {
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit"
-    }).format(new Date(homeDocument.updatedAt));
-  }, [homeDocument.updatedAt]);
-
   const isDefaultDocument = useMemo(() => {
     return isDefaultHomeDocumentContent(homeDocument);
   }, [homeDocument]);
@@ -189,7 +180,6 @@ export function useHomeDocumentController() {
     homeDocument,
     storageReady,
     saveStatus,
-    updatedLabel,
     hasStoredDocument,
     hasResetBackup,
     isDefaultDocument,

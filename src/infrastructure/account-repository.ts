@@ -1,6 +1,7 @@
 import type {
   AccountData,
   AccountPreferences,
+  AccountPreferencesUpdateInput,
   AccountProfile,
   ActivatedHomeSpaceResult,
   ClaimHomeSpaceResult,
@@ -11,13 +12,15 @@ import type {
   HomeSpace
 } from "@/domain/account";
 import type { HomeDocumentV2 } from "@/domain/home-document";
+import { normalizeUiPreferences } from "@/domain/ui-preferences";
 import { createSyncSecrets, SYNC_CODE_VERSION, type StoredSyncBinding } from "@/domain/sync-code";
 import { encryptHomeDocument, type EncryptedHomeDocument } from "@/infrastructure/sync-crypto";
 import { SyncCodeRepository } from "@/infrastructure/sync-code-repository";
 import { getSupabaseBrowserClient } from "@/infrastructure/supabase-client";
 
 const PROFILE_SELECT = "id, email, display_name, created_at, updated_at";
-const PREFERENCES_SELECT = "user_id, locale, theme_preference, default_space_id, created_at, updated_at";
+const PREFERENCES_SELECT = "user_id, locale, theme_preference, font_family, density, default_search_engine, default_space_id, created_at, updated_at";
+const LEGACY_PREFERENCES_SELECT = "user_id, locale, theme_preference, default_space_id, created_at, updated_at";
 const HOME_SPACE_SELECT = "id, user_id, sync_space_id, access_mode, name, is_default, last_used_at, created_at, updated_at";
 const HOME_SPACE_CREDENTIAL_SELECT = "access_token, encryption_key";
 
@@ -33,6 +36,9 @@ interface PreferencesRow {
   user_id: string;
   locale: string;
   theme_preference: string;
+  font_family?: string;
+  density?: string;
+  default_search_engine?: string;
   default_space_id: string | null;
   created_at: string;
   updated_at: string;
@@ -297,6 +303,36 @@ export class AccountRepository {
     return this.getHomeSpaceState(userId);
   }
 
+  async ensureUserPreferences(userId: string): Promise<AccountPreferences> {
+    return this.ensurePreferences(userId);
+  }
+
+  async updatePreferences(userId: string, input: AccountPreferencesUpdateInput): Promise<AccountPreferences> {
+    const preferences = normalizeUiPreferences(input);
+    const { data, error } = await getSupabaseBrowserClient()
+      .from("account_preferences")
+      .update({
+        locale: preferences.locale,
+        theme_preference: preferences.themePreference,
+        font_family: preferences.fontFamily,
+        density: preferences.density,
+        default_search_engine: preferences.defaultSearchEngine
+      })
+      .eq("user_id", userId)
+      .select(PREFERENCES_SELECT)
+      .single();
+
+    if (error) {
+      if (isMissingPreferenceColumnsError(error)) {
+        throw new Error("账号偏好保存失败：请先在 Supabase 执行 010_account_preferences_editing.sql。");
+      }
+
+      throw error;
+    }
+
+    return mapPreferences(data as PreferencesRow);
+  }
+
   private async getHomeSpaceBySyncSpace(userId: string, syncSpaceId: string): Promise<HomeSpace | null> {
     const { data, error } = await getSupabaseBrowserClient()
       .from("home_spaces")
@@ -443,6 +479,24 @@ export class AccountRepository {
       .eq("user_id", userId)
       .maybeSingle();
 
+    if (error && isMissingPreferenceColumnsError(error)) {
+      return this.getLegacyPreferences(userId);
+    }
+
+    if (error) {
+      throw error;
+    }
+
+    return data ? mapPreferences(data as PreferencesRow) : null;
+  }
+
+  private async getLegacyPreferences(userId: string): Promise<AccountPreferences | null> {
+    const { data, error } = await getSupabaseBrowserClient()
+      .from("account_preferences")
+      .select(LEGACY_PREFERENCES_SELECT)
+      .eq("user_id", userId)
+      .maybeSingle();
+
     if (error) {
       throw error;
     }
@@ -457,11 +511,34 @@ export class AccountRepository {
       .select(PREFERENCES_SELECT)
       .single();
 
+    if (error && isMissingPreferenceColumnsError(error)) {
+      return this.insertLegacyPreferences(userId);
+    }
+
     if (!error && data) {
       return mapPreferences(data as PreferencesRow);
     }
 
     const existingPreferences = await this.getPreferences(userId);
+    if (existingPreferences) {
+      return existingPreferences;
+    }
+
+    throw error ?? new Error("账号偏好初始化失败");
+  }
+
+  private async insertLegacyPreferences(userId: string): Promise<AccountPreferences> {
+    const { data, error } = await getSupabaseBrowserClient()
+      .from("account_preferences")
+      .insert({ user_id: userId })
+      .select(LEGACY_PREFERENCES_SELECT)
+      .single();
+
+    if (!error && data) {
+      return mapPreferences(data as PreferencesRow);
+    }
+
+    const existingPreferences = await this.getLegacyPreferences(userId);
     if (existingPreferences) {
       return existingPreferences;
     }
@@ -481,14 +558,30 @@ function mapProfile(row: ProfileRow): AccountProfile {
 }
 
 function mapPreferences(row: PreferencesRow): AccountPreferences {
-  return {
-    userId: row.user_id,
+  const preferences = normalizeUiPreferences({
     locale: row.locale,
     themePreference: row.theme_preference,
+    fontFamily: row.font_family,
+    density: row.density,
+    defaultSearchEngine: row.default_search_engine
+  });
+
+  return {
+    userId: row.user_id,
+    locale: preferences.locale,
+    themePreference: preferences.themePreference,
+    fontFamily: preferences.fontFamily,
+    density: preferences.density,
+    defaultSearchEngine: preferences.defaultSearchEngine,
     defaultSpaceId: row.default_space_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
+}
+
+function isMissingPreferenceColumnsError(error: { message?: string; details?: string | null; hint?: string | null }): boolean {
+  const text = `${error.message ?? ""} ${error.details ?? ""} ${error.hint ?? ""}`;
+  return /font_family|density|default_search_engine|column .* does not exist|Could not find .* column/i.test(text);
 }
 
 function mapHomeSpace(row: HomeSpaceRow): HomeSpace {

@@ -1,5 +1,6 @@
 :root {
   color-scheme: light;
+  --font-body: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   --bg: #f6f7f9;
   --surface: #ffffff;
   --surface-soft: #f0f4f8;
@@ -12,8 +13,86 @@
   --danger-soft: #fff1e9;
   --accent: #246bfe;
   --accent-soft: #e8f0ff;
+  --page-overlay: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(246, 247, 249, 0) 220px);
+  --glass-bg: rgba(255, 255, 255, 0.82);
+  --glass-bg-soft: rgba(255, 255, 255, 0.74);
+  --glass-bg-muted: rgba(255, 255, 255, 0.68);
+  --info-line: #bfdbfe;
+  --info-bg: rgba(239, 246, 255, 0.78);
+  --danger-line: #fed7aa;
   --shadow: 0 18px 48px rgba(29, 38, 51, 0.08);
   --radius: 8px;
+  --page-padding-y: 44px 0 56px;
+  --panel-padding: 14px;
+  --stack-gap: 14px;
+  --control-height: 34px;
+  --field-height: 42px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #121820;
+    --surface: #1b2430;
+    --surface-soft: #202c3a;
+    --text: #edf2f7;
+    --muted: #aab6c4;
+    --quiet: #7d8b9d;
+    --line: #344255;
+    --line-strong: #4a5c73;
+    --danger: #fb923c;
+    --danger-soft: #3a241a;
+    --accent: #8fb4ff;
+    --accent-soft: #1e3357;
+    --page-overlay: linear-gradient(180deg, rgba(27, 36, 48, 0.72), rgba(18, 24, 32, 0) 220px);
+    --glass-bg: rgba(27, 36, 48, 0.86);
+    --glass-bg-soft: rgba(27, 36, 48, 0.74);
+    --glass-bg-muted: rgba(32, 44, 58, 0.78);
+    --info-line: #395a88;
+    --info-bg: rgba(30, 51, 87, 0.62);
+    --danger-line: #7c3e1c;
+    --shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #121820;
+  --surface: #1b2430;
+  --surface-soft: #202c3a;
+  --text: #edf2f7;
+  --muted: #aab6c4;
+  --quiet: #7d8b9d;
+  --line: #344255;
+  --line-strong: #4a5c73;
+  --danger: #fb923c;
+  --danger-soft: #3a241a;
+  --accent: #8fb4ff;
+  --accent-soft: #1e3357;
+  --page-overlay: linear-gradient(180deg, rgba(27, 36, 48, 0.72), rgba(18, 24, 32, 0) 220px);
+  --glass-bg: rgba(27, 36, 48, 0.86);
+  --glass-bg-soft: rgba(27, 36, 48, 0.74);
+  --glass-bg-muted: rgba(32, 44, 58, 0.78);
+  --info-line: #395a88;
+  --info-bg: rgba(30, 51, 87, 0.62);
+  --danger-line: #7c3e1c;
+  --shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+}
+
+:root[data-font-family="serif"] {
+  --font-body: Georgia, "Times New Roman", "Songti SC", "SimSun", serif;
+}
+
+:root[data-font-family="mono"] {
+  --font-body: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+:root[data-density="compact"] {
+  --page-padding-y: 30px 0 40px;
+  --panel-padding: 10px;
+  --stack-gap: 10px;
+  --control-height: 30px;
+  --field-height: 36px;
 }
 
 * {
@@ -28,12 +107,10 @@ body {
   min-height: 100vh;
   margin: 0;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(246, 247, 249, 0) 220px),
+    var(--page-overlay),
     var(--bg);
   color: var(--text);
-  font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-family: var(--font-body);
   font-size: 15px;
   line-height: 1.5;
   letter-spacing: 0;
@@ -45,7 +122,8 @@ a {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -61,7 +139,7 @@ button:disabled {
 .page {
   width: min(1160px, calc(100% - 40px));
   margin: 0 auto;
-  padding: 44px 0 56px;
+  padding: var(--page-padding-y);
 }
 
 .masthead {
@@ -103,10 +181,10 @@ h1 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 34px;
+  min-height: var(--control-height);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.82);
+  background: var(--glass-bg);
   color: var(--text);
   font-size: 13px;
   font-weight: 560;
@@ -150,7 +228,7 @@ h1 {
 }
 
 .danger-button:hover {
-  border-color: #fed7aa;
+  border-color: var(--danger-line);
   background: var(--danger-soft);
 }
 
@@ -163,7 +241,7 @@ h1 {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 14px;
-  background: rgba(255, 255, 255, 0.78);
+  background: var(--glass-bg-soft);
 }
 
 .welcome-copy {
@@ -287,7 +365,7 @@ h1 {
   padding: 10px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.72);
+  background: var(--glass-bg-soft);
 }
 
 .edit-actions-row {
@@ -303,11 +381,11 @@ h1 {
   padding: 14px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.82);
+  background: var(--glass-bg);
 }
 
 .sync-panel-advanced {
-  background: rgba(255, 255, 255, 0.74);
+  background: var(--glass-bg-soft);
 }
 
 .sync-panel-head,
@@ -344,14 +422,14 @@ h1 {
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.68);
+  background: var(--glass-bg-muted);
 }
 
 .sync-boundary-note {
   padding: 10px 12px;
-  border: 1px solid #bfdbfe;
+  border: 1px solid var(--info-line);
   border-radius: var(--radius);
-  background: rgba(239, 246, 255, 0.78);
+  background: var(--info-bg);
 }
 
 .sync-code-grid {
@@ -370,12 +448,12 @@ h1 {
 }
 
 .sync-conflict {
-  border: 1px solid #fed7aa;
+  border: 1px solid var(--danger-line);
   background: var(--danger-soft);
 }
 
 .sync-paused {
-  border: 1px solid #bfdbfe;
+  border: 1px solid var(--info-line);
   background: var(--accent-soft);
 }
 
@@ -499,7 +577,7 @@ h1 {
   min-height: 54px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.78);
+  background: var(--glass-bg-soft);
   transition:
     border-color 160ms ease,
     background 160ms ease,
@@ -693,7 +771,7 @@ h1 {
   min-height: 54px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.78);
+  background: var(--glass-bg-soft);
   color: var(--muted);
   font-size: 18px;
   font-weight: 560;
@@ -793,7 +871,7 @@ h1 {
 .widget-panel {
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.82);
+  background: var(--glass-bg);
   box-shadow: 0 12px 36px rgba(29, 38, 51, 0.06);
 }
 
@@ -845,7 +923,7 @@ h1 {
   height: 28px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.78);
+  background: var(--glass-bg-soft);
   color: var(--muted);
   font-size: 15px;
   line-height: 1;
@@ -1001,9 +1079,10 @@ h1 {
   font-weight: 560;
 }
 
-.field input {
+.field input,
+.field select {
   width: 100%;
-  min-height: 42px;
+  min-height: var(--field-height);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 0 12px;
@@ -1011,7 +1090,8 @@ h1 {
   color: var(--text);
 }
 
-.field input:focus {
+.field input:focus,
+.field select:focus {
   border-color: var(--line-strong);
   outline: 3px solid rgba(36, 107, 254, 0.16);
 }
@@ -1049,7 +1129,7 @@ h1 {
 
 .settings-stack {
   display: grid;
-  gap: 14px;
+  gap: var(--stack-gap);
 }
 
 .settings-stack > .sync-panel {
@@ -1058,11 +1138,11 @@ h1 {
 
 .settings-panel {
   display: grid;
-  gap: 14px;
-  padding: 14px;
+  gap: var(--stack-gap);
+  padding: var(--panel-padding);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.82);
+  background: var(--glass-bg);
 }
 
 .settings-actions {
@@ -1140,6 +1220,12 @@ h1 {
   gap: 8px;
 }
 
+.preference-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
 .preference-row {
   display: grid;
   grid-template-columns: 132px minmax(0, 1fr);
@@ -1150,6 +1236,30 @@ h1 {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface-soft);
+}
+
+.preference-readonly-row {
+  display: grid;
+  gap: 6px;
+  align-content: end;
+  min-height: var(--field-height);
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+}
+
+.preference-readonly-row span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 560;
+}
+
+.preference-readonly-row strong {
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .preference-row span {
@@ -1271,7 +1381,7 @@ h1 {
 .edit-group-row {
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.82);
+  background: var(--glass-bg);
 }
 
 .edit-page-summary div {
@@ -1469,6 +1579,7 @@ h1 {
   .auth-form,
   .home-space-claim-form,
   .home-space-create-form,
+  .preference-form-grid,
   .home-space-inline-form,
   .home-space-activate-form {
     grid-template-columns: 1fr;

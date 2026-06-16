@@ -4,6 +4,10 @@ import type { FormEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  buildSearchUrl,
+  searchEngineLabel
+} from "@/domain/ui-preferences";
+import {
   createDefaultHomeDocument,
   createId,
   isUngroupedGroup,
@@ -19,6 +23,7 @@ import { SyncPanel } from "@/components/sync-panel";
 import { WidgetPanel } from "@/components/widget-panel";
 import { useHomeDocumentController } from "@/hooks/use-home-document-controller";
 import { useHomeDocumentEditor } from "@/hooks/use-home-document-editor";
+import { useUiPreferences } from "@/hooks/use-ui-preferences";
 
 const ONBOARDING_STORAGE_KEY = "homepage:onboarding:v1";
 
@@ -27,12 +32,12 @@ export function HomeDashboard() {
   const {
     homeDocument,
     storageReady,
-    updatedLabel,
     hasStoredDocument,
     commitHomeDocument,
     replaceHomeDocument,
     updateSyncMeta
   } = useHomeDocumentController();
+  const { preferences } = useUiPreferences();
   const {
     editor,
     formValues,
@@ -49,10 +54,13 @@ export function HomeDashboard() {
   const [todayLabel, setTodayLabel] = useState("");
   const [showWelcome, setShowWelcome] = useState(false);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const locale = preferences.locale;
+  const searchEngine = preferences.defaultSearchEngine;
+  const searchEngineName = searchEngineLabel(searchEngine);
 
   useEffect(() => {
     const timerId = window.setTimeout(() => {
-      setTodayLabel(new Intl.DateTimeFormat("zh-CN", {
+      setTodayLabel(new Intl.DateTimeFormat(locale, {
         weekday: "long",
         month: "long",
         day: "numeric"
@@ -60,7 +68,16 @@ export function HomeDashboard() {
     }, 0);
 
     return () => window.clearTimeout(timerId);
-  }, []);
+  }, [locale]);
+
+  const updatedLabel = useMemo(() => {
+    return new Intl.DateTimeFormat(locale, {
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit"
+    }).format(new Date(homeDocument.updatedAt));
+  }, [homeDocument.updatedAt, locale]);
 
   useEffect(() => {
     if (!storageReady) {
@@ -137,7 +154,7 @@ export function HomeDashboard() {
       return;
     }
 
-    window.open(`https://duckduckgo.com/?q=${encodeURIComponent(keyword)}`, "_blank", "noopener,noreferrer");
+    window.open(buildSearchUrl(searchEngine, keyword), "_blank", "noopener,noreferrer");
   }
 
   return (
@@ -171,16 +188,16 @@ export function HomeDashboard() {
             className="search-input"
             type="search"
             placeholder="搜索网站，或直接输入关键词"
-            aria-label="搜索网站或使用 DuckDuckGo 搜索"
+            aria-label={`搜索网站或使用 ${searchEngineName} 搜索`}
             value={activeQuery}
             onChange={(event) => setActiveQuery(event.target.value)}
           />
-          <button className="search-button" type="submit" aria-label="使用 DuckDuckGo 搜索">
+          <button className="search-button" type="submit" aria-label={`使用 ${searchEngineName} 搜索`}>
             <span className="search-icon" aria-hidden="true" />
           </button>
         </form>
         <div className="search-meta">
-          <span>DuckDuckGo Search</span>
+          <span>{searchEngineName} Search</span>
           <span><span className="search-count">{visibleCount}</span> 个入口可用</span>
         </div>
       </section>
