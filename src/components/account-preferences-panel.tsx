@@ -10,6 +10,7 @@ import {
   THEME_OPTIONS,
   type UiPreferences
 } from "@/domain/ui-preferences";
+import { StatusMessage } from "@/components/status-message";
 import { useUiPreferences } from "@/hooks/use-ui-preferences";
 import type { AccountDataState } from "@/hooks/use-account-data";
 
@@ -63,7 +64,7 @@ export function AccountPreferencesPanel({ accountData, authLoading, signedIn }: 
           {signedIn && accountData.error ? (
             <div className="settings-placeholder">
               <strong>账号偏好加载失败</strong>
-              <p className="form-error">{accountData.error}</p>
+              <StatusMessage role="alert" tone="danger">{accountData.error}</StatusMessage>
               <p>当前页面继续使用本地偏好，不会尝试写入账号表。</p>
             </div>
           ) : null}
@@ -108,6 +109,9 @@ function PreferencesEditor({
     || accountData.preferencesMessage
     || uiPreferences.error
     || (usesAccountPreferences ? "账号偏好会同步到当前账号。" : "偏好仅保存在当前浏览器。");
+  const hasStatusError = Boolean(accountData.preferencesError || uiPreferences.error);
+  const statusTone = hasStatusError ? "danger" : localMessage || accountData.preferencesMessage ? "success" : "neutral";
+  const saveDisabledReason = getPreferencesSaveDisabledReason(controlsDisabled, formChanged, saving, formDisabled);
 
   async function savePreferences() {
     const normalized = normalizeUiPreferences(formValues);
@@ -190,14 +194,20 @@ function PreferencesEditor({
       </div>
 
       <div className="settings-actions">
-        <button className="utility-button" type="button" disabled={controlsDisabled || !formChanged} onClick={savePreferences}>
+        <button
+          className="utility-button"
+          type="button"
+          disabled={controlsDisabled || !formChanged}
+          title={saveDisabledReason}
+          onClick={savePreferences}
+        >
           {saving ? "保存中" : "保存偏好"}
         </button>
       </div>
 
-      <p className={accountData.preferencesError || uiPreferences.error ? "form-error" : "save-status"}>
+      <StatusMessage role={hasStatusError ? "alert" : "status"} tone={statusTone}>
         {statusMessage}
-      </p>
+      </StatusMessage>
     </>
   );
 }
@@ -218,4 +228,29 @@ function preferencesKey(preferences: UiPreferences): string {
     preferences.density,
     preferences.defaultSearchEngine
   ].join(":");
+}
+
+function getPreferencesSaveDisabledReason(
+  controlsDisabled: boolean,
+  formChanged: boolean,
+  saving: boolean,
+  formDisabled: boolean
+): string | undefined {
+  if (saving) {
+    return "偏好正在保存，请稍后。";
+  }
+
+  if (formDisabled) {
+    return "账号或本地偏好正在读取，请稍后。";
+  }
+
+  if (controlsDisabled) {
+    return "当前暂不能保存偏好。";
+  }
+
+  if (!formChanged) {
+    return "偏好没有变更。";
+  }
+
+  return "保存当前偏好";
 }

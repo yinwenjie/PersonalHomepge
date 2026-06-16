@@ -2,6 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useMemo, useState } from "react";
+import { StatusMessage } from "@/components/status-message";
 import type { AccountDataState } from "@/hooks/use-account-data";
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
 
@@ -22,6 +23,9 @@ export function AccountPanel({ accountData }: AccountPanelProps) {
   } = useSupabaseAuth();
 
   const accountInitial = useMemo(() => getAccountInitial(user?.email), [user?.email]);
+  const accountHasError = Boolean(error || accountData.error);
+  const accountStatusTone = accountHasError ? "danger" : accountData.profile ? "success" : "neutral";
+  const authActionDisabledReason = getAuthActionDisabledReason(loading, actionPending);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -53,10 +57,11 @@ export function AccountPanel({ accountData }: AccountPanelProps) {
               placeholder="you@example.com"
               autoComplete="email"
               disabled={loading || actionPending}
+              title={authActionDisabledReason}
               onChange={(event) => setEmail(event.target.value)}
             />
           </label>
-          <button className="utility-button" type="submit" disabled={loading || actionPending}>
+          <button className="utility-button" type="submit" disabled={loading || actionPending} title={authActionDisabledReason}>
             {actionPending ? "发送中" : "发送登录链接"}
           </button>
         </form>
@@ -64,15 +69,15 @@ export function AccountPanel({ accountData }: AccountPanelProps) {
 
       {user ? (
         <div className="settings-actions">
-          <button className="utility-button" type="button" onClick={signOut} disabled={actionPending}>
+          <button className="utility-button" type="button" onClick={signOut} disabled={actionPending} title={actionPending ? "账号操作处理中，请稍后。" : "退出当前账号"}>
             {actionPending ? "退出中" : "退出登录"}
           </button>
         </div>
       ) : null}
 
-      <p className={error || accountData.error ? "form-error" : "save-status"}>
+      <StatusMessage role={accountHasError ? "alert" : "status"} tone={accountStatusTone}>
         {error || getAccountStatus(accountData, message, loading)}
-      </p>
+      </StatusMessage>
     </section>
   );
 }
@@ -116,4 +121,16 @@ function getAccountStatus(accountData: AccountDataState, authMessage: string, au
   }
 
   return authMessage || (authLoading ? "正在读取账号状态。" : "登录仅建立账号身份，不会覆盖本地首页。");
+}
+
+function getAuthActionDisabledReason(loading: boolean, actionPending: boolean): string | undefined {
+  if (actionPending) {
+    return "账号操作处理中，请稍后。";
+  }
+
+  if (loading) {
+    return "正在读取账号状态，请稍后。";
+  }
+
+  return undefined;
 }

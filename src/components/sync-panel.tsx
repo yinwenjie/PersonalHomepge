@@ -11,6 +11,7 @@ import {
   parseSyncCode,
   StoredSyncBinding
 } from "@/domain/sync-code";
+import { StatusMessage } from "@/components/status-message";
 import { useUiPreferences } from "@/hooks/use-ui-preferences";
 import { LocalSyncBindingRepository } from "@/infrastructure/sync-binding-repository";
 import { SyncCodeRepository, PullSyncSpaceResult } from "@/infrastructure/sync-code-repository";
@@ -421,7 +422,7 @@ export function SyncPanel({
     return `${binding.accessMode === "account-managed" ? "账号托管" : "同步码"} rev ${binding.remoteRevision}，最后同步 ${syncedAt}`;
   }, [binding, isPaused, preferences.locale]);
   const isAccountManaged = binding?.accessMode === "account-managed";
-  const panelTitle = isAdvanced ? "高级同步码与恢复" : "同步码";
+  const panelTitle = isAdvanced ? "离线同步码与恢复" : "同步码";
 
   async function createCode() {
     await runSyncAction(async () => {
@@ -520,7 +521,7 @@ export function SyncPanel({
     }
 
     if (activeBinding.accessMode === "account-managed") {
-      setMessage("账号托管空间不能在高级同步码区域废弃；如需取消账号恢复入口，请在首页空间中从账号移除。");
+      setMessage("账号托管空间不能在离线同步码区域废弃；如需取消账号恢复入口，请在首页空间中从账号移除。");
       setError("");
       return;
     }
@@ -557,6 +558,7 @@ export function SyncPanel({
             className="utility-button"
             type="button"
             disabled={needsAttention}
+            title={needsAttention ? "请先处理暂停同步或同步冲突。" : controlsVisible ? "收起离线同步码操作" : "展开离线同步码操作"}
             onClick={() => setAdvancedOpen((value) => !value)}
           >
             {controlsVisible ? "收起高级" : "展开高级"}
@@ -582,10 +584,10 @@ export function SyncPanel({
             <p>当前默认首页还没有上传到云端。请选择下一步，避免误覆盖已有同步空间。</p>
           </div>
           <div className="sync-panel-actions">
-            <button className="utility-button" type="button" onClick={() => performPush({ force: false, source: "manual" })} disabled={busy}>上传默认</button>
-            <button className="utility-button" type="button" onClick={() => performPull({ forceApply: true, source: "manual" })} disabled={busy}>拉取云端</button>
-            <button className="utility-button" type="button" onClick={unbindLocal} disabled={busy}>解除本机</button>
-            <button className="utility-button" type="button" onClick={restoreResetBackupFromPause} disabled={busy || !hasResetBackup || !onRestoreResetBackup}>恢复备份</button>
+            <button className="utility-button" type="button" onClick={() => performPush({ force: false, source: "manual" })} disabled={busy} title={busy ? "同步操作处理中，请稍后。" : "把当前默认首页上传到当前同步空间"}>上传默认</button>
+            <button className="utility-button" type="button" onClick={() => performPull({ forceApply: true, source: "manual" })} disabled={busy} title={busy ? "同步操作处理中，请稍后。" : "用云端首页覆盖当前本地默认首页"}>拉取云端</button>
+            <button className="utility-button" type="button" onClick={unbindLocal} disabled={busy} title={busy ? "同步操作处理中，请稍后。" : "只解除当前浏览器绑定，保留本地首页"}>解除本机</button>
+            <button className="utility-button" type="button" onClick={restoreResetBackupFromPause} disabled={busy || !hasResetBackup || !onRestoreResetBackup} title={getRestoreBackupDisabledReason(busy, hasResetBackup, Boolean(onRestoreResetBackup)) ?? "恢复重置前自动保存的本地备份"}>恢复备份</button>
           </div>
         </div>
       ) : null}
@@ -597,9 +599,9 @@ export function SyncPanel({
             <p>自动同步已暂停。请选择保留哪一份数据。</p>
           </div>
           <div className="sync-panel-actions">
-            <button className="utility-button" type="button" onClick={() => performPull({ forceApply: true, source: "resolve" })} disabled={busy}>使用云端版本</button>
-            <button className="danger-button" type="button" onClick={() => performPush({ force: true, source: "resolve" })} disabled={busy}>本地覆盖云端</button>
-            <button className="utility-button" type="button" onClick={() => setMessage("已暂停自动同步，冲突状态会保留。")} disabled={busy}>暂不处理</button>
+            <button className="utility-button" type="button" onClick={() => performPull({ forceApply: true, source: "resolve" })} disabled={busy} title={busy ? "同步操作处理中，请稍后。" : "用云端首页覆盖当前本地首页"}>使用云端版本</button>
+            <button className="danger-button" type="button" onClick={() => performPush({ force: true, source: "resolve" })} disabled={busy} title={busy ? "同步操作处理中，请稍后。" : "把当前本地首页强制上传并覆盖云端"}>本地覆盖云端</button>
+            <button className="utility-button" type="button" onClick={() => setMessage("已暂停自动同步，冲突状态会保留。")} disabled={busy} title={busy ? "同步操作处理中，请稍后。" : "保留冲突状态，稍后再处理"}>暂不处理</button>
           </div>
         </div>
       ) : null}
@@ -631,7 +633,7 @@ export function SyncPanel({
                   placeholder="创建后显示，用于其他设备绑定"
                 />
               </label>
-              <button className="utility-button" type="button" onClick={copyCode} disabled={!syncCode}>复制</button>
+              <button className="utility-button" type="button" onClick={copyCode} disabled={!syncCode} title={syncCode ? "复制当前同步码" : "当前没有可复制的同步码"}>复制</button>
             </div>
           )}
 
@@ -640,7 +642,7 @@ export function SyncPanel({
               <span>{isAdvanced ? "输入同步码恢复" : "输入同步码"}</span>
               <input value={inputCode} onChange={(event) => setInputCode(event.target.value)} placeholder="hp1_..." />
             </label>
-            <button className="utility-button" type="button" onClick={bindCode} disabled={busy || !inputCode.trim()}>绑定</button>
+            <button className="utility-button" type="button" onClick={bindCode} disabled={busy || !inputCode.trim()} title={getBindDisabledReason(busy, inputCode) ?? "绑定输入的同步码，并用云端首页覆盖当前本地首页"}>绑定</button>
           </div>
 
           {isAdvanced ? (
@@ -649,23 +651,28 @@ export function SyncPanel({
 
           <div className="sync-panel-footer">
             <div className="sync-panel-actions">
-              <button className="utility-button" type="button" onClick={unbindLocal} disabled={!binding}>解除本机</button>
+              <button className="utility-button" type="button" onClick={unbindLocal} disabled={!binding} title={binding ? "只解除当前浏览器绑定，保留本地首页" : "当前浏览器未绑定同步空间"}>解除本机</button>
               {!isAccountManaged ? (
                 <button
                   className="danger-button"
                   type="button"
                   onClick={revokeCode}
                   disabled={busy || !binding}
+                  title={getRevokeDisabledReason(busy, binding) ?? "废弃当前同步码，所有设备都不能继续使用这个同步码"}
                 >
                   废弃同步码
                 </button>
               ) : null}
             </div>
-            <p className={error ? "form-error" : "save-status"}>{error || message}</p>
+            <StatusMessage role={error ? "alert" : "status"} tone={error ? "danger" : message ? "success" : "neutral"}>
+              {error || message}
+            </StatusMessage>
           </div>
         </>
       ) : (
-        <p className="save-status">{error || message || "同步码创建、绑定和旧空间维护已收起。"}</p>
+        <StatusMessage role={error ? "alert" : "status"} tone={error ? "danger" : message ? "success" : "neutral"}>
+          {error || message || "同步码创建、绑定和旧空间维护已收起。"}
+        </StatusMessage>
       )}
     </section>
   );
@@ -690,15 +697,144 @@ function SyncActionButtons({
   onPull: () => void;
   onPush: () => void;
 }) {
+  const createDisabledReason = getCreateDisabledReason(busy, isPaused);
+  const pullDisabledReason = getPullDisabledReason(busy, binding, isPaused);
+  const pushDisabledReason = getPushDisabledReason(busy, binding, isPaused, status);
+
   return (
     <div className="sync-panel-actions">
       {!isAccountManaged ? (
-        <button className="utility-button" type="button" onClick={onCreate} disabled={busy || isPaused}>创建</button>
+        <button
+          className="utility-button"
+          type="button"
+          onClick={onCreate}
+          disabled={busy || isPaused}
+          title={createDisabledReason ?? "为当前首页创建普通同步码"}
+        >
+          创建
+        </button>
       ) : null}
-      <button className="utility-button" type="button" onClick={onPull} disabled={busy || !binding || isPaused}>拉取</button>
-      <button className="utility-button" type="button" onClick={onPush} disabled={busy || !binding || isPaused || status === "conflict"}>上传</button>
+      <button
+        className="utility-button"
+        type="button"
+        onClick={onPull}
+        disabled={busy || !binding || isPaused}
+        title={pullDisabledReason ?? "从当前同步空间拉取云端首页"}
+      >
+        拉取
+      </button>
+      <button
+        className="utility-button"
+        type="button"
+        onClick={onPush}
+        disabled={busy || !binding || isPaused || status === "conflict"}
+        title={pushDisabledReason ?? "把当前本地首页上传到同步空间"}
+      >
+        上传
+      </button>
     </div>
   );
+}
+
+function getCreateDisabledReason(busy: boolean, isPaused: boolean): string | undefined {
+  if (busy) {
+    return "同步操作处理中，请稍后。";
+  }
+
+  if (isPaused) {
+    return "恢复默认后同步已暂停，请先选择上传默认、拉取云端、解除本机或恢复备份。";
+  }
+
+  return undefined;
+}
+
+function getPullDisabledReason(
+  busy: boolean,
+  binding: StoredSyncBinding | null,
+  isPaused: boolean
+): string | undefined {
+  if (busy) {
+    return "同步操作处理中，请稍后。";
+  }
+
+  if (!binding) {
+    return "请先创建或绑定同步码。";
+  }
+
+  if (isPaused) {
+    return "恢复默认后同步已暂停，请使用提示区中的“拉取云端”。";
+  }
+
+  return undefined;
+}
+
+function getPushDisabledReason(
+  busy: boolean,
+  binding: StoredSyncBinding | null,
+  isPaused: boolean,
+  status: HomeSyncMeta["status"]
+): string | undefined {
+  if (busy) {
+    return "同步操作处理中，请稍后。";
+  }
+
+  if (!binding) {
+    return "请先创建或绑定同步码。";
+  }
+
+  if (isPaused) {
+    return "恢复默认后同步已暂停，请使用提示区中的“上传默认”。";
+  }
+
+  if (status === "conflict") {
+    return "当前存在同步冲突，请先选择云端版本或本地版本。";
+  }
+
+  return undefined;
+}
+
+function getBindDisabledReason(busy: boolean, inputCode: string): string | undefined {
+  if (busy) {
+    return "同步操作处理中，请稍后。";
+  }
+
+  if (!inputCode.trim()) {
+    return "请输入完整同步码。";
+  }
+
+  return undefined;
+}
+
+function getRevokeDisabledReason(busy: boolean, binding: StoredSyncBinding | null): string | undefined {
+  if (busy) {
+    return "同步操作处理中，请稍后。";
+  }
+
+  if (!binding) {
+    return "当前浏览器未绑定同步码。";
+  }
+
+  return undefined;
+}
+
+function getRestoreBackupDisabledReason(
+  busy: boolean,
+  hasResetBackup: boolean,
+  canRestoreResetBackup: boolean
+): string | undefined {
+  if (busy) {
+    return "同步操作处理中，请稍后。";
+  }
+
+  if (!canRestoreResetBackup) {
+    return "当前页面不支持从这里恢复重置前备份。";
+  }
+
+  if (!hasResetBackup) {
+    return "没有可恢复的重置前备份。";
+  }
+
+  return undefined;
 }
 
 function getBoundaryNote(homeSpace: HomeSpace | null, isAccountManaged: boolean): string {

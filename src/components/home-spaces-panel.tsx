@@ -2,6 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useMemo, useState } from "react";
+import { StatusMessage } from "@/components/status-message";
 import type { HomeSpace } from "@/domain/account";
 import type { HomeDocumentV2 } from "@/domain/home-document";
 import { parseSyncCode, type StoredSyncBinding } from "@/domain/sync-code";
@@ -66,6 +67,39 @@ export function HomeSpacesPanel({
       && currentBinding?.accessMode === "sync-code"
       && currentHomeSpace.accessMode === "sync-code"
   );
+  const createManagedDisabledReason = getCreateManagedDisabledReason(storageReady, accountReady, accountActionPending);
+  const claimDisabledReason = accountActionPending ? "账号空间操作处理中，请稍后。" : undefined;
+  const panelHasError = Boolean(
+    accountData.homeSpaceError
+      || accountData.claimError
+      || accountData.activationError
+      || accountData.managedCreateError
+      || accountData.managedRestoreError
+      || accountData.managedMigrationError
+  );
+  const panelMessage = accountData.homeSpaceError
+    || accountData.managedCreateError
+    || accountData.managedRestoreError
+    || accountData.managedMigrationError
+    || accountData.claimError
+    || accountData.activationError
+    || accountData.homeSpaceMessage
+    || accountData.managedMigrationMessage
+    || accountData.managedRestoreMessage
+    || accountData.managedCreateMessage
+    || accountData.claimMessage
+    || accountData.activationMessage
+    || "账号托管空间不显示完整同步码；从账号移除不会废弃底层同步空间。";
+  const panelStatusTone = panelHasError
+    ? "danger"
+    : accountData.homeSpaceMessage
+      || accountData.managedMigrationMessage
+      || accountData.managedRestoreMessage
+      || accountData.managedCreateMessage
+      || accountData.claimMessage
+      || accountData.activationMessage
+      ? "success"
+      : "neutral";
 
   async function handleClaim(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -234,7 +268,7 @@ export function HomeSpacesPanel({
       ) : accountData.error ? (
         <div className="settings-placeholder">
           <strong>首页空间暂不可用</strong>
-          <p className="form-error">{accountData.error}</p>
+          <StatusMessage role="alert" tone="danger">{accountData.error}</StatusMessage>
         </div>
       ) : (
         <>
@@ -245,11 +279,12 @@ export function HomeSpacesPanel({
                 type="text"
                 value={managedSpaceName}
                 maxLength={80}
-                disabled={!storageReady || !accountReady || accountActionPending}
+                disabled={Boolean(createManagedDisabledReason)}
+                title={createManagedDisabledReason}
                 onChange={(event) => setManagedSpaceName(event.target.value)}
               />
             </label>
-            <button className="utility-button" type="submit" disabled={!storageReady || !accountReady || accountActionPending}>
+            <button className="utility-button" type="submit" disabled={Boolean(createManagedDisabledReason)} title={createManagedDisabledReason ?? "创建由账号托管恢复凭证的首页空间"}>
               {accountData.creatingManaged ? "创建中" : "创建账号托管空间"}
             </button>
           </form>
@@ -257,7 +292,7 @@ export function HomeSpacesPanel({
           {!currentBinding ? (
             <div className="settings-placeholder">
               <strong>当前浏览器未绑定同步码</strong>
-              <p>可创建账号托管空间，或在高级同步码与恢复中创建/绑定普通同步码后再认领。</p>
+              <p>可创建账号托管空间，或在离线同步码与恢复中创建/绑定普通同步码后再认领。</p>
             </div>
           ) : currentHomeSpace ? (
             <div className="settings-placeholder">
@@ -269,11 +304,12 @@ export function HomeSpacesPanel({
                     className="utility-button"
                     type="button"
                     disabled={!storageReady || !accountReady || accountActionPending || Boolean(migrationBlockReason)}
+                    title={migrationBlockReason || createManagedDisabledReason || "把当前已认领普通同步码空间迁移为账号托管"}
                     onClick={() => handleMigrateSyncCode(currentHomeSpace)}
                   >
                     {accountData.migratingManaged && managedMigrationSpaceId === currentHomeSpace.id ? "迁移中" : "迁移为账号托管"}
                   </button>
-                  {migrationBlockReason ? <p className="form-error">{migrationBlockReason}</p> : null}
+                  {migrationBlockReason ? <StatusMessage role="alert" tone="warning">{migrationBlockReason}</StatusMessage> : null}
                 </>
               ) : null}
             </div>
@@ -286,10 +322,11 @@ export function HomeSpacesPanel({
                   value={claimSpaceName}
                   maxLength={80}
                   disabled={accountActionPending}
+                  title={claimDisabledReason}
                   onChange={(event) => setClaimSpaceName(event.target.value)}
                 />
               </label>
-              <button className="utility-button" type="submit" disabled={accountActionPending}>
+              <button className="utility-button" type="submit" disabled={accountActionPending} title={claimDisabledReason ?? "把当前同步码空间记录到账号首页空间列表"}>
                 {accountData.claiming ? "认领中" : "认领当前首页空间"}
               </button>
             </form>
@@ -329,21 +366,9 @@ export function HomeSpacesPanel({
             onStartRename={startRename}
           />
 
-          <p className={accountData.homeSpaceError || accountData.claimError || accountData.activationError || accountData.managedCreateError || accountData.managedRestoreError || accountData.managedMigrationError ? "form-error" : "save-status"}>
-            {accountData.homeSpaceError
-              || accountData.managedCreateError
-              || accountData.managedRestoreError
-              || accountData.managedMigrationError
-              || accountData.claimError
-              || accountData.activationError
-              || accountData.homeSpaceMessage
-              || accountData.managedMigrationMessage
-              || accountData.managedRestoreMessage
-              || accountData.managedCreateMessage
-              || accountData.claimMessage
-              || accountData.activationMessage
-              || "账号托管空间不显示完整同步码；从账号移除不会废弃底层同步空间。"}
-          </p>
+          <StatusMessage role={panelHasError ? "alert" : "status"} tone={panelStatusTone}>
+            {panelMessage}
+          </StatusMessage>
         </>
       )}
     </section>
@@ -398,11 +423,11 @@ function HomeSpaceList({
   onStartRename: (homeSpace: HomeSpace) => void;
 }) {
   if (accountData.loading) {
-    return <p className="save-status">正在读取首页空间。</p>;
+    return <StatusMessage>正在读取首页空间。</StatusMessage>;
   }
 
   if (accountData.homeSpaces.length === 0) {
-    return <p className="save-status">当前账号还没有认领首页空间。</p>;
+    return <StatusMessage>当前账号还没有认领首页空间。</StatusMessage>;
   }
 
   return (
@@ -420,6 +445,12 @@ function HomeSpaceList({
           || activationPending;
         const currentManagedRemovalBlocked = isCurrent && homeSpace.accessMode === "account-managed";
         const removeDisabled = actionPending || currentManagedRemovalBlocked;
+        const actionPendingReason = actionPending ? "首页空间操作处理中，请稍后。" : undefined;
+        const restoreDisabledReason = getRestoreManagedDisabledReason(storageReady, actionPending);
+        const activateDisabledReason = getActivateSpaceDisabledReason(storageReady, actionPending);
+        const removeDisabledReason = currentManagedRemovalBlocked
+          ? "当前本机账号托管空间不能直接从账号移除；请先解除本机或切换到其他空间。"
+          : actionPendingReason;
 
         return (
           <div className="home-space-item" key={homeSpace.id}>
@@ -435,6 +466,7 @@ function HomeSpaceList({
                     className="utility-button"
                     type="button"
                     disabled={actionPending}
+                    title={actionPendingReason ?? "把该空间设为账号默认首页空间"}
                     onClick={() => onSetDefault(homeSpace)}
                   >
                     {accountData.settingDefaultHomeSpace && defaultPendingSpaceId === homeSpace.id ? "设置中" : "设默认"}
@@ -447,6 +479,7 @@ function HomeSpaceList({
                     className="utility-button"
                     type="button"
                     disabled={!storageReady || actionPending}
+                    title={restoreDisabledReason ?? "恢复该账号托管空间到当前浏览器"}
                     onClick={() => onRestoreManaged(homeSpace)}
                   >
                     {accountData.restoringManaged && managedRestoreSpaceId === homeSpace.id ? "恢复中" : "恢复"}
@@ -456,6 +489,7 @@ function HomeSpaceList({
                     className="utility-button"
                     type="button"
                     disabled={!storageReady || actionPending}
+                    title={activateDisabledReason ?? "输入完整同步码后激活该普通同步码空间"}
                     onClick={() => onSelectSpace(homeSpace.id)}
                   >
                     {isActive ? "取消" : "激活"}
@@ -465,18 +499,20 @@ function HomeSpaceList({
                   className="utility-button"
                   type="button"
                   disabled={actionPending}
+                  title={actionPendingReason ?? "重命名该首页空间"}
                   onClick={() => onStartRename(homeSpace)}
                 >
                   重命名
                 </button>
                 <span
                   className="home-space-action-tooltip"
-                  title={currentManagedRemovalBlocked ? "当前本机账号托管空间不能直接从账号移除；请先解除本机或切换到其他空间。" : undefined}
+                  title={removeDisabledReason ?? "从账号移除该首页空间索引；不会废弃底层同步空间"}
                 >
                   <button
                     className="danger-button"
                     type="button"
                     disabled={removeDisabled}
+                    title={removeDisabledReason}
                     onClick={() => onRemove(homeSpace)}
                   >
                     {accountData.removingHomeSpace && removingSpaceId === homeSpace.id ? "移除中" : "从账号移除"}
@@ -494,12 +530,13 @@ function HomeSpaceList({
                     value={editingSpaceName}
                     maxLength={80}
                     disabled={accountData.renamingHomeSpace}
+                    title={accountData.renamingHomeSpace ? "首页空间正在重命名，请稍后。" : undefined}
                     onChange={(event) => onChangeEditingName(event.target.value)}
                   />
                 </label>
                 <div className="home-space-inline-actions">
-                  <button className="utility-button" type="button" disabled={accountData.renamingHomeSpace} onClick={onCancelRename}>取消</button>
-                  <button className="utility-button" type="submit" disabled={accountData.renamingHomeSpace || !editingSpaceName.trim()}>
+                  <button className="utility-button" type="button" disabled={accountData.renamingHomeSpace} title={accountData.renamingHomeSpace ? "首页空间正在重命名，请稍后。" : "取消重命名"} onClick={onCancelRename}>取消</button>
+                  <button className="utility-button" type="submit" disabled={accountData.renamingHomeSpace || !editingSpaceName.trim()} title={getRenameSaveDisabledReason(accountData.renamingHomeSpace, editingSpaceName) ?? "保存新的首页空间名称"}>
                     {accountData.renamingHomeSpace ? "保存中" : "保存"}
                   </button>
                 </div>
@@ -515,13 +552,14 @@ function HomeSpaceList({
                     value={activationCode}
                     placeholder="hp1_..."
                     disabled={accountData.activating || activationPending}
+                    title={accountData.activating || activationPending ? "首页空间正在激活，请稍后。" : "输入该首页空间对应的完整同步码"}
                     onChange={(event) => onChangeActivationCode(event.target.value)}
                   />
                 </label>
-                <button className="utility-button" type="submit" disabled={accountData.activating || activationPending || !activationCode.trim()}>
+                <button className="utility-button" type="submit" disabled={accountData.activating || activationPending || !activationCode.trim()} title={getActivationSubmitDisabledReason(accountData.activating || activationPending, activationCode) ?? "确认拉取该空间云端首页并覆盖当前本地首页"}>
                   {accountData.activating || activationPending ? "激活中" : "确认激活"}
                 </button>
-                {activationError ? <p className="form-error">{activationError}</p> : null}
+                {activationError ? <StatusMessage role="alert" tone="danger">{activationError}</StatusMessage> : null}
               </form>
             ) : null}
           </div>
@@ -529,6 +567,74 @@ function HomeSpaceList({
       })}
     </div>
   );
+}
+
+function getCreateManagedDisabledReason(
+  storageReady: boolean,
+  accountReady: boolean,
+  accountActionPending: boolean
+): string | undefined {
+  if (!storageReady) {
+    return "本地存储尚未就绪，请稍后重试。";
+  }
+
+  if (!accountReady) {
+    return "账号资料和偏好仍在读取，请稍后。";
+  }
+
+  if (accountActionPending) {
+    return "账号空间操作处理中，请稍后。";
+  }
+
+  return undefined;
+}
+
+function getRestoreManagedDisabledReason(storageReady: boolean, actionPending: boolean): string | undefined {
+  if (!storageReady) {
+    return "本地存储尚未就绪，不能恢复账号托管空间。";
+  }
+
+  if (actionPending) {
+    return "首页空间操作处理中，请稍后。";
+  }
+
+  return undefined;
+}
+
+function getActivateSpaceDisabledReason(storageReady: boolean, actionPending: boolean): string | undefined {
+  if (!storageReady) {
+    return "本地存储尚未就绪，不能激活首页空间。";
+  }
+
+  if (actionPending) {
+    return "首页空间操作处理中，请稍后。";
+  }
+
+  return undefined;
+}
+
+function getRenameSaveDisabledReason(renaming: boolean, name: string): string | undefined {
+  if (renaming) {
+    return "首页空间正在重命名，请稍后。";
+  }
+
+  if (!name.trim()) {
+    return "请输入首页空间名称。";
+  }
+
+  return undefined;
+}
+
+function getActivationSubmitDisabledReason(actionPending: boolean, activationCode: string): string | undefined {
+  if (actionPending) {
+    return "首页空间正在激活，请稍后。";
+  }
+
+  if (!activationCode.trim()) {
+    return "请输入完整同步码。";
+  }
+
+  return undefined;
 }
 
 function getMigrationBlockReason(status: HomeDocumentV2["syncMeta"]["status"]): string {

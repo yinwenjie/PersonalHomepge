@@ -6,8 +6,10 @@ import Link from "next/link";
 import { AccountPanel } from "@/components/account-panel";
 import { AccountPreferencesPanel } from "@/components/account-preferences-panel";
 import { HomeSpacesPanel } from "@/components/home-spaces-panel";
+import { StatusMessage, type StatusTone } from "@/components/status-message";
 import { SyncPanel } from "@/components/sync-panel";
 import type { HomeSpace } from "@/domain/account";
+import { buildHomepageDataExportV1, downloadJsonFile } from "@/domain/data-export";
 import type { HomeSyncMeta } from "@/domain/home-document";
 import { parseSyncCode, type StoredSyncBinding } from "@/domain/sync-code";
 import { useAccountData } from "@/hooks/use-account-data";
@@ -20,11 +22,14 @@ export function SettingsDashboard() {
   const auth = useSupabaseAuth();
   const accountData = useAccountData(auth.user);
   const [currentBinding, setCurrentBinding] = useState<StoredSyncBinding | null>(null);
+  const [advancedActionMessage, setAdvancedActionMessage] = useState("");
+  const [advancedActionError, setAdvancedActionError] = useState("");
   const [syncPanelKey, setSyncPanelKey] = useState(0);
   const {
     homeDocument,
     storageReady,
     saveStatus,
+    hasStoredDocument,
     hasResetBackup,
     isDefaultDocument,
     replaceHomeDocument,
@@ -57,6 +62,39 @@ export function SettingsDashboard() {
       syncMeta: toSyncMeta(currentBinding, "paused"),
       successMessage: "已清空内容并恢复默认，自动同步已暂停，云端暂未覆盖"
     });
+  }
+
+  function handleExportDataPackage() {
+    setAdvancedActionMessage("");
+    setAdvancedActionError("");
+
+    try {
+      const exportValue = buildHomepageDataExportV1({
+        account: {
+          signedIn,
+          loading: auth.loading || accountData.loading,
+          error: auth.error || accountData.error,
+          userId: auth.user?.id ?? null,
+          userEmail: auth.user?.email ?? null,
+          profile: accountData.profile,
+          preferences: accountData.preferences,
+          homeSpaces: accountData.homeSpaces
+        },
+        local: {
+          homeDocument,
+          hasStoredDocument,
+          hasResetBackup,
+          storageReady,
+          currentBinding
+        }
+      });
+
+      downloadJsonFile(exportValue, "homepage-data-export");
+      setAdvancedActionMessage("数据包已导出，不包含完整同步码或账号托管凭证。");
+    } catch (error) {
+      console.error(error);
+      setAdvancedActionError(error instanceof Error ? error.message : "数据包导出失败。");
+    }
   }
 
   async function activateHomeSpace(homeSpace: HomeSpace, syncCode: string): Promise<boolean> {
@@ -134,6 +172,18 @@ export function SettingsDashboard() {
   const currentAccountHomeSpace = currentBinding
     ? accountData.homeSpaces.find((homeSpace) => homeSpace.syncSpaceId === currentBinding.spaceId) ?? null
     : null;
+  const settingsSummary = getSettingsSummary({
+    accountEmail: auth.user?.email ?? null,
+    accountError: accountData.error,
+    accountLoading: auth.loading || accountData.loading,
+    currentAccountHomeSpace,
+    currentBinding,
+    hasStoredDocument,
+    signedIn,
+    storageReady,
+    syncStatus: homeDocument.syncMeta.status
+  });
+  const resetDefaultTitle = getResetDefaultTitle(storageReady, isDefaultDocument, Boolean(currentBinding));
   const syncPanel = (
     <SyncPanel
       key={syncPanelKey}
@@ -176,6 +226,20 @@ export function SettingsDashboard() {
       </header>
 
       <div className="settings-stack">
+        <section className="settings-status-summary" aria-label="状态总览">
+          <div className="settings-status-copy">
+            <strong>{settingsSummary.title}</strong>
+            <StatusMessage role={settingsSummary.tone === "danger" ? "alert" : "status"} tone={settingsSummary.tone}>
+              {settingsSummary.detail}
+            </StatusMessage>
+          </div>
+          <div className="settings-status-chips" aria-label="当前状态">
+            <span>{settingsSummary.accountLabel}</span>
+            <span>{settingsSummary.syncLabel}</span>
+            <span>{settingsSummary.storageLabel}</span>
+          </div>
+        </section>
+
         <AccountPanel accountData={accountData} />
 
         {signedIn ? (
@@ -200,11 +264,21 @@ export function SettingsDashboard() {
             <label className="file-button" htmlFor="settingsImportInput">导入 JSON</label>
             <input ref={importInputRef} id="settingsImportInput" type="file" accept="application/json" hidden onChange={handleFileChange} />
             {hasResetBackup ? (
-              <button className="utility-button" type="button" onClick={restoreResetBackup}>恢复上一次重置前页面</button>
+              <button className="utility-button" type="button" onClick={restoreResetBackup} title="用最近一次重置前备份覆盖当前本地首页">恢复上一次重置前页面</button>
             ) : null}
-            <button className="danger-button" type="button" onClick={handleResetDefault} disabled={!storageReady || isDefaultDocument}>清空内容并恢复默认</button>
+            <button
+              className="danger-button"
+              type="button"
+              onClick={handleResetDefault}
+              disabled={!storageReady || isDefaultDocument}
+              title={resetDefaultTitle}
+            >
+              清空内容并恢复默认
+            </button>
           </div>
-          <p className="save-status">{saveStatus || "导入会覆盖当前浏览器中的本地首页配置。"}</p>
+          <StatusMessage tone={saveStatus ? "success" : "neutral"}>
+            {saveStatus || "导入会覆盖当前浏览器中的本地首页配置。"}
+          </StatusMessage>
         </section>
 
         <AccountPreferencesPanel
@@ -212,6 +286,27 @@ export function SettingsDashboard() {
           authLoading={auth.loading}
           signedIn={signedIn}
         />
+
+        <section className="settings-panel" aria-label="高级操作">
+          <div className="panel-header">
+            <h2>高级操作</h2>
+            <span>Export</span>
+          </div>
+          <div className="settings-actions">
+            <button
+              className="utility-button"
+              type="button"
+              disabled={!storageReady}
+              title={storageReady ? "导出当前首页、账号摘要、首页空间索引和诊断信息" : "本地存储尚未就绪，请稍后重试。"}
+              onClick={handleExportDataPackage}
+            >
+              导出数据包
+            </button>
+          </div>
+          <StatusMessage role={advancedActionError ? "alert" : "status"} tone={advancedActionError ? "danger" : advancedActionMessage ? "success" : "neutral"}>
+            {advancedActionError || advancedActionMessage || "数据包用于备份和排障，不包含完整同步码、账号托管凭证或登录 session。"}
+          </StatusMessage>
+        </section>
       </div>
     </main>
   );
@@ -226,4 +321,150 @@ function toSyncMeta(binding: StoredSyncBinding, status: HomeSyncMeta["status"] =
     remoteRevision: binding.remoteRevision,
     lastSyncedAt: binding.lastSyncedAt
   };
+}
+
+interface SettingsSummaryInput {
+  accountEmail: string | null;
+  accountError: string;
+  accountLoading: boolean;
+  currentAccountHomeSpace: HomeSpace | null;
+  currentBinding: StoredSyncBinding | null;
+  hasStoredDocument: boolean;
+  signedIn: boolean;
+  storageReady: boolean;
+  syncStatus: HomeSyncMeta["status"];
+}
+
+interface SettingsSummary {
+  accountLabel: string;
+  detail: string;
+  storageLabel: string;
+  syncLabel: string;
+  title: string;
+  tone: StatusTone;
+}
+
+function getSettingsSummary({
+  accountEmail,
+  accountError,
+  accountLoading,
+  currentAccountHomeSpace,
+  currentBinding,
+  hasStoredDocument,
+  signedIn,
+  storageReady,
+  syncStatus
+}: SettingsSummaryInput): SettingsSummary {
+  const accountLabel = accountLoading
+    ? "账号读取中"
+    : signedIn
+      ? accountEmail ?? "已登录"
+      : "未登录";
+  const storageLabel = storageReady
+    ? hasStoredDocument
+      ? "本地已保存"
+      : "默认首页"
+    : "本地读取中";
+  const syncLabel = currentBinding
+    ? currentBinding.accessMode === "account-managed"
+      ? "账号托管"
+      : "普通同步码"
+    : "本地模式";
+
+  if (!storageReady) {
+    return {
+      accountLabel,
+      detail: "本地存储就绪后才能导入、导出、恢复默认或执行同步操作。",
+      storageLabel,
+      syncLabel,
+      title: "正在读取本地首页",
+      tone: "neutral"
+    };
+  }
+
+  if (syncStatus === "conflict") {
+    return {
+      accountLabel,
+      detail: "云端和本地都有修改，自动同步已暂停；请在同步面板选择保留云端或本地版本。",
+      storageLabel,
+      syncLabel,
+      title: "同步冲突待处理",
+      tone: "danger"
+    };
+  }
+
+  if (syncStatus === "paused") {
+    return {
+      accountLabel,
+      detail: "恢复默认后自动同步已暂停；请选择上传默认、拉取云端、解除本机或恢复备份。",
+      storageLabel,
+      syncLabel,
+      title: "同步已暂停",
+      tone: "warning"
+    };
+  }
+
+  if (accountError) {
+    return {
+      accountLabel,
+      detail: "账号资料或偏好暂时不可用，本地首页和已有同步码功能仍可继续使用。",
+      storageLabel,
+      syncLabel,
+      title: "账号资料加载失败",
+      tone: "warning"
+    };
+  }
+
+  if (currentBinding?.accessMode === "account-managed") {
+    return {
+      accountLabel,
+      detail: currentAccountHomeSpace
+        ? `当前本机正在使用账号托管空间“${currentAccountHomeSpace.name}”。`
+        : "当前本机正在使用账号托管空间，账号列表刷新后会显示空间名称。",
+      storageLabel,
+      syncLabel,
+      title: "账号托管同步正常",
+      tone: "success"
+    };
+  }
+
+  if (currentBinding?.accessMode === "sync-code") {
+    return {
+      accountLabel,
+      detail: currentAccountHomeSpace
+        ? `当前普通同步码已记录到账号空间“${currentAccountHomeSpace.name}”。`
+        : "当前浏览器绑定普通同步码；登录后可在首页空间中认领或迁移。",
+      storageLabel,
+      syncLabel,
+      title: "普通同步码已绑定",
+      tone: "info"
+    };
+  }
+
+  return {
+    accountLabel,
+    detail: signedIn
+      ? "当前浏览器未绑定同步空间；可创建账号托管空间或在离线同步码区域恢复。"
+      : "当前首页仅保存在本地浏览器；登录或同步码不会自动覆盖本地首页。",
+    storageLabel,
+    syncLabel,
+    title: "本地首页",
+    tone: "neutral"
+  };
+}
+
+function getResetDefaultTitle(storageReady: boolean, isDefaultDocument: boolean, hasSyncBinding: boolean): string {
+  if (!storageReady) {
+    return "本地存储尚未就绪，请稍后重试。";
+  }
+
+  if (isDefaultDocument) {
+    return "当前首页已经是默认内容，不会覆盖重置前备份。";
+  }
+
+  if (hasSyncBinding) {
+    return "清空当前本地首页并自动备份；恢复默认后会暂停自动同步，避免立刻覆盖云端。";
+  }
+
+  return "清空当前本地首页并自动保存最近一次重置前备份。";
 }
