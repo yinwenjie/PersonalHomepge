@@ -5,21 +5,32 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { SupabaseAuthContext, type SupabaseAuthState } from "@/contexts/supabase-auth-context";
 import { getErrorMessage } from "@/domain/errors";
-import { getSupabaseBrowserClient } from "@/infrastructure/supabase-client";
+import {
+  getSupabaseBrowserClient,
+  isSupabaseConfigured,
+  SUPABASE_CONFIGURATION_MESSAGE
+} from "@/infrastructure/supabase-client";
 
 interface SupabaseAuthProviderProps {
   children: ReactNode;
 }
 
 export function SupabaseAuthProvider({ children }: SupabaseAuthProviderProps) {
+  const configured = useMemo(() => isSupabaseConfigured(), []);
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(configured);
   const [actionPending, setActionPending] = useState(false);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(configured ? "" : SUPABASE_CONFIGURATION_MESSAGE);
   const [error, setError] = useState("");
 
   useEffect(() => {
     let mounted = true;
+
+    if (!configured) {
+      return () => {
+        mounted = false;
+      };
+    }
 
     try {
       const supabase = getSupabaseBrowserClient();
@@ -69,9 +80,15 @@ export function SupabaseAuthProvider({ children }: SupabaseAuthProviderProps) {
         window.clearTimeout(timerId);
       };
     }
-  }, []);
+  }, [configured]);
 
   const signInWithMagicLink = useCallback(async (email: string) => {
+    if (!configured) {
+      setMessage(SUPABASE_CONFIGURATION_MESSAGE);
+      setError("");
+      return;
+    }
+
     const normalizedEmail = email.trim();
     if (!normalizedEmail) {
       setError("请输入邮箱地址。");
@@ -103,9 +120,16 @@ export function SupabaseAuthProvider({ children }: SupabaseAuthProviderProps) {
     } finally {
       setActionPending(false);
     }
-  }, []);
+  }, [configured]);
 
   const signOut = useCallback(async () => {
+    if (!configured) {
+      setSession(null);
+      setMessage(SUPABASE_CONFIGURATION_MESSAGE);
+      setError("");
+      return;
+    }
+
     setActionPending(true);
     setMessage("");
     setError("");
@@ -126,18 +150,19 @@ export function SupabaseAuthProvider({ children }: SupabaseAuthProviderProps) {
     } finally {
       setActionPending(false);
     }
-  }, []);
+  }, [configured]);
 
   const value = useMemo<SupabaseAuthState>(() => ({
     user: session?.user ?? null,
     session,
+    configured,
     loading,
     actionPending,
     message,
     error,
     signInWithMagicLink,
     signOut
-  }), [actionPending, error, loading, message, session, signInWithMagicLink, signOut]);
+  }), [actionPending, configured, error, loading, message, session, signInWithMagicLink, signOut]);
 
   return (
     <SupabaseAuthContext.Provider value={value}>

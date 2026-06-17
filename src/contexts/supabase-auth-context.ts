@@ -6,6 +6,7 @@ import type { Session, User } from "@supabase/supabase-js";
 export interface SupabaseAuthState {
   user: User | null;
   session: Session | null;
+  configured: boolean;
   loading: boolean;
   actionPending: boolean;
   message: string;

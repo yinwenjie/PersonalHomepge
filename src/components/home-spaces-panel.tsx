@@ -3,8 +3,14 @@
 import type { FormEvent } from "react";
 import { useMemo, useState } from "react";
 import { StatusMessage } from "@/components/status-message";
+import { TemplateLibraryPanel } from "@/components/template-library-panel";
 import type { HomeSpace } from "@/domain/account";
 import type { HomeDocumentV2 } from "@/domain/home-document";
+import {
+  createHomeDocumentFromTemplate,
+  type HomeTemplate,
+  type HomeTemplateId
+} from "@/domain/home-template";
 import { parseSyncCode, type StoredSyncBinding } from "@/domain/sync-code";
 import type { AccountDataState } from "@/hooks/use-account-data";
 
@@ -18,7 +24,7 @@ interface HomeSpacesPanelProps {
   onActivateHomeSpace: (homeSpace: HomeSpace, syncCode: string) => Promise<boolean>;
   onRestoreManagedHomeSpace: (homeSpace: HomeSpace) => Promise<boolean>;
   onMigrateSyncCodeHomeSpace: (homeSpace: HomeSpace) => Promise<boolean>;
-  onManagedHomeSpaceCreated: (binding: StoredSyncBinding) => void;
+  onManagedHomeSpaceCreated: (binding: StoredSyncBinding, documentValue?: HomeDocumentV2) => void;
 }
 
 export function HomeSpacesPanel({
@@ -34,11 +40,12 @@ export function HomeSpacesPanel({
   onManagedHomeSpaceCreated
 }: HomeSpacesPanelProps) {
   const [claimSpaceName, setClaimSpaceName] = useState("我的首页");
-  const [managedSpaceName, setManagedSpaceName] = useState("我的首页");
+  const [managedSpaceName, setManagedSpaceName] = useState("");
   const [activeSpaceId, setActiveSpaceId] = useState<string | null>(null);
   const [activationCode, setActivationCode] = useState("");
   const [activationError, setActivationError] = useState("");
   const [activationPending, setActivationPending] = useState(false);
+  const [creatingTemplateId, setCreatingTemplateId] = useState<HomeTemplateId | null>(null);
   const [managedRestoreSpaceId, setManagedRestoreSpaceId] = useState<string | null>(null);
   const [managedMigrationSpaceId, setManagedMigrationSpaceId] = useState<string | null>(null);
   const [editingSpaceId, setEditingSpaceId] = useState<string | null>(null);
@@ -112,9 +119,32 @@ export function HomeSpacesPanel({
       return;
     }
 
-    const binding = await accountData.createAccountManagedHomeSpace(managedSpaceName, documentValue);
+    const binding = await accountData.createAccountManagedHomeSpace(managedSpaceName.trim() || "我的首页", documentValue);
     if (binding) {
-      onManagedHomeSpaceCreated(binding);
+      onManagedHomeSpaceCreated(binding, documentValue);
+    }
+  }
+
+  async function handleCreateManagedFromTemplate(template: HomeTemplate) {
+    if (!storageReady || !accountReady || accountActionPending) {
+      return;
+    }
+
+    if (!window.confirm(getTemplateCreateConfirmMessage(template))) {
+      return;
+    }
+
+    const templateDocument = createHomeDocumentFromTemplate(template.id);
+    const spaceName = managedSpaceName.trim() || template.recommendedSpaceName;
+    setCreatingTemplateId(template.id);
+    try {
+      const binding = await accountData.createAccountManagedHomeSpace(spaceName, templateDocument);
+      if (binding) {
+        onManagedHomeSpaceCreated(binding, templateDocument);
+        setManagedSpaceName("");
+      }
+    } finally {
+      setCreatingTemplateId(null);
     }
   }
 
@@ -272,20 +302,32 @@ export function HomeSpacesPanel({
         </div>
       ) : (
         <>
+          <TemplateLibraryPanel
+            actionLabel={accountData.creatingManaged ? "创建中" : "创建空间"}
+            className="home-space-template-library"
+            description="从模板创建会新建账号托管空间，并把当前浏览器切换到这个新空间。"
+            disabled={Boolean(createManagedDisabledReason)}
+            disabledReason={createManagedDisabledReason}
+            selectedTemplateId={creatingTemplateId ?? undefined}
+            title={accountData.homeSpaces.length === 0 ? "从模板创建第一个首页空间" : "从模板创建新空间"}
+            onApply={handleCreateManagedFromTemplate}
+          />
+
           <form className="home-space-create-form" onSubmit={handleCreateManaged}>
             <label className="field">
-              <span>账号托管空间名称</span>
+              <span>空间名称</span>
               <input
                 type="text"
                 value={managedSpaceName}
                 maxLength={80}
+                placeholder="留空则使用模板名称或“我的首页”"
                 disabled={Boolean(createManagedDisabledReason)}
                 title={createManagedDisabledReason}
                 onChange={(event) => setManagedSpaceName(event.target.value)}
               />
             </label>
             <button className="utility-button" type="submit" disabled={Boolean(createManagedDisabledReason)} title={createManagedDisabledReason ?? "创建由账号托管恢复凭证的首页空间"}>
-              {accountData.creatingManaged ? "创建中" : "创建账号托管空间"}
+              {accountData.creatingManaged ? "创建中" : "用当前首页创建"}
             </button>
           </form>
 
@@ -587,6 +629,15 @@ function getCreateManagedDisabledReason(
   }
 
   return undefined;
+}
+
+function getTemplateCreateConfirmMessage(template: HomeTemplate): string {
+  return [
+    `从“${template.name}”创建新的账号托管空间？`,
+    "创建成功后，当前浏览器会切换到这个新空间，并显示模板生成的首页。",
+    "当前本地首页会被新空间内容替换；已有账号空间、同步码和云端内容不会删除。",
+    "继续？"
+  ].join("\n");
 }
 
 function getRestoreManagedDisabledReason(storageReady: boolean, actionPending: boolean): string | undefined {

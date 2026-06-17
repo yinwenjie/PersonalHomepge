@@ -14,6 +14,7 @@ export function AccountPanel({ accountData }: AccountPanelProps) {
   const [email, setEmail] = useState("");
   const {
     user,
+    configured,
     loading,
     actionPending,
     message,
@@ -23,9 +24,9 @@ export function AccountPanel({ accountData }: AccountPanelProps) {
   } = useSupabaseAuth();
 
   const accountInitial = useMemo(() => getAccountInitial(user?.email), [user?.email]);
-  const accountHasError = Boolean(error || accountData.error);
-  const accountStatusTone = accountHasError ? "danger" : accountData.profile ? "success" : "neutral";
-  const authActionDisabledReason = getAuthActionDisabledReason(loading, actionPending);
+  const accountHasError = Boolean((configured && error) || accountData.error);
+  const accountStatusTone = !configured ? "warning" : accountHasError ? "danger" : accountData.profile ? "success" : "neutral";
+  const authActionDisabledReason = getAuthActionDisabledReason(configured, loading, actionPending);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -56,12 +57,12 @@ export function AccountPanel({ accountData }: AccountPanelProps) {
               value={email}
               placeholder="you@example.com"
               autoComplete="email"
-              disabled={loading || actionPending}
+              disabled={!configured || loading || actionPending}
               title={authActionDisabledReason}
               onChange={(event) => setEmail(event.target.value)}
             />
           </label>
-          <button className="utility-button" type="submit" disabled={loading || actionPending} title={authActionDisabledReason}>
+          <button className="utility-button" type="submit" disabled={!configured || loading || actionPending} title={authActionDisabledReason}>
             {actionPending ? "发送中" : "发送登录链接"}
           </button>
         </form>
@@ -123,7 +124,11 @@ function getAccountStatus(accountData: AccountDataState, authMessage: string, au
   return authMessage || (authLoading ? "正在读取账号状态。" : "登录仅建立账号身份，不会覆盖本地首页。");
 }
 
-function getAuthActionDisabledReason(loading: boolean, actionPending: boolean): string | undefined {
+function getAuthActionDisabledReason(configured: boolean, loading: boolean, actionPending: boolean): string | undefined {
+  if (!configured) {
+    return "账号与云端同步服务尚未配置 Supabase 环境变量。";
+  }
+
   if (actionPending) {
     return "账号操作处理中，请稍后。";
   }

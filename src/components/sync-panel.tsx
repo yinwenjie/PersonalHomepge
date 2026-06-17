@@ -13,6 +13,7 @@ import {
 } from "@/domain/sync-code";
 import { StatusMessage } from "@/components/status-message";
 import { useUiPreferences } from "@/hooks/use-ui-preferences";
+import { isSupabaseConfigured, SUPABASE_CONFIGURATION_MESSAGE } from "@/infrastructure/supabase-client";
 import { LocalSyncBindingRepository } from "@/infrastructure/sync-binding-repository";
 import { SyncCodeRepository, PullSyncSpaceResult } from "@/infrastructure/sync-code-repository";
 
@@ -48,6 +49,7 @@ export function SyncPanel({
   onRestoreResetBackup
 }: SyncPanelProps) {
   const { preferences } = useUiPreferences();
+  const syncServiceConfigured = isSupabaseConfigured();
   const [binding, setBinding] = useState<StoredSyncBinding | null>(null);
   const [syncCode, setSyncCode] = useState("");
   const [inputCode, setInputCode] = useState("");
@@ -103,6 +105,12 @@ export function SyncPanel({
       return;
     }
 
+    if (!syncServiceConfigured) {
+      setMessage(SUPABASE_CONFIGURATION_MESSAGE);
+      setError("");
+      return;
+    }
+
     const pausedBinding = bindingRef.current && isSyncPausedForBinding(documentRef.current, bindingRef.current)
       ? bindingRef.current
       : null;
@@ -133,7 +141,7 @@ export function SyncPanel({
       busyRef.current = false;
       setBusy(false);
     }
-  }, [setSyncMetaFromBinding]);
+  }, [setSyncMetaFromBinding, syncServiceConfigured]);
 
   const applyCloudDocument = useCallback((
     pulled: PullSyncSpaceResult,
@@ -334,6 +342,13 @@ export function SyncPanel({
 
     persistBinding(storedBinding);
     setSyncCode(formatSyncCode(storedBinding));
+
+    if (!syncServiceConfigured) {
+      setMessage("已读取本机同步码；配置 Supabase 后可继续连接云端同步。");
+      setError("");
+      return;
+    }
+
     if (isSyncPausedForBinding(documentRef.current, storedBinding)) {
       setMessage("恢复默认后同步已暂停。请选择上传默认、拉取云端、解除本机或恢复备份。");
       return;
@@ -347,12 +362,13 @@ export function SyncPanel({
     window.setTimeout(() => {
       performPull({ forceApply: false, source: "startup" });
     }, 0);
-  }, [onBindingChange, performPull, persistBinding, setSyncMetaFromBinding, storageReady]);
+  }, [onBindingChange, performPull, persistBinding, setSyncMetaFromBinding, storageReady, syncServiceConfigured]);
 
   useEffect(() => {
     function requestAutoPull() {
       if (
-        document.visibilityState !== "hidden"
+        syncServiceConfigured
+        && document.visibilityState !== "hidden"
         && bindingRef.current
         && !busyRef.current
         && documentRef.current.syncMeta.status !== "conflict"
@@ -372,12 +388,13 @@ export function SyncPanel({
       document.removeEventListener("visibilitychange", requestAutoPull);
       window.clearInterval(intervalId);
     };
-  }, [performAutoRevisionCheck]);
+  }, [performAutoRevisionCheck, syncServiceConfigured]);
 
   useEffect(() => {
     const activeBinding = binding;
     if (
-      !activeBinding
+      !syncServiceConfigured
+      || !activeBinding
       || documentValue.syncMeta.status === "conflict"
       || isSyncPausedForBinding(documentValue, activeBinding)
       || busyRef.current
@@ -402,7 +419,7 @@ export function SyncPanel({
         clearTimeout(autoPushTimerRef.current);
       }
     };
-  }, [binding, documentValue, performPush]);
+  }, [binding, documentValue, performPush, syncServiceConfigured]);
 
   const isPaused = Boolean(binding && isSyncPausedForBinding(documentValue, binding));
   const isAdvanced = presentation === "advanced";
@@ -410,6 +427,10 @@ export function SyncPanel({
   const controlsVisible = !isAdvanced || advancedOpen || needsAttention;
 
   const statusText = useMemo(() => {
+    if (!syncServiceConfigured) {
+      return binding ? "本机已保存同步码，云端未配置" : "云端未配置";
+    }
+
     if (!binding) {
       return "未绑定";
     }
@@ -420,9 +441,12 @@ export function SyncPanel({
     }
 
     return `${binding.accessMode === "account-managed" ? "账号托管" : "同步码"} rev ${binding.remoteRevision}，最后同步 ${syncedAt}`;
-  }, [binding, isPaused, preferences.locale]);
+  }, [binding, isPaused, preferences.locale, syncServiceConfigured]);
   const isAccountManaged = binding?.accessMode === "account-managed";
   const panelTitle = isAdvanced ? "离线同步码与恢复" : "同步码";
+  const syncStatusMessage = error || message || (!syncServiceConfigured ? SUPABASE_CONFIGURATION_MESSAGE : "");
+  const syncStatusTone = error ? "danger" : !syncServiceConfigured ? "warning" : message ? "success" : "neutral";
+  const syncStatusRole = error ? "alert" : "status";
 
   async function createCode() {
     await runSyncAction(async () => {
@@ -569,6 +593,7 @@ export function SyncPanel({
             busy={busy}
             isAccountManaged={isAccountManaged}
             isPaused={isPaused}
+            serviceConfigured={syncServiceConfigured}
             status={documentValue.syncMeta.status}
             onCreate={createCode}
             onPull={() => performPull({ forceApply: false, source: "manual" })}
@@ -584,8 +609,8 @@ export function SyncPanel({
             <p>当前默认首页还没有上传到云端。请选择下一步，避免误覆盖已有同步空间。</p>
           </div>
           <div className="sync-panel-actions">
-            <button className="utility-button" type="button" onClick={() => performPush({ force: false, source: "manual" })} disabled={busy} title={busy ? "同步操作处理中，请稍后。" : "把当前默认首页上传到当前同步空间"}>上传默认</button>
-            <button className="utility-button" type="button" onClick={() => performPull({ forceApply: true, source: "manual" })} disabled={busy} title={busy ? "同步操作处理中，请稍后。" : "用云端首页覆盖当前本地默认首页"}>拉取云端</button>
+            <button className="utility-button" type="button" onClick={() => performPush({ force: false, source: "manual" })} disabled={!syncServiceConfigured || busy} title={getRemoteActionDisabledReason(syncServiceConfigured, busy) ?? "把当前默认首页上传到当前同步空间"}>上传默认</button>
+            <button className="utility-button" type="button" onClick={() => performPull({ forceApply: true, source: "manual" })} disabled={!syncServiceConfigured || busy} title={getRemoteActionDisabledReason(syncServiceConfigured, busy) ?? "用云端首页覆盖当前本地默认首页"}>拉取云端</button>
             <button className="utility-button" type="button" onClick={unbindLocal} disabled={busy} title={busy ? "同步操作处理中，请稍后。" : "只解除当前浏览器绑定，保留本地首页"}>解除本机</button>
             <button className="utility-button" type="button" onClick={restoreResetBackupFromPause} disabled={busy || !hasResetBackup || !onRestoreResetBackup} title={getRestoreBackupDisabledReason(busy, hasResetBackup, Boolean(onRestoreResetBackup)) ?? "恢复重置前自动保存的本地备份"}>恢复备份</button>
           </div>
@@ -599,8 +624,8 @@ export function SyncPanel({
             <p>自动同步已暂停。请选择保留哪一份数据。</p>
           </div>
           <div className="sync-panel-actions">
-            <button className="utility-button" type="button" onClick={() => performPull({ forceApply: true, source: "resolve" })} disabled={busy} title={busy ? "同步操作处理中，请稍后。" : "用云端首页覆盖当前本地首页"}>使用云端版本</button>
-            <button className="danger-button" type="button" onClick={() => performPush({ force: true, source: "resolve" })} disabled={busy} title={busy ? "同步操作处理中，请稍后。" : "把当前本地首页强制上传并覆盖云端"}>本地覆盖云端</button>
+            <button className="utility-button" type="button" onClick={() => performPull({ forceApply: true, source: "resolve" })} disabled={!syncServiceConfigured || busy} title={getRemoteActionDisabledReason(syncServiceConfigured, busy) ?? "用云端首页覆盖当前本地首页"}>使用云端版本</button>
+            <button className="danger-button" type="button" onClick={() => performPush({ force: true, source: "resolve" })} disabled={!syncServiceConfigured || busy} title={getRemoteActionDisabledReason(syncServiceConfigured, busy) ?? "把当前本地首页强制上传并覆盖云端"}>本地覆盖云端</button>
             <button className="utility-button" type="button" onClick={() => setMessage("已暂停自动同步，冲突状态会保留。")} disabled={busy} title={busy ? "同步操作处理中，请稍后。" : "保留冲突状态，稍后再处理"}>暂不处理</button>
           </div>
         </div>
@@ -614,6 +639,7 @@ export function SyncPanel({
               busy={busy}
               isAccountManaged={isAccountManaged}
               isPaused={isPaused}
+              serviceConfigured={syncServiceConfigured}
               status={documentValue.syncMeta.status}
               onCreate={createCode}
               onPull={() => performPull({ forceApply: false, source: "manual" })}
@@ -642,7 +668,7 @@ export function SyncPanel({
               <span>{isAdvanced ? "输入同步码恢复" : "输入同步码"}</span>
               <input value={inputCode} onChange={(event) => setInputCode(event.target.value)} placeholder="hp1_..." />
             </label>
-            <button className="utility-button" type="button" onClick={bindCode} disabled={busy || !inputCode.trim()} title={getBindDisabledReason(busy, inputCode) ?? "绑定输入的同步码，并用云端首页覆盖当前本地首页"}>绑定</button>
+            <button className="utility-button" type="button" onClick={bindCode} disabled={!syncServiceConfigured || busy || !inputCode.trim()} title={getBindDisabledReason(syncServiceConfigured, busy, inputCode) ?? "绑定输入的同步码，并用云端首页覆盖当前本地首页"}>绑定</button>
           </div>
 
           {isAdvanced ? (
@@ -657,21 +683,21 @@ export function SyncPanel({
                   className="danger-button"
                   type="button"
                   onClick={revokeCode}
-                  disabled={busy || !binding}
-                  title={getRevokeDisabledReason(busy, binding) ?? "废弃当前同步码，所有设备都不能继续使用这个同步码"}
+                  disabled={!syncServiceConfigured || busy || !binding}
+                  title={getRevokeDisabledReason(syncServiceConfigured, busy, binding) ?? "废弃当前同步码，所有设备都不能继续使用这个同步码"}
                 >
                   废弃同步码
                 </button>
               ) : null}
             </div>
-            <StatusMessage role={error ? "alert" : "status"} tone={error ? "danger" : message ? "success" : "neutral"}>
-              {error || message}
+            <StatusMessage role={syncStatusRole} tone={syncStatusTone}>
+              {syncStatusMessage}
             </StatusMessage>
           </div>
         </>
       ) : (
-        <StatusMessage role={error ? "alert" : "status"} tone={error ? "danger" : message ? "success" : "neutral"}>
-          {error || message || "同步码创建、绑定和旧空间维护已收起。"}
+        <StatusMessage role={syncStatusRole} tone={syncStatusTone}>
+          {syncStatusMessage || "同步码创建、绑定和旧空间维护已收起。"}
         </StatusMessage>
       )}
     </section>
@@ -683,6 +709,7 @@ function SyncActionButtons({
   busy,
   isAccountManaged,
   isPaused,
+  serviceConfigured,
   status,
   onCreate,
   onPull,
@@ -692,14 +719,15 @@ function SyncActionButtons({
   busy: boolean;
   isAccountManaged: boolean;
   isPaused: boolean;
+  serviceConfigured: boolean;
   status: HomeSyncMeta["status"];
   onCreate: () => void;
   onPull: () => void;
   onPush: () => void;
 }) {
-  const createDisabledReason = getCreateDisabledReason(busy, isPaused);
-  const pullDisabledReason = getPullDisabledReason(busy, binding, isPaused);
-  const pushDisabledReason = getPushDisabledReason(busy, binding, isPaused, status);
+  const createDisabledReason = getCreateDisabledReason(serviceConfigured, busy, isPaused);
+  const pullDisabledReason = getPullDisabledReason(serviceConfigured, busy, binding, isPaused);
+  const pushDisabledReason = getPushDisabledReason(serviceConfigured, busy, binding, isPaused, status);
 
   return (
     <div className="sync-panel-actions">
@@ -708,7 +736,7 @@ function SyncActionButtons({
           className="utility-button"
           type="button"
           onClick={onCreate}
-          disabled={busy || isPaused}
+          disabled={!serviceConfigured || busy || isPaused}
           title={createDisabledReason ?? "为当前首页创建普通同步码"}
         >
           创建
@@ -718,7 +746,7 @@ function SyncActionButtons({
         className="utility-button"
         type="button"
         onClick={onPull}
-        disabled={busy || !binding || isPaused}
+        disabled={!serviceConfigured || busy || !binding || isPaused}
         title={pullDisabledReason ?? "从当前同步空间拉取云端首页"}
       >
         拉取
@@ -727,7 +755,7 @@ function SyncActionButtons({
         className="utility-button"
         type="button"
         onClick={onPush}
-        disabled={busy || !binding || isPaused || status === "conflict"}
+        disabled={!serviceConfigured || busy || !binding || isPaused || status === "conflict"}
         title={pushDisabledReason ?? "把当前本地首页上传到同步空间"}
       >
         上传
@@ -736,7 +764,11 @@ function SyncActionButtons({
   );
 }
 
-function getCreateDisabledReason(busy: boolean, isPaused: boolean): string | undefined {
+function getCreateDisabledReason(serviceConfigured: boolean, busy: boolean, isPaused: boolean): string | undefined {
+  if (!serviceConfigured) {
+    return "账号与云端同步服务尚未配置 Supabase 环境变量。";
+  }
+
   if (busy) {
     return "同步操作处理中，请稍后。";
   }
@@ -748,11 +780,28 @@ function getCreateDisabledReason(busy: boolean, isPaused: boolean): string | und
   return undefined;
 }
 
+function getRemoteActionDisabledReason(serviceConfigured: boolean, busy: boolean): string | undefined {
+  if (!serviceConfigured) {
+    return "账号与云端同步服务尚未配置 Supabase 环境变量。";
+  }
+
+  if (busy) {
+    return "同步操作处理中，请稍后。";
+  }
+
+  return undefined;
+}
+
 function getPullDisabledReason(
+  serviceConfigured: boolean,
   busy: boolean,
   binding: StoredSyncBinding | null,
   isPaused: boolean
 ): string | undefined {
+  if (!serviceConfigured) {
+    return "账号与云端同步服务尚未配置 Supabase 环境变量。";
+  }
+
   if (busy) {
     return "同步操作处理中，请稍后。";
   }
@@ -769,11 +818,16 @@ function getPullDisabledReason(
 }
 
 function getPushDisabledReason(
+  serviceConfigured: boolean,
   busy: boolean,
   binding: StoredSyncBinding | null,
   isPaused: boolean,
   status: HomeSyncMeta["status"]
 ): string | undefined {
+  if (!serviceConfigured) {
+    return "账号与云端同步服务尚未配置 Supabase 环境变量。";
+  }
+
   if (busy) {
     return "同步操作处理中，请稍后。";
   }
@@ -793,7 +847,11 @@ function getPushDisabledReason(
   return undefined;
 }
 
-function getBindDisabledReason(busy: boolean, inputCode: string): string | undefined {
+function getBindDisabledReason(serviceConfigured: boolean, busy: boolean, inputCode: string): string | undefined {
+  if (!serviceConfigured) {
+    return "账号与云端同步服务尚未配置 Supabase 环境变量。";
+  }
+
   if (busy) {
     return "同步操作处理中，请稍后。";
   }
@@ -805,7 +863,11 @@ function getBindDisabledReason(busy: boolean, inputCode: string): string | undef
   return undefined;
 }
 
-function getRevokeDisabledReason(busy: boolean, binding: StoredSyncBinding | null): string | undefined {
+function getRevokeDisabledReason(serviceConfigured: boolean, busy: boolean, binding: StoredSyncBinding | null): string | undefined {
+  if (!serviceConfigured) {
+    return "账号与云端同步服务尚未配置 Supabase 环境变量。";
+  }
+
   if (busy) {
     return "同步操作处理中，请稍后。";
   }

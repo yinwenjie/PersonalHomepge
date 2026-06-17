@@ -10,7 +10,7 @@ import { StatusMessage, type StatusTone } from "@/components/status-message";
 import { SyncPanel } from "@/components/sync-panel";
 import type { HomeSpace } from "@/domain/account";
 import { buildHomepageDataExportV1, downloadJsonFile } from "@/domain/data-export";
-import type { HomeSyncMeta } from "@/domain/home-document";
+import type { HomeDocumentV2, HomeSyncMeta } from "@/domain/home-document";
 import { parseSyncCode, type StoredSyncBinding } from "@/domain/sync-code";
 import { useAccountData } from "@/hooks/use-account-data";
 import { useHomeDocumentController } from "@/hooks/use-home-document-controller";
@@ -161,10 +161,13 @@ export function SettingsDashboard() {
     return true;
   }
 
-  function handleManagedHomeSpaceCreated(binding: StoredSyncBinding) {
+  function handleManagedHomeSpaceCreated(binding: StoredSyncBinding, createdDocument: HomeDocumentV2 = homeDocument) {
     new LocalSyncBindingRepository(window.localStorage).save(binding);
     setCurrentBinding(binding);
-    updateSyncMeta(toSyncMeta(binding), "账号托管空间已创建并绑定本机");
+    replaceHomeDocument({
+      ...createdDocument,
+      syncMeta: toSyncMeta(binding)
+    }, "账号托管空间已创建并绑定本机");
     setSyncPanelKey((value) => value + 1);
   }
 
@@ -174,7 +177,8 @@ export function SettingsDashboard() {
     : null;
   const settingsSummary = getSettingsSummary({
     accountEmail: auth.user?.email ?? null,
-    accountError: accountData.error,
+    accountConfigured: auth.configured,
+    accountError: auth.error || accountData.error,
     accountLoading: auth.loading || accountData.loading,
     currentAccountHomeSpace,
     currentBinding,
@@ -325,6 +329,7 @@ function toSyncMeta(binding: StoredSyncBinding, status: HomeSyncMeta["status"] =
 
 interface SettingsSummaryInput {
   accountEmail: string | null;
+  accountConfigured: boolean;
   accountError: string;
   accountLoading: boolean;
   currentAccountHomeSpace: HomeSpace | null;
@@ -346,6 +351,7 @@ interface SettingsSummary {
 
 function getSettingsSummary({
   accountEmail,
+  accountConfigured,
   accountError,
   accountLoading,
   currentAccountHomeSpace,
@@ -355,7 +361,9 @@ function getSettingsSummary({
   storageReady,
   syncStatus
 }: SettingsSummaryInput): SettingsSummary {
-  const accountLabel = accountLoading
+  const accountLabel = !accountConfigured
+    ? "账号未配置"
+    : accountLoading
     ? "账号读取中"
     : signedIn
       ? accountEmail ?? "已登录"
@@ -379,6 +387,17 @@ function getSettingsSummary({
       syncLabel,
       title: "正在读取本地首页",
       tone: "neutral"
+    };
+  }
+
+  if (!accountConfigured) {
+    return {
+      accountLabel,
+      detail: "账号、账号托管空间和云端同步码需要 Supabase 环境变量；当前本地首页、模板、导入导出仍可继续使用。",
+      storageLabel,
+      syncLabel,
+      title: "账号与云端同步未配置",
+      tone: "warning"
     };
   }
 

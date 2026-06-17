@@ -8,18 +8,17 @@ import {
   searchEngineLabel
 } from "@/domain/ui-preferences";
 import {
-  createDefaultHomeDocument,
-  createId,
   isUngroupedGroup,
-  normalizeHomeDocument,
   normalizeSearchText,
   normalizeText,
   sortByOrder
 } from "@/domain/home-document";
+import { createHomeDocumentFromTemplate, type HomeTemplate } from "@/domain/home-template";
 import { SYNC_BINDING_STORAGE_KEY } from "@/domain/sync-code";
 import { HomeDocumentEditorModal } from "@/components/home-document-editor-modal";
 import { SiteCollection } from "@/components/site-collection";
 import { SyncPanel } from "@/components/sync-panel";
+import { TemplateLibraryPanel } from "@/components/template-library-panel";
 import { WidgetPanel } from "@/components/widget-panel";
 import { useHomeDocumentController } from "@/hooks/use-home-document-controller";
 import { useHomeDocumentEditor } from "@/hooks/use-home-document-editor";
@@ -115,31 +114,17 @@ export function HomeDashboard() {
     setShowWelcome(false);
   }
 
-  function keepDefaultTemplate() {
-    replaceHomeDocument(normalizeHomeDocument({
-      ...homeDocument,
-      updatedAt: new Date().toISOString()
-    }), "已使用默认模板");
-    completeOnboarding();
-  }
-
   function openSyncCodeSetup() {
     completeOnboarding();
     router.push("/edit");
   }
 
-  function startBlankHome() {
-    const blankDocument = normalizeHomeDocument({
-      ...createDefaultHomeDocument(),
-      documentId: createId("home"),
-      updatedAt: new Date().toISOString(),
-      groups: [],
-      widgets: []
-    });
-
-    replaceHomeDocument(blankDocument, "已从空白首页开始");
+  function applyTemplate(template: HomeTemplate) {
+    replaceHomeDocument(createHomeDocumentFromTemplate(template.id), `已使用${template.name}`);
     completeOnboarding();
-    router.push("/edit");
+    if (template.id === "blank") {
+      router.push("/edit");
+    }
   }
 
   function dismissWelcome() {
@@ -167,18 +152,26 @@ export function HomeDashboard() {
       </header>
 
       {showWelcome ? (
-        <section className="welcome-strip" aria-label="新用户启动选项">
-          <div className="welcome-copy">
-            <strong>开始设置你的首页</strong>
-            <span>使用通用效率模板，输入同步码恢复已有首页，或从空白开始。</span>
+        <div className="welcome-template-shell">
+          <section className="welcome-strip" aria-label="新用户启动选项">
+            <div className="welcome-copy">
+              <strong>开始设置你的首页</strong>
+              <span>选择模板生成一个可编辑首页，或输入同步码恢复已有首页。</span>
+            </div>
+            <div className="welcome-actions">
+              <button className="utility-button" type="button" onClick={openSyncCodeSetup}>输入同步码</button>
+              <button className="mini-button" type="button" onClick={dismissWelcome} aria-label="稍后再设置">稍后</button>
+            </div>
+          </section>
+          <div className="welcome-template-panel">
+            <TemplateLibraryPanel
+              actionLabel="使用模板"
+              description="先选一个接近的起点，之后可以在首页直接删改、拖动和添加网站。"
+              title="选择首页模板"
+              onApply={applyTemplate}
+            />
           </div>
-          <div className="welcome-actions">
-            <button className="utility-button" type="button" onClick={keepDefaultTemplate}>使用模板</button>
-            <button className="utility-button" type="button" onClick={openSyncCodeSetup}>输入同步码</button>
-            <button className="utility-button" type="button" onClick={startBlankHome}>空白开始</button>
-            <button className="mini-button" type="button" onClick={dismissWelcome} aria-label="稍后再设置">稍后</button>
-          </div>
-        </section>
+        </div>
       ) : null}
 
       <section className="search-panel" aria-label="搜索和过滤">
