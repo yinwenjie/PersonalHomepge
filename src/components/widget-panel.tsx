@@ -12,6 +12,7 @@ import {
   sortByOrder
 } from "@/domain/home-document";
 import { getWidgetDefinition, WIDGET_DEFINITIONS } from "@/domain/widget-registry";
+import { TodoListWidget } from "@/components/widgets/todo-list-widget";
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
 
 interface WidgetPanelProps {
@@ -39,6 +40,10 @@ export function WidgetPanel({ documentValue, updatedLabel, onCommitDocument }: W
         order: widgetIndex + 1
       })))
     }, message);
+  }
+
+  function updateWidget(nextWidget: HomeWidget, message: string) {
+    commitWidgets(widgets.map((widget) => widget.id === nextWidget.id ? nextWidget : widget), message);
   }
 
   function addWidget(type: HomeWidgetType) {
@@ -211,7 +216,11 @@ export function WidgetPanel({ documentValue, updatedLabel, onCommitDocument }: W
                   </button>
                 </div>
               </div>
-              <WidgetPreview widget={widget} />
+              {widget.type === "todo.list" ? (
+                <TodoListWidget widget={widget} onUpdate={updateWidget} />
+              ) : (
+                <WidgetPreview widget={widget} />
+              )}
             </article>
           )) : (
             <p className="widget-empty">暂无组件</p>
@@ -232,24 +241,6 @@ function getAccountInitial(email?: string): string {
 }
 
 function WidgetPreview({ widget }: { widget: HomeWidget }) {
-  if (widget.type === "todo.list") {
-    const items = readTodoItems(widget.config);
-    const completedCount = items.filter((item) => item.completed).length;
-
-    return (
-      <div className="widget-preview todo-preview">
-        <div>
-          <strong>{items.length}</strong>
-          <span>任务</span>
-        </div>
-        <div>
-          <strong>{completedCount}</strong>
-          <span>完成</span>
-        </div>
-      </div>
-    );
-  }
-
   if (widget.type === "calendar.month") {
     const now = new Date();
     const monthLabel = new Intl.DateTimeFormat("zh-CN", {
@@ -270,14 +261,4 @@ function WidgetPreview({ widget }: { widget: HomeWidget }) {
   }
 
   return null;
-}
-
-function readTodoItems(config: Record<string, unknown>): Array<{ completed: boolean }> {
-  if (!Array.isArray(config.items)) {
-    return [];
-  }
-
-  return config.items
-    .filter((item): item is Record<string, unknown> => Boolean(item && typeof item === "object" && !Array.isArray(item)))
-    .map((item) => ({ completed: Boolean(item.completed) }));
 }

@@ -19,7 +19,7 @@
 
 ### Current Status And Next Plan
 
-截至当前实现，Phase 1.1 到 Phase 1.6.8 已完成，Phase 1.7.0 组件框架与 Widget Registry 已接入。下一步主线是 Phase 1.7.1：Todo List v1。
+截至当前实现，Phase 1.1 到 Phase 1.6.8 已完成，Phase 1.7.0 组件框架与 Widget Registry、Phase 1.7.1 Todo List v1 已接入。下一步主线是 Phase 1.7.2：日历/万年历 v1。
 
 | 阶段 | 当前状态 | 已落地能力 | 后续动作 |
 |---|---|---|---|
@@ -29,7 +29,7 @@
 | Phase 1.4：展示页与设置页优化 | 已完成 | 首页轻量展示、设置页、未分组、首页直编、恢复默认前本地备份 | 后续统一确认弹窗和设置页体验 |
 | Phase 1.5：账号登录与首页空间管理 | 已完成 | Magic Link、Resend SMTP、账号资料、偏好骨架、同步码认领、空间切换、安全收口 | 进入 Phase 1.6，不再扩展本阶段范围 |
 | Phase 1.6：账号托管同步与 Beta 打磨 | 已完成 | Phase 1.6.0 基础迁移已形成；Phase 1.6.1 账号托管空间创建已接入前端；Phase 1.6.1a 恢复默认同步保护已接入；Phase 1.6.2 空白设备账号恢复已接入；Phase 1.6.3 同步码迁移已接入；Phase 1.6.4/1.6.4a 首页空间 CRUD 与删除策略收口已接入；Phase 1.6.5/1.6.5a 同步码入口降级与管理边界补强已接入；Phase 1.6.6 全局偏好编辑已接入；Phase 1.6.7 Beta 状态统一已接入；Phase 1.6.7b 数据导出已接入；Phase 1.6.8 模板库 v1 已接入；Supabase 未配置时设置页中文降级已补齐 | 进入 Phase 1.7，不再扩展本阶段范围 |
-| Phase 1.7：组件开发 | 进行中 | Phase 1.7.0 组件框架与 Widget Registry 已接入：registry、config normalize、组件添加、删除、排序和占位预览 | Phase 1.7.1 Todo List v1 |
+| Phase 1.7：组件开发 | 进行中 | Phase 1.7.0 组件框架与 Widget Registry 已接入：registry、config normalize、组件添加、删除、排序和占位预览；Phase 1.7.1 Todo List v1 已接入：任务新增、勾选、编辑、删除、排序和清除完成 | Phase 1.7.2 日历/万年历 v1 |
 | Phase 1.8：主题与普通个性化 | 已形成候选计划 | 尚未实现 | 主题风格切换、Banner/背景图片、普通级自定义 |
 | Phase 1.9：浏览器收藏/标签导入需求集 | 占位待设计 | 尚未实现 | 作为独立需求集重新设计，暂不细化 |
 | Phase 1.10：正式推出前收口 | 已形成候选计划 | 尚未实现 | 主域名准备、治理优化、数据恢复、审计、设备状态、账号删除 |
@@ -60,15 +60,16 @@
 
 #### Next Implementation Focus
 
-Phase 1.6.8 的模板库 v1 已完成。浏览器收藏/标签导入从 Phase 1.6.9 移出，作为 Phase 1.9 独立需求集重新设计；原 Phase 1.9 正式推出前收口整体后移到 Phase 1.10。Phase 1.7.0 已完成组件框架与 Widget Registry，下一步优先进入 Phase 1.7.1：Todo List v1。
+Phase 1.6.8 的模板库 v1 已完成。浏览器收藏/标签导入从 Phase 1.6.9 移出，作为 Phase 1.9 独立需求集重新设计；原 Phase 1.9 正式推出前收口整体后移到 Phase 1.10。Phase 1.7.0 已完成组件框架与 Widget Registry，Phase 1.7.1 已完成 Todo List v1，下一步优先进入 Phase 1.7.2：日历/万年历 v1。
 
 - 已落地：`空白首页`、`极简起步`、`通用效率`、`工作办公`、`开发者工作台`、`学习研究` 六个静态模板。
 - 已落地：模板生成普通 `HomeDocumentV2`，每次应用生成新的 document/group/site id，不新增 Supabase 表。
 - 已落地：首页首次启动展示模板库；设置页新建账号托管空间可从模板创建，也可继续用当前首页创建。
 - 已落地：设置页在 Supabase 环境变量缺失时显示中文未配置状态，禁用账号和云端同步动作，但不影响本地首页、模板和导入导出。
 - 已落地：Phase 1.7.0 Widget registry 和组件面板，支持 Todo/月历组件添加、删除、上移/下移和占位预览；组件数据写入 `HomeDocumentV2.widgets`，不新增 SQL。
+- 已落地：Phase 1.7.1 Todo List v1，支持任务新增、完成状态、标题编辑、删除、上移/下移、清除已完成；任务数据随 `HomeDocumentV2` 走本地、同步码和账号托管同步。
 - 后续衔接：Phase 1.9 的收藏/标签导入需求集应复用模板库形成的分组/网站结构和预览确认模式，但需要先单独设计大批量导入、清洗、预览和浏览器权限边界。
-- 后续衔接：Phase 1.7.1 在现有 `todo.list` config 上实现任务新增、编辑、完成、删除和排序；Phase 1.7.2 在现有 `calendar.month` config 上实现月视图和日期切换。
+- 后续衔接：Phase 1.7.2 在现有 `calendar.month` config 上实现月视图和日期切换。
 
 Phase 1.9 暂只保留“浏览器收藏/标签导入需求集”占位，不在当前计划中细化实现方案。已知边界：
 
@@ -81,7 +82,7 @@ Phase 1.9 暂只保留“浏览器收藏/标签导入需求集”占位，不在
 | 优先级 | 阶段 | 任务 | 主要用户价值 | 后端/数据改动 | 架构影响 | 复杂度 | 风险 | 关键风险点 |
 |---|---|---|---|---|---|---|---|---|
 | P1 | Phase 1.7.0 | 组件框架与 Widget Registry（已完成） | 为主要组件提供统一注册、渲染、添加、删除和排序基础 | 已写入现有 `HomeDocumentV2.widgets`，无新增 SQL | 首页右侧组件区已接入 registry 驱动的可操作组件列表 | M | Medium | 后续 Todo/日历扩展需继续控制 widgets schema 兼容、同步体积和移动端布局 |
-| P1 | Phase 1.7.1 | Todo List v1 | 首页可承担轻量任务管理 | 无新增 SQL，任务数据进入 widget config | 需要任务增删改、完成状态和排序 | M | Medium | 高频编辑不能破坏现有首页保存和同步 |
+| P1 | Phase 1.7.1 | Todo List v1（已完成） | 首页可承担轻量任务管理 | 无新增 SQL，任务数据进入 widget config，并随完整首页文档同步 | 已实现任务增删改、完成状态、排序和清除完成 | M | Medium | 多设备同时编辑同一 Todo 时仍沿用整份首页文档冲突处理，不做任务级自动合并 |
 | P1 | Phase 1.7.2 | 日历/万年历 v1 | 首页具备日期、月视图和基础日程感知 | 无新增 SQL；先不做复杂日程同步表 | 需要日期本地化、月视图和响应式布局 | M | Medium | 日期语言偏好、移动端空间、后续节假日扩展 |
 | P1 | Phase 1.7.3 | 组件布局与编辑体验 | 用户可添加、删除、排序和配置主要组件 | 无新增 SQL | 需要设置页或首页内组件管理入口 | M-L | Medium | 组件操作不能让首页布局跳动或遮挡核心链接 |
 | P2 | Phase 1.7.4 | 组件默认配置 | 新空间和模板可复用组件偏好 | 可能扩展 `account_preferences` 或使用本地默认配置 | 需要与模板库、widget registry 对齐 | M | Medium | 默认值演进和旧首页兼容 |
