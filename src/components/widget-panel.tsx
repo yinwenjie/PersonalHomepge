@@ -21,7 +21,6 @@ import { CSS } from "@dnd-kit/utilities";
 import { type CSSProperties, type FormEvent, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  createId,
   type HomeDocumentV2,
   type HomeWidget,
   type HomeWidgetType,
@@ -30,6 +29,7 @@ import {
   renumberWidgets,
   sortByOrder
 } from "@/domain/home-document";
+import { createHomeWidget } from "@/domain/home-widget";
 import { getTodoStats, readTodoItems } from "@/domain/todo-widget";
 import { getWidgetDefinition, WIDGET_DEFINITIONS } from "@/domain/widget-registry";
 import { CalendarMonthWidget } from "@/components/widgets/calendar-month-widget";
@@ -96,14 +96,7 @@ export function WidgetPanel({ documentValue, updatedLabel, onCommitDocument }: W
       return;
     }
 
-    const nextWidget: HomeWidget = {
-      id: createId("widget"),
-      type,
-      title: definition.defaultTitle,
-      order: widgets.length + 1,
-      layout: { collapsed: false },
-      config: definition.defaultConfig()
-    };
+    const nextWidget = createHomeWidget(type, { order: widgets.length + 1 });
 
     commitWidgets([...widgets, nextWidget], "组件已添加");
     setPickerOpen(false);

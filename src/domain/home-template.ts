@@ -5,6 +5,11 @@ import {
   type HomeDocumentV2,
   normalizeHomeDocument
 } from "@/domain/home-document";
+import {
+  createHomeWidgetsFromPresets,
+  getWidgetPresetTitle,
+  type HomeWidgetPreset
+} from "@/domain/home-widget";
 
 export type HomeTemplateId =
   | "blank"
@@ -27,6 +32,8 @@ export interface HomeTemplateGroupSpec {
   sites: HomeTemplateSiteSpec[];
 }
 
+export type HomeTemplateWidgetSpec = HomeWidgetPreset;
+
 export interface HomeTemplate {
   id: HomeTemplateId;
   name: string;
@@ -35,12 +42,15 @@ export interface HomeTemplate {
   recommendedSpaceName: string;
   accent: string;
   groups: HomeTemplateGroupSpec[];
+  widgets: HomeTemplateWidgetSpec[];
 }
 
 export interface HomeTemplateSummary {
   groupCount: number;
   siteCount: number;
+  widgetCount: number;
   sampleSites: string[];
+  sampleWidgets: string[];
 }
 
 export const HOME_TEMPLATES: HomeTemplate[] = [
@@ -51,7 +61,8 @@ export const HOME_TEMPLATES: HomeTemplate[] = [
     summary: "不预设任何网站，只保留一个干净的编辑起点。",
     recommendedSpaceName: "空白首页",
     accent: "#64748b",
-    groups: []
+    groups: [],
+    widgets: []
   },
   {
     id: "minimal",
@@ -81,6 +92,9 @@ export const HOME_TEMPLATES: HomeTemplate[] = [
           site("Notion", "https://www.notion.so/", "notes docs workspace", "N")
         ]
       }
+    ],
+    widgets: [
+      widget("calendar.month")
     ]
   },
   {
@@ -133,6 +147,10 @@ export const HOME_TEMPLATES: HomeTemplate[] = [
           site("Google Maps", "https://www.google.com/maps", "maps navigation places", "GM")
         ]
       }
+    ],
+    widgets: [
+      widget("todo.list"),
+      widget("calendar.month")
     ]
   },
   {
@@ -191,6 +209,10 @@ export const HOME_TEMPLATES: HomeTemplate[] = [
           site("Salesforce", "https://www.salesforce.com/", "crm sales business", "SF")
         ]
       }
+    ],
+    widgets: [
+      widget("todo.list", "工作待办"),
+      widget("calendar.month")
     ]
   },
   {
@@ -242,6 +264,10 @@ export const HOME_TEMPLATES: HomeTemplate[] = [
           site("AWS", "https://aws.amazon.com/", "cloud amazon", "AWS")
         ]
       }
+    ],
+    widgets: [
+      widget("todo.list", "开发任务"),
+      widget("calendar.month")
     ]
   },
   {
@@ -291,6 +317,10 @@ export const HOME_TEMPLATES: HomeTemplate[] = [
           site("Zotero", "https://www.zotero.org/", "reference manager citations", "ZT")
         ]
       }
+    ],
+    widgets: [
+      widget("todo.list", "学习计划"),
+      widget("calendar.month")
     ]
   }
 ];
@@ -306,11 +336,14 @@ export function getHomeTemplate(templateId: HomeTemplateId): HomeTemplate {
 
 export function summarizeHomeTemplate(template: HomeTemplate): HomeTemplateSummary {
   const siteNames = template.groups.flatMap((group) => group.sites.map((siteSpec) => siteSpec.name));
+  const widgetNames = template.widgets.map(getWidgetPresetTitle);
 
   return {
     groupCount: template.groups.length,
     siteCount: siteNames.length,
-    sampleSites: siteNames.slice(0, 4)
+    widgetCount: widgetNames.length,
+    sampleSites: siteNames.slice(0, 4),
+    sampleWidgets: widgetNames.slice(0, 3)
   };
 }
 
@@ -338,7 +371,7 @@ export function createHomeDocumentFromTemplate(templateId: HomeTemplateId): Home
         order: siteIndex + 1
       }))
     })),
-    widgets: [],
+    widgets: createHomeWidgetsFromPresets(template.widgets),
     theme: {
       ...baseDocument.theme,
       accent: template.accent
@@ -349,4 +382,8 @@ export function createHomeDocumentFromTemplate(templateId: HomeTemplateId): Home
 
 function site(name: string, url: string, keywords: string, mark?: string): HomeTemplateSiteSpec {
   return { name, url, keywords, mark };
+}
+
+function widget(type: HomeTemplateWidgetSpec["type"], title?: string): HomeTemplateWidgetSpec {
+  return { type, title };
 }

@@ -70,8 +70,9 @@ function TemplateCard({
   onApply: (template: HomeTemplate) => void;
 }) {
   const summary = summarizeHomeTemplate(template);
-  const metricText = `${summary.groupCount} 个分组 · ${summary.siteCount} 个网站`;
+  const metricText = `${summary.groupCount} 个分组 · ${summary.siteCount} 个网站 · ${summary.widgetCount} 个组件`;
   const sampleText = summary.sampleSites.length > 0 ? summary.sampleSites.join(" / ") : "不预设网站";
+  const widgetText = summary.sampleWidgets.length > 0 ? `组件：${summary.sampleWidgets.join(" / ")}` : "组件：不预设";
 
   return (
     <article className={`template-card${selected ? " is-selected" : ""}`}>
@@ -85,6 +86,7 @@ function TemplateCard({
       <div className="template-card-meta">
         <span>{metricText}</span>
         <span>{sampleText}</span>
+        <span>{widgetText}</span>
       </div>
       <button
         className="utility-button"
