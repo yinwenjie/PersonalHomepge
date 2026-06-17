@@ -218,7 +218,11 @@ export function HomeDashboard() {
           onDeleteSite={deleteSite}
         />
 
-        <WidgetPanel documentValue={homeDocument} updatedLabel={updatedLabel} />
+        <WidgetPanel
+          documentValue={homeDocument}
+          updatedLabel={updatedLabel}
+          onCommitDocument={commitHomeDocument}
+        />
       </div>
 
       {editor ? (

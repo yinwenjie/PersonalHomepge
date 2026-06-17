@@ -1,3 +1,9 @@
+import {
+  isWidgetType,
+  normalizeWidgetConfig,
+  WIDGET_REGISTRY
+} from "@/domain/widget-registry";
+
 export const HOME_DOCUMENT_VERSION = 2;
 export const SYNC_REVISION_MAX = 999;
 export const V1_STORAGE_KEY = "homepage:data:v1";
@@ -92,11 +98,6 @@ const DEFAULT_SYNC_META: HomeSyncMeta = {
 const DEFAULT_BILLING_META: HomeBillingMeta = {
   plan: "free",
   stripeCustomerId: null
-};
-
-export const WIDGET_REGISTRY: Record<HomeWidgetType, { title: string }> = {
-  "calendar.month": { title: "月历" },
-  "todo.list": { title: "Todo" }
 };
 
 export const DEFAULT_HOME_DOCUMENT_V2: HomeDocumentV2 = {
@@ -309,6 +310,13 @@ export function renumberSites(sites: HomeSite[]): HomeSite[] {
   }));
 }
 
+export function renumberWidgets(widgets: HomeWidget[]): HomeWidget[] {
+  return sortByOrder(widgets).map((widget, widgetIndex) => ({
+    ...widget,
+    order: widgetIndex + 1
+  }));
+}
+
 export function validateHomeDocument(input: unknown): input is HomeDocumentV2 {
   if (!isRecord(input)) {
     return false;
@@ -422,16 +430,34 @@ function normalizeWidgets(input: unknown): HomeWidget[] {
     return [];
   }
 
-  return input
+  const normalizedWidgets = input
     .filter((widget): widget is Record<string, unknown> => isRecord(widget) && isWidgetType(widget.type))
     .map((widget, widgetIndex) => ({
       id: normalizeText(widget.id) || createId("widget"),
       type: widget.type as HomeWidgetType,
-      title: normalizeText(widget.title) || WIDGET_REGISTRY[widget.type as HomeWidgetType].title,
+      title: normalizeText(widget.title) || WIDGET_REGISTRY[widget.type as HomeWidgetType].defaultTitle,
       order: Number.isFinite(Number(widget.order)) ? Number(widget.order) : widgetIndex + 1,
-      config: isRecord(widget.config) ? widget.config : {}
+      config: normalizeWidgetConfig(widget.type as HomeWidgetType, widget.config)
     }))
-    .sort((a, b) => a.order - b.order)
+    .sort((a, b) => a.order - b.order);
+
+  const seenSingletonTypes = new Set<HomeWidgetType>();
+
+  return normalizedWidgets
+    .filter((widget) => {
+      const definition = WIDGET_REGISTRY[widget.type];
+
+      if (definition.allowMultiple) {
+        return true;
+      }
+
+      if (seenSingletonTypes.has(widget.type)) {
+        return false;
+      }
+
+      seenSingletonTypes.add(widget.type);
+      return true;
+    })
     .map((widget, widgetIndex) => ({ ...widget, order: widgetIndex + 1 }));
 }
 
@@ -470,10 +496,6 @@ function normalizeSyncMeta(input: unknown): HomeSyncMeta {
       : null,
     lastSyncedAt: mode === "sync-code" ? normalizeText(input.lastSyncedAt) || null : null
   };
-}
-
-function isWidgetType(value: unknown): value is HomeWidgetType {
-  return value === "calendar.month" || value === "todo.list";
 }
 
 function isSyncStatus(value: unknown): value is SyncStatus {

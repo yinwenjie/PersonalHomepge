@@ -245,7 +245,7 @@ Phase 1 暂不做：
 ### Phase 1.7
 
 - 专注组件开发，让首页从链接集合升级为可用的轻量工作台。
-- 建立 Widget registry、组件渲染、组件编辑和排序流程。
+- Phase 1.7.0 已建立 Widget registry、组件渲染、添加、删除和排序流程；组件数据继续进入 `HomeDocumentV2.widgets`，无新增 SQL。
 - 实现 Todo List v1。
 - 实现日历/万年历 v1。
 - 组件默认配置。
