@@ -12,6 +12,7 @@ import {
   sortByOrder
 } from "@/domain/home-document";
 import { getWidgetDefinition, WIDGET_DEFINITIONS } from "@/domain/widget-registry";
+import { CalendarMonthWidget } from "@/components/widgets/calendar-month-widget";
 import { TodoListWidget } from "@/components/widgets/todo-list-widget";
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
 
@@ -218,8 +219,10 @@ export function WidgetPanel({ documentValue, updatedLabel, onCommitDocument }: W
               </div>
               {widget.type === "todo.list" ? (
                 <TodoListWidget widget={widget} onUpdate={updateWidget} />
+              ) : widget.type === "calendar.month" ? (
+                <CalendarMonthWidget widget={widget} onUpdate={updateWidget} />
               ) : (
-                <WidgetPreview widget={widget} />
+                null
               )}
             </article>
           )) : (
@@ -238,27 +241,4 @@ function getAccountInitial(email?: string): string {
   }
 
   return value.slice(0, 1).toUpperCase();
-}
-
-function WidgetPreview({ widget }: { widget: HomeWidget }) {
-  if (widget.type === "calendar.month") {
-    const now = new Date();
-    const monthLabel = new Intl.DateTimeFormat("zh-CN", {
-      month: "long",
-      year: "numeric"
-    }).format(now);
-    const dayLabel = new Intl.DateTimeFormat("zh-CN", {
-      day: "2-digit",
-      weekday: "short"
-    }).format(now);
-
-    return (
-      <div className="widget-preview calendar-preview">
-        <span>{monthLabel}</span>
-        <strong>{dayLabel}</strong>
-      </div>
-    );
-  }
-
-  return null;
 }

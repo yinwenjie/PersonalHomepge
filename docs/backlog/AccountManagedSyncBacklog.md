@@ -174,6 +174,8 @@ Phase 1.7.0 已接入 Widget registry 和组件面板增删排序，组件仍随
 
 Phase 1.7.1 已接入 Todo List v1，任务数据内嵌在 `todo.list` widget config 中，继续随完整首页文档加密同步；本阶段不新增任务表、不暴露 Todo 明文给 Supabase。
 
+Phase 1.7.2 已接入日历/万年历 v1，周起始配置内嵌在 `calendar.month` widget config 中，继续随完整首页文档加密同步；翻月状态只保留在本地 UI，不新增日程表或外部日历授权。
+
 ### Phase 1.8
 
 Phase 1.8 聚焦主题和普通级个性化。账号托管同步在本阶段需要重点验证 Banner、背景图片和主题字段不会泄露 secret，也不会破坏空白设备账号恢复。

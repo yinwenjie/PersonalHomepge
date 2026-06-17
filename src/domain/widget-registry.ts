@@ -1,4 +1,5 @@
 import type { HomeWidgetType } from "@/domain/home-document";
+import { normalizeCalendarConfig } from "@/domain/calendar-widget";
 import { normalizeTodoConfig } from "@/domain/todo-widget";
 
 export interface WidgetDefinition {
@@ -46,13 +47,4 @@ export function getWidgetDefinition(type: HomeWidgetType): WidgetDefinition {
 
 export function normalizeWidgetConfig(type: HomeWidgetType, input: unknown): Record<string, unknown> {
   return getWidgetDefinition(type).normalizeConfig(input);
-}
-
-function normalizeCalendarConfig(input: unknown): Record<string, unknown> {
-  const weekStartsOn = isRecord(input) && Number(input.weekStartsOn) === 0 ? 0 : 1;
-  return { weekStartsOn };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
