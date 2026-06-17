@@ -45,7 +45,12 @@ export interface HomeWidget {
   type: HomeWidgetType;
   title: string;
   order: number;
+  layout: HomeWidgetLayout;
   config: Record<string, unknown>;
+}
+
+export interface HomeWidgetLayout {
+  collapsed: boolean;
 }
 
 export interface HomeTheme {
@@ -98,6 +103,10 @@ const DEFAULT_SYNC_META: HomeSyncMeta = {
 const DEFAULT_BILLING_META: HomeBillingMeta = {
   plan: "free",
   stripeCustomerId: null
+};
+
+const DEFAULT_WIDGET_LAYOUT: HomeWidgetLayout = {
+  collapsed: false
 };
 
 export const DEFAULT_HOME_DOCUMENT_V2: HomeDocumentV2 = {
@@ -437,6 +446,7 @@ function normalizeWidgets(input: unknown): HomeWidget[] {
       type: widget.type as HomeWidgetType,
       title: normalizeText(widget.title) || WIDGET_REGISTRY[widget.type as HomeWidgetType].defaultTitle,
       order: Number.isFinite(Number(widget.order)) ? Number(widget.order) : widgetIndex + 1,
+      layout: normalizeWidgetLayout(widget.layout),
       config: normalizeWidgetConfig(widget.type as HomeWidgetType, widget.config)
     }))
     .sort((a, b) => a.order - b.order);
@@ -459,6 +469,16 @@ function normalizeWidgets(input: unknown): HomeWidget[] {
       return true;
     })
     .map((widget, widgetIndex) => ({ ...widget, order: widgetIndex + 1 }));
+}
+
+function normalizeWidgetLayout(input: unknown): HomeWidgetLayout {
+  if (!isRecord(input)) {
+    return DEFAULT_WIDGET_LAYOUT;
+  }
+
+  return {
+    collapsed: Boolean(input.collapsed)
+  };
 }
 
 function normalizeTheme(input: unknown): HomeTheme {

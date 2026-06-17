@@ -793,7 +793,11 @@ h1 {
 .danger-button:focus-visible,
 .site-action-toggle:focus-visible,
 .site-menu-button:focus-visible,
-.drag-handle:focus-visible {
+.drag-handle:focus-visible,
+.widget-add-button:focus-visible,
+.widget-manage-button:focus-visible,
+.widget-drag-handle:focus-visible,
+.widget-title-input:focus-visible {
   outline: 3px solid rgba(36, 107, 254, 0.18);
   outline-offset: 2px;
 }
@@ -1164,6 +1168,27 @@ h1 {
   font-size: 12px;
 }
 
+.widget-panel-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+}
+
+.widget-manage-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--glass-bg-soft);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 620;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+}
+
 .widget-add-button {
   display: inline-grid;
   place-items: center;
@@ -1180,7 +1205,10 @@ h1 {
 }
 
 .widget-add-button:hover,
-.widget-add-button:focus-visible {
+.widget-add-button:focus-visible,
+.widget-manage-button:hover,
+.widget-manage-button:focus-visible,
+.widget-manage-button.is-active {
   border-color: var(--line-strong);
   background: var(--accent-soft);
   color: var(--accent);
@@ -1228,24 +1256,36 @@ h1 {
 }
 
 .widget-card {
+  position: relative;
   display: grid;
   gap: 10px;
   padding: 10px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface-soft);
+  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
+}
+
+.widget-card.is-managing {
+  border-color: var(--line-strong);
+  background: var(--glass-bg);
+}
+
+.widget-card.is-dragging {
+  opacity: 0.58;
 }
 
 .widget-card-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
 }
 
 .widget-card-copy {
   display: grid;
   gap: 2px;
+  flex: 1 1 auto;
   min-width: 0;
 }
 
@@ -1265,6 +1305,29 @@ h1 {
   gap: 4px;
 }
 
+.widget-drag-handle {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 28px;
+  min-height: 28px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--glass-bg-soft);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+  touch-action: none;
+}
+
+.widget-drag-handle:hover,
+.widget-drag-handle:focus-visible {
+  border-color: var(--line-strong);
+  background: var(--surface);
+  color: var(--accent);
+}
+
 .widget-card-actions .mini-button {
   width: 28px;
   min-height: 28px;
@@ -1272,12 +1335,54 @@ h1 {
   font-size: 13px;
 }
 
-.widget-preview {
-  display: grid;
-  min-height: 54px;
-  border: 1px solid var(--line);
+.widget-title-form {
+  min-width: 0;
+}
+
+.widget-title-input {
+  width: 100%;
+  min-width: 0;
+  height: 28px;
+  border: 1px solid transparent;
   border-radius: var(--radius);
-  background: var(--glass-bg);
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 680;
+  letter-spacing: 0;
+  outline: none;
+  padding: 0 7px;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.widget-title-input:focus {
+  border-color: var(--line-strong);
+  background: var(--surface);
+}
+
+.widget-collapsed-summary {
+  min-height: 34px;
+  margin: 0;
+  padding: 8px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.widget-drag-overlay {
+  display: grid;
+  min-width: 140px;
+  min-height: 38px;
+  place-items: center;
+  padding: 8px 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 640;
 }
 
 .todo-widget {

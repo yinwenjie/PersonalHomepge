@@ -1,6 +1,24 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import {
+  closestCenter,
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors
+} from "@dnd-kit/core";
+import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { type CSSProperties, type FormEvent, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   createId,
@@ -8,9 +26,11 @@ import {
   type HomeWidget,
   type HomeWidgetType,
   isUngroupedGroup,
+  normalizeText,
   renumberWidgets,
   sortByOrder
 } from "@/domain/home-document";
+import { getTodoStats, readTodoItems } from "@/domain/todo-widget";
 import { getWidgetDefinition, WIDGET_DEFINITIONS } from "@/domain/widget-registry";
 import { CalendarMonthWidget } from "@/components/widgets/calendar-month-widget";
 import { TodoListWidget } from "@/components/widgets/todo-list-widget";
@@ -22,12 +42,33 @@ interface WidgetPanelProps {
   onCommitDocument: (documentValue: HomeDocumentV2, message?: string) => void;
 }
 
+interface SortableWidgetCardProps {
+  widget: HomeWidget;
+  widgetIndex: number;
+  widgetsLength: number;
+  manageMode: boolean;
+  onDeleteWidget: (widgetId: string) => void;
+  onMoveWidget: (widgetId: string, direction: -1 | 1) => void;
+  onRenameWidget: (widgetId: string, title: string) => void;
+  onToggleCollapsed: (widgetId: string) => void;
+  onUpdateWidget: (nextWidget: HomeWidget, message: string) => void;
+}
+
+const widgetDragId = (widgetId: string) => `widget:${widgetId}`;
+
 export function WidgetPanel({ documentValue, updatedLabel, onCommitDocument }: WidgetPanelProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [manageMode, setManageMode] = useState(false);
+  const [activeWidgetId, setActiveWidgetId] = useState<string | null>(null);
   const siteCount = documentValue.groups.reduce((sum, group) => sum + group.sites.length, 0);
   const groupCount = documentValue.groups.filter((group) => !isUngroupedGroup(group)).length;
   const widgets = useMemo(() => sortByOrder(documentValue.widgets), [documentValue.widgets]);
   const widgetTypes = useMemo(() => new Set(widgets.map((widget) => widget.type)), [widgets]);
+  const activeWidget = useMemo(() => widgets.find((widget) => widget.id === activeWidgetId) ?? null, [activeWidgetId, widgets]);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
   const { user, loading } = useSupabaseAuth();
   const accountLabel = user?.email ?? "Local";
   const accountSub = loading ? "读取账号状态" : user ? "账号已登录" : "本地模式";
@@ -60,11 +101,20 @@ export function WidgetPanel({ documentValue, updatedLabel, onCommitDocument }: W
       type,
       title: definition.defaultTitle,
       order: widgets.length + 1,
+      layout: { collapsed: false },
       config: definition.defaultConfig()
     };
 
     commitWidgets([...widgets, nextWidget], "组件已添加");
     setPickerOpen(false);
+  }
+
+  function toggleManageMode() {
+    if (manageMode) {
+      setPickerOpen(false);
+    }
+
+    setManageMode((current) => !current);
   }
 
   function moveWidget(widgetId: string, direction: -1 | 1) {
@@ -75,13 +125,29 @@ export function WidgetPanel({ documentValue, updatedLabel, onCommitDocument }: W
       return;
     }
 
-    const nextWidgets = [...widgets];
-    const currentWidget = nextWidgets[widgetIndex];
-    const targetWidget = nextWidgets[targetIndex];
+    commitWidgets(arrayMove(widgets, widgetIndex, targetIndex), "组件顺序已更新");
+  }
 
-    nextWidgets[widgetIndex] = targetWidget;
-    nextWidgets[targetIndex] = currentWidget;
-    commitWidgets(nextWidgets, "组件顺序已更新");
+  function renameWidget(widgetId: string, title: string) {
+    const widget = widgets.find((item) => item.id === widgetId);
+    if (!widget || widget.title === title) {
+      return;
+    }
+
+    commitWidgets(widgets.map((item) => item.id === widgetId ? { ...item, title } : item), "组件标题已更新");
+  }
+
+  function toggleWidgetCollapsed(widgetId: string) {
+    commitWidgets(widgets.map((widget) => widget.id === widgetId
+      ? {
+        ...widget,
+        layout: {
+          ...widget.layout,
+          collapsed: !widget.layout.collapsed
+        }
+      }
+      : widget
+    ), "组件布局已更新");
   }
 
   function deleteWidget(widgetId: string) {
@@ -95,6 +161,29 @@ export function WidgetPanel({ documentValue, updatedLabel, onCommitDocument }: W
     }
 
     commitWidgets(widgets.filter((item) => item.id !== widgetId), "组件已删除");
+  }
+
+  function handleDragStart(event: DragStartEvent) {
+    setActiveWidgetId(readWidgetIdFromDragId(event.active.id));
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    const activeId = readWidgetIdFromDragId(event.active.id);
+    const overId = readWidgetIdFromDragId(event.over?.id);
+    setActiveWidgetId(null);
+
+    if (!manageMode || !activeId || !overId || activeId === overId) {
+      return;
+    }
+
+    const activeIndex = widgets.findIndex((widget) => widget.id === activeId);
+    const overIndex = widgets.findIndex((widget) => widget.id === overId);
+
+    if (activeIndex < 0 || overIndex < 0 || activeIndex === overIndex) {
+      return;
+    }
+
+    commitWidgets(arrayMove(widgets, activeIndex, overIndex), "组件顺序已更新");
   }
 
   return (
@@ -137,22 +226,33 @@ export function WidgetPanel({ documentValue, updatedLabel, onCommitDocument }: W
         <p className="updated-line">更新于 {updatedLabel}</p>
       </section>
 
-      <section className="widget-panel">
+      <section className={`widget-panel ${manageMode ? "is-managing" : ""}`}>
         <div className="panel-header">
           <div>
             <h2>组件</h2>
-            <span>{widgets.length} active</span>
+            <span>{widgets.length} 个组件</span>
           </div>
-          <button
-            className="widget-add-button"
-            type="button"
-            aria-expanded={pickerOpen}
-            aria-label="添加组件"
-            title="添加组件"
-            onClick={() => setPickerOpen((current) => !current)}
-          >
-            +
-          </button>
+          <div className="widget-panel-actions">
+            <button
+              className={`widget-manage-button ${manageMode ? "is-active" : ""}`}
+              type="button"
+              aria-pressed={manageMode}
+              title={manageMode ? "完成组件管理" : "管理组件"}
+              onClick={toggleManageMode}
+            >
+              {manageMode ? "完成" : "管理"}
+            </button>
+            <button
+              className="widget-add-button"
+              type="button"
+              aria-expanded={pickerOpen}
+              aria-label="添加组件"
+              title="添加组件"
+              onClick={() => setPickerOpen((current) => !current)}
+            >
+              +
+            </button>
+          </div>
         </div>
 
         {pickerOpen ? (
@@ -177,61 +277,235 @@ export function WidgetPanel({ documentValue, updatedLabel, onCommitDocument }: W
           </div>
         ) : null}
 
-        <div className="widget-list">
-          {widgets.length > 0 ? widgets.map((widget, widgetIndex) => (
-            <article className="widget-card" key={widget.id}>
-              <div className="widget-card-head">
-                <div className="widget-card-copy">
-                  <strong>{widget.title}</strong>
-                  <span>{getWidgetDefinition(widget.type).description}</span>
-                </div>
-                <div className="widget-card-actions">
-                  <button
-                    className="mini-button"
-                    type="button"
-                    disabled={widgetIndex === 0}
-                    aria-label={`上移${widget.title}`}
-                    title="上移"
-                    onClick={() => moveWidget(widget.id, -1)}
-                  >
-                    ↑
-                  </button>
-                  <button
-                    className="mini-button"
-                    type="button"
-                    disabled={widgetIndex === widgets.length - 1}
-                    aria-label={`下移${widget.title}`}
-                    title="下移"
-                    onClick={() => moveWidget(widget.id, 1)}
-                  >
-                    ↓
-                  </button>
-                  <button
-                    className="mini-button"
-                    type="button"
-                    aria-label={`删除${widget.title}`}
-                    title="删除"
-                    onClick={() => deleteWidget(widget.id)}
-                  >
-                    ×
-                  </button>
-                </div>
-              </div>
-              {widget.type === "todo.list" ? (
-                <TodoListWidget widget={widget} onUpdate={updateWidget} />
-              ) : widget.type === "calendar.month" ? (
-                <CalendarMonthWidget widget={widget} onUpdate={updateWidget} />
-              ) : (
-                null
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={() => setActiveWidgetId(null)}
+        >
+          <SortableContext items={widgets.map((widget) => widgetDragId(widget.id))} strategy={verticalListSortingStrategy}>
+            <div className="widget-list">
+              {widgets.length > 0 ? widgets.map((widget, widgetIndex) => (
+                <SortableWidgetCard
+                  key={widget.id}
+                  widget={widget}
+                  widgetIndex={widgetIndex}
+                  widgetsLength={widgets.length}
+                  manageMode={manageMode}
+                  onDeleteWidget={deleteWidget}
+                  onMoveWidget={moveWidget}
+                  onRenameWidget={renameWidget}
+                  onToggleCollapsed={toggleWidgetCollapsed}
+                  onUpdateWidget={updateWidget}
+                />
+              )) : (
+                <p className="widget-empty">暂无组件</p>
               )}
-            </article>
-          )) : (
-            <p className="widget-empty">暂无组件</p>
-          )}
-        </div>
+            </div>
+          </SortableContext>
+          <DragOverlay>
+            {activeWidget ? (
+              <div className="widget-drag-overlay">{activeWidget.title}</div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       </section>
     </aside>
   );
+}
+
+function SortableWidgetCard({
+  widget,
+  widgetIndex,
+  widgetsLength,
+  manageMode,
+  onDeleteWidget,
+  onMoveWidget,
+  onRenameWidget,
+  onToggleCollapsed,
+  onUpdateWidget
+}: SortableWidgetCardProps) {
+  const definition = getWidgetDefinition(widget.type);
+  const [titleDraftState, setTitleDraftState] = useState({
+    sourceTitle: widget.title,
+    value: widget.title,
+    widgetId: widget.id
+  });
+  const collapsed = widget.layout.collapsed;
+  const titleDraft = titleDraftState.widgetId === widget.id && titleDraftState.sourceTitle === widget.title
+    ? titleDraftState.value
+    : widget.title;
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({
+    id: widgetDragId(widget.id),
+    data: { kind: "widget", widgetId: widget.id },
+    disabled: !manageMode || widgetsLength < 2
+  });
+  const style: CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition
+  };
+
+  function commitTitle() {
+    const nextTitle = normalizeText(titleDraft) || definition.defaultTitle;
+    setTitleDraftState({
+      sourceTitle: widget.title,
+      value: nextTitle,
+      widgetId: widget.id
+    });
+    onRenameWidget(widget.id, nextTitle);
+  }
+
+  function handleTitleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    event.currentTarget.querySelector("input")?.blur();
+  }
+
+  return (
+    <article
+      ref={setNodeRef}
+      className={[
+        "widget-card",
+        manageMode ? "is-managing" : "",
+        collapsed ? "is-collapsed" : "",
+        isDragging ? "is-dragging" : ""
+      ].filter(Boolean).join(" ")}
+      style={style}
+    >
+      <div className="widget-card-head">
+        {manageMode ? (
+          <button
+            className="widget-drag-handle"
+            type="button"
+            disabled={widgetsLength < 2}
+            aria-label={`拖动${widget.title}排序`}
+            title="拖动排序"
+            {...attributes}
+            {...listeners}
+          >
+            ↕
+          </button>
+        ) : null}
+        <div className="widget-card-copy">
+          {manageMode ? (
+            <form className="widget-title-form" onSubmit={handleTitleSubmit}>
+              <input
+                className="widget-title-input"
+                value={titleDraft}
+                aria-label={`${widget.title}标题`}
+                onBlur={commitTitle}
+                onChange={(event) => setTitleDraftState({
+                  sourceTitle: widget.title,
+                  value: event.target.value,
+                  widgetId: widget.id
+                })}
+              />
+            </form>
+          ) : (
+            <strong>{widget.title}</strong>
+          )}
+          <span>{definition.description}</span>
+        </div>
+        <div className="widget-card-actions">
+          <button
+            className="mini-button"
+            type="button"
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? `展开${widget.title}` : `折叠${widget.title}`}
+            title={collapsed ? "展开" : "折叠"}
+            onClick={() => onToggleCollapsed(widget.id)}
+          >
+            {collapsed ? "▾" : "▴"}
+          </button>
+          {manageMode ? (
+            <>
+              <button
+                className="mini-button"
+                type="button"
+                disabled={widgetIndex === 0}
+                aria-label={`上移${widget.title}`}
+                title="上移"
+                onClick={() => onMoveWidget(widget.id, -1)}
+              >
+                ↑
+              </button>
+              <button
+                className="mini-button"
+                type="button"
+                disabled={widgetIndex === widgetsLength - 1}
+                aria-label={`下移${widget.title}`}
+                title="下移"
+                onClick={() => onMoveWidget(widget.id, 1)}
+              >
+                ↓
+              </button>
+              <button
+                className="mini-button"
+                type="button"
+                aria-label={`删除${widget.title}`}
+                title="删除"
+                onClick={() => onDeleteWidget(widget.id)}
+              >
+                ×
+              </button>
+            </>
+          ) : null}
+        </div>
+      </div>
+      {collapsed ? (
+        <p className="widget-collapsed-summary">{getWidgetCollapsedSummary(widget)}</p>
+      ) : (
+        <WidgetContent widget={widget} onUpdateWidget={onUpdateWidget} />
+      )}
+    </article>
+  );
+}
+
+function WidgetContent({
+  widget,
+  onUpdateWidget
+}: {
+  widget: HomeWidget;
+  onUpdateWidget: (nextWidget: HomeWidget, message: string) => void;
+}) {
+  if (widget.type === "todo.list") {
+    return <TodoListWidget widget={widget} onUpdate={onUpdateWidget} />;
+  }
+
+  if (widget.type === "calendar.month") {
+    return <CalendarMonthWidget widget={widget} onUpdate={onUpdateWidget} />;
+  }
+
+  return null;
+}
+
+function getWidgetCollapsedSummary(widget: HomeWidget): string {
+  if (widget.type === "todo.list") {
+    const stats = getTodoStats(readTodoItems(widget.config));
+    if (stats.total === 0) {
+      return "暂无任务";
+    }
+
+    return `${stats.active} 项待办 / ${stats.total} 项任务`;
+  }
+
+  if (widget.type === "calendar.month") {
+    return "月历已折叠，展开查看本月";
+  }
+
+  return "组件已折叠";
+}
+
+function readWidgetIdFromDragId(value: unknown): string | null {
+  const id = String(value ?? "");
+  return id.startsWith("widget:") ? id.slice("widget:".length) : null;
 }
 
 function getAccountInitial(email?: string): string {
