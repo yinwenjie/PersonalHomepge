@@ -95,7 +95,7 @@ Account
 | 全局设置 | 同步语言 | 换设备后语言一致 | account preferences 保存 `locale` | P1 | Phase 1.6 |
 | 全局设置 | 同步字体 | 保持阅读与展示偏好 | font family、size、density | P1 | Phase 1.6 |
 | 全局设置 | 同步主题风格 | 多空间共享审美偏好 | accent、density、theme mode、背景策略 | P1 | Phase 1.6 |
-| 全局设置 | 默认搜索引擎 | 用户个性化搜索入口 | DuckDuckGo、Google、Bing、Baidu 等 | P1 | Phase 1.6 |
+| 全局设置 | 默认搜索引擎 | 用户个性化搜索入口 | DuckDuckGo、Google、Bing、Yandex 等 | P1 | Phase 1.6 |
 | 全局设置 | 组件默认配置 | 新空间复用偏好 | widget registry 默认 config | P2 | Phase 1.7 |
 | 全局设置 | 主题与普通个性化 | 用户可切换主题风格、Banner 和背景图片 | 复用 `HomeDocumentV2.theme`，图片能力视存储方案扩展 | P1 | Phase 1.8 |
 | 安全 | RLS 隔离 | 防止越权读写 | 所有账号表基于 `auth.uid()` policy | P0 | Phase 1.5 |

@@ -1,6 +1,7 @@
 -- Verify Phase 1.6.6 editable account preferences.
 -- Run this file in Supabase Dashboard SQL Editor after:
 -- - supabase/migrations/010_account_preferences_editing.sql
+-- - supabase/migrations/011_account_preferences_search_engine_yandex.sql
 
 -- 1. New account preference columns should exist with expected defaults.
 select
@@ -42,7 +43,7 @@ where conrelid = 'public.account_preferences'::regclass
   )
 order by conname;
 
--- Expected: five rows, each limiting values to the Phase 1.6.6 allowed set.
+-- Expected: five rows, each limiting values to the current allowed set.
 
 -- 3. RLS should remain enabled.
 select
@@ -119,7 +120,7 @@ select
   count(*) filter (where theme_preference not in ('system', 'light', 'dark')) as invalid_theme_count,
   count(*) filter (where font_family not in ('system', 'serif', 'mono')) as invalid_font_count,
   count(*) filter (where density not in ('comfortable', 'compact')) as invalid_density_count,
-  count(*) filter (where default_search_engine not in ('duckduckgo', 'google', 'bing', 'baidu')) as invalid_search_engine_count
+  count(*) filter (where default_search_engine not in ('duckduckgo', 'google', 'bing', 'yandex')) as invalid_search_engine_count
 from public.account_preferences;
 
 -- Expected: all counts = 0.

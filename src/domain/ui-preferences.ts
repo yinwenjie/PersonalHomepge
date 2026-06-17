@@ -4,7 +4,7 @@ export type LocalePreference = "zh-CN" | "en-US";
 export type ThemePreference = "system" | "light" | "dark";
 export type FontFamilyPreference = "system" | "serif" | "mono";
 export type DensityPreference = "comfortable" | "compact";
-export type SearchEnginePreference = "duckduckgo" | "google" | "bing" | "baidu";
+export type SearchEnginePreference = "duckduckgo" | "google" | "bing" | "yandex";
 
 export interface UiPreferences {
   locale: LocalePreference;
@@ -48,7 +48,7 @@ export const SEARCH_ENGINE_OPTIONS: Array<{ value: SearchEnginePreference; label
   { value: "duckduckgo", label: "DuckDuckGo" },
   { value: "google", label: "Google" },
   { value: "bing", label: "Bing" },
-  { value: "baidu", label: "Baidu" }
+  { value: "yandex", label: "Yandex" }
 ];
 
 export function normalizeUiPreferences(input: Partial<Record<keyof UiPreferences, unknown>> | null | undefined): UiPreferences {
@@ -76,8 +76,8 @@ export function buildSearchUrl(searchEngine: SearchEnginePreference, keyword: st
     return `https://www.bing.com/search?q=${query}`;
   }
 
-  if (searchEngine === "baidu") {
-    return `https://www.baidu.com/s?wd=${query}`;
+  if (searchEngine === "yandex") {
+    return `https://yandex.com/search/?text=${query}`;
   }
 
   return `https://duckduckgo.com/?q=${query}`;
@@ -108,7 +108,7 @@ function normalizeDensity(value: unknown): DensityPreference {
 }
 
 function normalizeSearchEngine(value: unknown): SearchEnginePreference {
-  if (value === "google" || value === "bing" || value === "baidu" || value === "duckduckgo") {
+  if (value === "google" || value === "bing" || value === "yandex" || value === "duckduckgo") {
     return value;
   }
 
