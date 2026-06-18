@@ -1983,6 +1983,111 @@ h1 {
   white-space: nowrap;
 }
 
+.theme-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.theme-preset-card {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 76px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.theme-preset-card:hover,
+.theme-preset-card:focus-visible,
+.theme-preset-card.is-selected {
+  border-color: var(--accent);
+  background: var(--surface);
+  box-shadow: 0 12px 28px rgba(29, 38, 51, 0.08);
+}
+
+.theme-preset-card:focus-visible {
+  outline: 2px solid var(--accent-soft);
+  outline-offset: 2px;
+}
+
+.theme-preset-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.theme-preset-preview {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr auto;
+  gap: 6px;
+  width: 54px;
+  height: 54px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--theme-preview-bg);
+}
+
+.theme-preset-preview span:first-child {
+  border: 1px solid rgba(29, 38, 51, 0.08);
+  border-radius: 6px;
+  background: var(--theme-preview-surface);
+}
+
+.theme-preset-preview span:last-child {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--theme-preview-accent);
+}
+
+.theme-preset-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.theme-preset-copy strong {
+  overflow: hidden;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.theme-preset-copy span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.theme-preset-state {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  min-height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--glass-bg-soft);
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.theme-preset-card.is-selected .theme-preset-state {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
 .preference-row span {
   color: var(--muted);
   font-size: 13px;

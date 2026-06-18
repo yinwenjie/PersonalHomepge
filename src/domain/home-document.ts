@@ -3,6 +3,13 @@ import {
   normalizeWidgetConfig,
   WIDGET_REGISTRY
 } from "@/domain/widget-registry";
+import {
+  DEFAULT_HOME_THEME_PRESET_ID,
+  getHomeThemePreset,
+  normalizeHomeThemePresetId,
+  normalizeThemeAccent,
+  type HomeThemePresetId
+} from "@/domain/theme-preset";
 
 export const HOME_DOCUMENT_VERSION = 2;
 export const SYNC_REVISION_MAX = 999;
@@ -54,6 +61,7 @@ export interface HomeWidgetLayout {
 }
 
 export interface HomeTheme {
+  presetId: HomeThemePresetId;
   accent: string;
   bannerUrl: string | null;
   backgroundUrl: string | null;
@@ -86,6 +94,7 @@ export interface HomeDocumentV2 {
 }
 
 const DEFAULT_THEME: HomeTheme = {
+  presetId: DEFAULT_HOME_THEME_PRESET_ID,
   accent: "#246bfe",
   bannerUrl: null,
   backgroundUrl: null
@@ -486,8 +495,12 @@ function normalizeTheme(input: unknown): HomeTheme {
     return DEFAULT_THEME;
   }
 
+  const presetId = normalizeHomeThemePresetId(input.presetId, input.accent);
+  const preset = getHomeThemePreset(presetId);
+
   return {
-    accent: normalizeText(input.accent) || DEFAULT_THEME.accent,
+    presetId,
+    accent: normalizeThemeAccent(input.accent) ?? preset.accent,
     bannerUrl: isValidUrl(input.bannerUrl) ? normalizeUrl(input.bannerUrl) : null,
     backgroundUrl: isValidUrl(input.backgroundUrl) ? normalizeUrl(input.backgroundUrl) : null
   };

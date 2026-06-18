@@ -253,7 +253,7 @@ Phase 1 暂不做：
 
 ### Phase 1.8
 
-- 主题风格切换。
+- Phase 1.8.0 已实现主题风格切换：6 个空间级主题 preset 写入 `HomeDocumentV2.theme`，不新增账号表或 Supabase SQL。
 - Banner 和背景图片等普通级个性化。
 - 主题、字体、密度、背景在首页和设置页的表现收口。
 

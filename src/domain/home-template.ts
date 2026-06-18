@@ -10,6 +10,7 @@ import {
   getWidgetPresetTitle,
   type HomeWidgetPreset
 } from "@/domain/home-widget";
+import { normalizeHomeThemePresetId } from "@/domain/theme-preset";
 
 export type HomeTemplateId =
   | "blank"
@@ -374,6 +375,7 @@ export function createHomeDocumentFromTemplate(templateId: HomeTemplateId): Home
     widgets: createHomeWidgetsFromPresets(template.widgets),
     theme: {
       ...baseDocument.theme,
+      presetId: normalizeHomeThemePresetId(undefined, template.accent),
       accent: template.accent
     },
     syncMeta: baseDocument.syncMeta

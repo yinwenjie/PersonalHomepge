@@ -1,0 +1,110 @@
+"use client";
+
+import type { CSSProperties } from "react";
+import { StatusMessage } from "@/components/status-message";
+import type { HomeDocumentV2 } from "@/domain/home-document";
+import {
+  getHomeThemePreset,
+  HOME_THEME_PRESETS,
+  normalizeHomeThemePresetId,
+  type HomeThemePreset
+} from "@/domain/theme-preset";
+
+interface ThemePresetPanelProps {
+  documentValue: HomeDocumentV2;
+  storageReady: boolean;
+  onCommitDocument: (documentValue: HomeDocumentV2, message?: string) => void;
+}
+
+export function ThemePresetPanel({
+  documentValue,
+  storageReady,
+  onCommitDocument
+}: ThemePresetPanelProps) {
+  const activePresetId = normalizeHomeThemePresetId(documentValue.theme.presetId, documentValue.theme.accent);
+  const activePreset = getHomeThemePreset(activePresetId);
+  const disabledReason = storageReady ? undefined : "本地存储尚未就绪，请稍后重试。";
+
+  function applyPreset(preset: HomeThemePreset) {
+    if (preset.id === activePresetId || !storageReady) {
+      return;
+    }
+
+    onCommitDocument({
+      ...documentValue,
+      theme: {
+        ...documentValue.theme,
+        presetId: preset.id,
+        accent: preset.accent
+      }
+    }, `已切换为${preset.name}`);
+  }
+
+  return (
+    <section className="settings-panel" aria-label="主题风格">
+      <div className="panel-header">
+        <h2>主题风格</h2>
+        <span>Theme</span>
+      </div>
+
+      <div className="theme-preset-grid">
+        {HOME_THEME_PRESETS.map((preset) => (
+          <ThemePresetButton
+            key={preset.id}
+            disabled={!storageReady}
+            disabledReason={disabledReason}
+            preset={preset}
+            selected={preset.id === activePresetId}
+            onApply={applyPreset}
+          />
+        ))}
+      </div>
+
+      <StatusMessage tone="neutral">
+        当前主题：{activePreset.name}
+      </StatusMessage>
+    </section>
+  );
+}
+
+function ThemePresetButton({
+  disabled,
+  disabledReason,
+  preset,
+  selected,
+  onApply
+}: {
+  disabled: boolean;
+  disabledReason?: string;
+  preset: HomeThemePreset;
+  selected: boolean;
+  onApply: (preset: HomeThemePreset) => void;
+}) {
+  const style = {
+    "--theme-preview-bg": preset.preview.bg,
+    "--theme-preview-surface": preset.preview.surface,
+    "--theme-preview-accent": preset.preview.accent
+  } as CSSProperties;
+
+  return (
+    <button
+      className={`theme-preset-card${selected ? " is-selected" : ""}`}
+      type="button"
+      style={style}
+      aria-pressed={selected}
+      disabled={disabled}
+      title={disabled ? disabledReason : `切换为${preset.name}`}
+      onClick={() => onApply(preset)}
+    >
+      <span className="theme-preset-preview" aria-hidden="true">
+        <span />
+        <span />
+      </span>
+      <span className="theme-preset-copy">
+        <strong>{preset.name}</strong>
+        <span>{preset.description}</span>
+      </span>
+      <span className="theme-preset-state">{selected ? "已使用" : "应用"}</span>
+    </button>
+  );
+}

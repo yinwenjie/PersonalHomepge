@@ -6,8 +6,10 @@ import Link from "next/link";
 import { AccountPanel } from "@/components/account-panel";
 import { AccountPreferencesPanel } from "@/components/account-preferences-panel";
 import { HomeSpacesPanel } from "@/components/home-spaces-panel";
+import { HomeThemeStyleBridge } from "@/components/home-theme-style-bridge";
 import { StatusMessage, type StatusTone } from "@/components/status-message";
 import { SyncPanel } from "@/components/sync-panel";
+import { ThemePresetPanel } from "@/components/theme-preset-panel";
 import type { HomeSpace } from "@/domain/account";
 import { buildHomepageDataExportV1, downloadJsonFile } from "@/domain/data-export";
 import type { HomeDocumentV2, HomeSyncMeta } from "@/domain/home-document";
@@ -32,6 +34,7 @@ export function SettingsDashboard() {
     hasStoredDocument,
     hasResetBackup,
     isDefaultDocument,
+    commitHomeDocument,
     replaceHomeDocument,
     updateSyncMeta,
     importJson,
@@ -220,7 +223,9 @@ export function SettingsDashboard() {
   );
 
   return (
-    <main className="page settings-page">
+    <>
+      <HomeThemeStyleBridge theme={homeDocument.theme} />
+      <main className="page settings-page">
       <header className="settings-page-header">
         <div>
           <p className="eyebrow">Settings</p>
@@ -257,6 +262,12 @@ export function SettingsDashboard() {
             {homeSpacesPanel}
           </>
         )}
+
+        <ThemePresetPanel
+          documentValue={homeDocument}
+          storageReady={storageReady}
+          onCommitDocument={commitHomeDocument}
+        />
 
         <section className="settings-panel" aria-label="配置文件">
           <div className="panel-header">
@@ -312,7 +323,8 @@ export function SettingsDashboard() {
           </StatusMessage>
         </section>
       </div>
-    </main>
+      </main>
+    </>
   );
 }
 

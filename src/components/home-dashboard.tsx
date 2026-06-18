@@ -16,6 +16,7 @@ import {
 import { createHomeDocumentFromTemplate, type HomeTemplate } from "@/domain/home-template";
 import { SYNC_BINDING_STORAGE_KEY } from "@/domain/sync-code";
 import { HomeDocumentEditorModal } from "@/components/home-document-editor-modal";
+import { HomeThemeStyleBridge } from "@/components/home-theme-style-bridge";
 import { SiteCollection } from "@/components/site-collection";
 import { SyncPanel } from "@/components/sync-panel";
 import { TemplateLibraryPanel } from "@/components/template-library-panel";
@@ -143,7 +144,9 @@ export function HomeDashboard() {
   }
 
   return (
-    <main className="page">
+    <>
+      <HomeThemeStyleBridge theme={homeDocument.theme} />
+      <main className="page">
       <header className="masthead">
         <div>
           <p className="eyebrow">{todayLabel || "Home"}</p>
@@ -236,6 +239,7 @@ export function HomeDashboard() {
           onDeleteSite={deleteSite}
         />
       ) : null}
-    </main>
+      </main>
+    </>
   );
 }
