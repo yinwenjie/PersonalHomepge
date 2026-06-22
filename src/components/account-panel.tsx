@@ -3,14 +3,25 @@
 import type { FormEvent } from "react";
 import { useMemo, useState } from "react";
 import { StatusMessage } from "@/components/status-message";
+import type { HomeSpace } from "@/domain/account";
+import type { HomeSyncMeta } from "@/domain/home-document";
+import type { StoredSyncBinding } from "@/domain/sync-code";
 import type { AccountDataState } from "@/hooks/use-account-data";
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
 
 interface AccountPanelProps {
   accountData: AccountDataState;
+  currentBinding?: StoredSyncBinding | null;
+  currentHomeSpace?: HomeSpace | null;
+  syncStatus?: HomeSyncMeta["status"];
 }
 
-export function AccountPanel({ accountData }: AccountPanelProps) {
+export function AccountPanel({
+  accountData,
+  currentBinding = null,
+  currentHomeSpace = null,
+  syncStatus = "local-only"
+}: AccountPanelProps) {
   const [email, setEmail] = useState("");
   const {
     user,
@@ -27,6 +38,13 @@ export function AccountPanel({ accountData }: AccountPanelProps) {
   const accountHasError = Boolean((configured && error) || accountData.error);
   const accountStatusTone = !configured ? "warning" : accountHasError ? "danger" : accountData.profile ? "success" : "neutral";
   const authActionDisabledReason = getAuthActionDisabledReason(configured, loading, actionPending);
+  const syncSummary = getAccountSyncSummary({
+    configured,
+    currentBinding,
+    currentHomeSpace,
+    signedIn: Boolean(user),
+    syncStatus
+  });
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -43,10 +61,13 @@ export function AccountPanel({ accountData }: AccountPanelProps) {
       {user ? (
         <div className="account-card">
           <span className="avatar account-avatar">{accountInitial}</span>
-          <div>
+          <div className="account-card-copy">
             <strong>{user.email ?? "已登录账号"}</strong>
             <p>{getAccountDescription(accountData)}</p>
           </div>
+          <button className="utility-button account-sign-out-button" type="button" onClick={signOut} disabled={actionPending} title={actionPending ? "账号操作处理中，请稍后。" : "退出当前账号"}>
+            {actionPending ? "退出中" : "退出登录"}
+          </button>
         </div>
       ) : (
         <form className="auth-form" onSubmit={handleSubmit}>
@@ -68,13 +89,15 @@ export function AccountPanel({ accountData }: AccountPanelProps) {
         </form>
       )}
 
-      {user ? (
-        <div className="settings-actions">
-          <button className="utility-button" type="button" onClick={signOut} disabled={actionPending} title={actionPending ? "账号操作处理中，请稍后。" : "退出当前账号"}>
-            {actionPending ? "退出中" : "退出登录"}
-          </button>
+      <div className="account-sync-summary" aria-label="账号与当前首页状态">
+        <div>
+          <span>当前首页</span>
+          <strong>{syncSummary.title}</strong>
         </div>
-      ) : null}
+        <StatusMessage tone={syncSummary.tone}>
+          {syncSummary.detail}
+        </StatusMessage>
+      </div>
 
       <StatusMessage role={accountHasError ? "alert" : "status"} tone={accountStatusTone}>
         {error || getAccountStatus(accountData, message, loading)}
@@ -94,7 +117,7 @@ function getAccountInitial(email?: string): string {
 
 function getAccountDescription(accountData: AccountDataState): string {
   if (accountData.loading) {
-    return "正在初始化账号资料。首页内容仍由同步码管理。";
+    return "正在初始化账号资料。";
   }
 
   if (accountData.error) {
@@ -102,10 +125,10 @@ function getAccountDescription(accountData: AccountDataState): string {
   }
 
   if (accountData.profile) {
-    return "账号资料已保存。首页内容仍由同步码管理。";
+    return "账号资料和偏好已就绪。";
   }
 
-  return "账号状态已保存在当前浏览器。首页内容仍由同步码管理。";
+  return "账号状态已保存在当前浏览器。";
 }
 
 function getAccountStatus(accountData: AccountDataState, authMessage: string, authLoading: boolean): string {
@@ -138,4 +161,72 @@ function getAuthActionDisabledReason(configured: boolean, loading: boolean, acti
   }
 
   return undefined;
+}
+
+function getAccountSyncSummary({
+  configured,
+  currentBinding,
+  currentHomeSpace,
+  signedIn,
+  syncStatus
+}: {
+  configured: boolean;
+  currentBinding: StoredSyncBinding | null;
+  currentHomeSpace: HomeSpace | null;
+  signedIn: boolean;
+  syncStatus: HomeSyncMeta["status"];
+}): { detail: string; title: string; tone: "neutral" | "info" | "success" | "warning" | "danger" } {
+  if (!configured) {
+    return {
+      detail: "账号登录、账号托管空间和云端同步码当前不可用；本地首页仍可继续编辑。",
+      title: "账号服务未配置",
+      tone: "warning"
+    };
+  }
+
+  if (syncStatus === "conflict") {
+    return {
+      detail: "云端和本地都有修改，自动同步已暂停；请在高级操作中处理同步冲突。",
+      title: "同步冲突",
+      tone: "danger"
+    };
+  }
+
+  if (syncStatus === "paused") {
+    return {
+      detail: "恢复默认后自动同步已暂停；请在高级操作中选择下一步。",
+      title: "同步暂停",
+      tone: "warning"
+    };
+  }
+
+  if (currentBinding?.accessMode === "account-managed") {
+    return {
+      detail: currentHomeSpace
+        ? `当前本机使用账号托管空间“${currentHomeSpace.name}”，可在首页空间中管理。`
+        : "当前本机使用账号托管空间，账号空间列表刷新后会显示名称。",
+      title: "账号托管",
+      tone: "success"
+    };
+  }
+
+  if (currentBinding?.accessMode === "sync-code") {
+    return {
+      detail: currentHomeSpace
+        ? `当前普通同步码已记录到账号空间“${currentHomeSpace.name}”。`
+        : signedIn
+          ? "当前浏览器绑定普通同步码；可在首页空间中认领或迁移。"
+          : "当前浏览器绑定普通同步码；登录后可认领到账号。",
+      title: "普通同步码",
+      tone: "info"
+    };
+  }
+
+  return {
+    detail: signedIn
+      ? "当前浏览器未绑定同步空间；可在首页空间中创建账号托管空间。"
+      : "当前首页只保存在本地浏览器，登录不会自动覆盖本地内容。",
+    title: "本地首页",
+    tone: "neutral"
+  };
 }

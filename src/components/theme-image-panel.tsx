@@ -177,78 +177,84 @@ export function ThemeImagePanel({
 
           return (
             <article className="theme-image-card" key={slot}>
-              <div className={`theme-image-preview theme-image-preview-${slot}`} aria-hidden="true" />
               <div className="theme-image-card-head">
                 <strong>{getSlotLabel(slot)}</strong>
-                <span>{getAssetLabel(asset)}</span>
               </div>
-              <div className="settings-actions">
-                <button
-                  className="utility-button"
-                  type="button"
-                  disabled={uploadDisabled}
-                  title={uploadDisabled ? disabledReason : `上传${getSlotLabel(slot)}图片`}
-                  onClick={() => inputRef.current?.click()}
-                >
-                  上传
-                </button>
-                <input
-                  ref={inputRef}
-                  id={inputId}
-                  type="file"
-                  accept={HOME_THEME_ASSET_ALLOWED_TYPES.join(",")}
-                  hidden
-                  onChange={(event: ChangeEvent<HTMLInputElement>) => handleUpload(slot, event.target.files?.[0])}
-                />
-                <button
-                  className="utility-button"
-                  type="button"
-                  disabled={!storageReady || !asset || busySlot !== null}
-                  title={asset ? `清除${getSlotLabel(slot)}图片` : "当前未设置图片"}
-                  onClick={() => handleClear(slot)}
-                >
-                  清除
-                </button>
+              <div className={`theme-image-preview theme-image-preview-${slot}${asset ? "" : " is-empty"}`} aria-hidden="true" />
+              <div className="theme-image-controls">
+                <div className="theme-image-main-controls">
+                  <div className="theme-image-action-row">
+                    <span className="theme-image-state">{getAssetLabel(asset)}</span>
+                    <div className="settings-actions">
+                      <button
+                        className="utility-button"
+                        type="button"
+                        disabled={uploadDisabled}
+                        title={uploadDisabled ? disabledReason : `上传${getSlotLabel(slot)}图片`}
+                        onClick={() => inputRef.current?.click()}
+                      >
+                        上传
+                      </button>
+                      <input
+                        ref={inputRef}
+                        id={inputId}
+                        type="file"
+                        accept={HOME_THEME_ASSET_ALLOWED_TYPES.join(",")}
+                        hidden
+                        onChange={(event: ChangeEvent<HTMLInputElement>) => handleUpload(slot, event.target.files?.[0])}
+                      />
+                      <button
+                        className="utility-button"
+                        type="button"
+                        disabled={!storageReady || !asset || busySlot !== null}
+                        title={asset ? `清除${getSlotLabel(slot)}图片` : "当前未设置图片"}
+                        onClick={() => handleClear(slot)}
+                      >
+                        清除
+                      </button>
+                    </div>
+                  </div>
+                  <form className="theme-image-url-form" onSubmit={(event) => handleExternalSubmit(slot, event)}>
+                    <input
+                      key={`${slot}-${externalUrl}-${asset?.updatedAt ?? "empty"}`}
+                      name="themeImageUrl"
+                      type="url"
+                      defaultValue={externalUrl}
+                      placeholder={`${getSlotLabel(slot)} 图片 URL`}
+                      aria-label={`${getSlotLabel(slot)} 图片 URL`}
+                      disabled={!storageReady || busySlot !== null}
+                    />
+                    <button
+                      className="utility-button"
+                      type="submit"
+                      disabled={!storageReady || busySlot !== null}
+                      title={storageReady ? `保存${getSlotLabel(slot)}外链` : "本地存储尚未就绪，请稍后重试。"}
+                    >
+                      应用
+                    </button>
+                  </form>
+                </div>
+                <label className="theme-image-mask-control">
+                  <span>
+                    <strong>遮罩强度</strong>
+                    <em>{maskOpacity}%</em>
+                  </span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="5"
+                    value={maskOpacity}
+                    disabled={!storageReady || busySlot !== null}
+                    aria-label={`${getSlotLabel(slot)} 遮罩强度`}
+                    onChange={(event) => commitMaskOpacity(slot, Number(event.target.value))}
+                  />
+                  <span className="theme-image-mask-scale" aria-hidden="true">
+                    <small>清晰</small>
+                    <small>易读</small>
+                  </span>
+                </label>
               </div>
-              <form className="theme-image-url-form" onSubmit={(event) => handleExternalSubmit(slot, event)}>
-                <input
-                  key={`${slot}-${externalUrl}-${asset?.updatedAt ?? "empty"}`}
-                  name="themeImageUrl"
-                  type="url"
-                  defaultValue={externalUrl}
-                  placeholder={`${getSlotLabel(slot)} 图片 URL`}
-                  aria-label={`${getSlotLabel(slot)} 图片 URL`}
-                  disabled={!storageReady || busySlot !== null}
-                />
-                <button
-                  className="utility-button"
-                  type="submit"
-                  disabled={!storageReady || busySlot !== null}
-                  title={storageReady ? `保存${getSlotLabel(slot)}外链` : "本地存储尚未就绪，请稍后重试。"}
-                >
-                  应用
-                </button>
-              </form>
-              <label className="theme-image-mask-control">
-                <span>
-                  <strong>遮罩强度</strong>
-                  <em>{maskOpacity}%</em>
-                </span>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  step="5"
-                  value={maskOpacity}
-                  disabled={!storageReady || busySlot !== null}
-                  aria-label={`${getSlotLabel(slot)} 遮罩强度`}
-                  onChange={(event) => commitMaskOpacity(slot, Number(event.target.value))}
-                />
-                <span className="theme-image-mask-scale" aria-hidden="true">
-                  <small>清晰</small>
-                  <small>易读</small>
-                </span>
-              </label>
             </article>
           );
         })}

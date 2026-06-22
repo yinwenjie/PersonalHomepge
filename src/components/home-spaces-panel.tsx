@@ -3,11 +3,12 @@
 import type { FormEvent } from "react";
 import { useMemo, useState } from "react";
 import { StatusMessage } from "@/components/status-message";
-import { TemplateLibraryPanel } from "@/components/template-library-panel";
 import type { HomeSpace } from "@/domain/account";
 import type { HomeDocumentV2 } from "@/domain/home-document";
 import {
+  HOME_TEMPLATES,
   createHomeDocumentFromTemplate,
+  summarizeHomeTemplate,
   type HomeTemplate,
   type HomeTemplateId
 } from "@/domain/home-template";
@@ -27,6 +28,11 @@ interface HomeSpacesPanelProps {
   onManagedHomeSpaceCreated: (binding: StoredSyncBinding, documentValue?: HomeDocumentV2) => void;
 }
 
+type CreateSpaceDialog = "current" | "template-select" | "template-name" | null;
+
+const DEFAULT_MANAGED_SPACE_NAME = "我的首页";
+const DEFAULT_TEMPLATE_ID = HOME_TEMPLATES.find((template) => template.id === "minimal")?.id ?? HOME_TEMPLATES[0].id;
+
 export function HomeSpacesPanel({
   accountData,
   authLoading,
@@ -40,7 +46,10 @@ export function HomeSpacesPanel({
   onManagedHomeSpaceCreated
 }: HomeSpacesPanelProps) {
   const [claimSpaceName, setClaimSpaceName] = useState("我的首页");
-  const [managedSpaceName, setManagedSpaceName] = useState("");
+  const [createDialog, setCreateDialog] = useState<CreateSpaceDialog>(null);
+  const [currentCreateName, setCurrentCreateName] = useState(DEFAULT_MANAGED_SPACE_NAME);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<HomeTemplateId>(DEFAULT_TEMPLATE_ID);
+  const [templateSpaceName, setTemplateSpaceName] = useState("");
   const [activeSpaceId, setActiveSpaceId] = useState<string | null>(null);
   const [activationCode, setActivationCode] = useState("");
   const [activationError, setActivationError] = useState("");
@@ -107,6 +116,7 @@ export function HomeSpacesPanel({
       || accountData.activationMessage
       ? "success"
       : "neutral";
+  const selectedTemplate = HOME_TEMPLATES.find((template) => template.id === selectedTemplateId) ?? HOME_TEMPLATES[0];
 
   async function handleClaim(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -119,33 +129,40 @@ export function HomeSpacesPanel({
       return;
     }
 
-    const binding = await accountData.createAccountManagedHomeSpace(managedSpaceName.trim() || "我的首页", documentValue);
+    const binding = await accountData.createAccountManagedHomeSpace(currentCreateName.trim() || DEFAULT_MANAGED_SPACE_NAME, documentValue);
     if (binding) {
       onManagedHomeSpaceCreated(binding, documentValue);
+      setCreateDialog(null);
+      setCurrentCreateName(DEFAULT_MANAGED_SPACE_NAME);
     }
   }
 
-  async function handleCreateManagedFromTemplate(template: HomeTemplate) {
+  async function handleCreateManagedFromTemplate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
     if (!storageReady || !accountReady || accountActionPending) {
       return;
     }
 
-    if (!window.confirm(getTemplateCreateConfirmMessage(template))) {
-      return;
-    }
-
-    const templateDocument = createHomeDocumentFromTemplate(template.id);
-    const spaceName = managedSpaceName.trim() || template.recommendedSpaceName;
-    setCreatingTemplateId(template.id);
+    const templateDocument = createHomeDocumentFromTemplate(selectedTemplate.id);
+    const spaceName = templateSpaceName.trim() || selectedTemplate.recommendedSpaceName;
+    setCreatingTemplateId(selectedTemplate.id);
     try {
       const binding = await accountData.createAccountManagedHomeSpace(spaceName, templateDocument);
       if (binding) {
         onManagedHomeSpaceCreated(binding, templateDocument);
-        setManagedSpaceName("");
+        setCreateDialog(null);
+        setTemplateSpaceName("");
       }
     } finally {
       setCreatingTemplateId(null);
     }
+  }
+
+  function handleTemplateSelected(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setTemplateSpaceName(selectedTemplate.recommendedSpaceName);
+    setCreateDialog("template-name");
   }
 
   async function handleActivate(event: FormEvent<HTMLFormElement>, homeSpace: HomeSpace) {
@@ -302,34 +319,33 @@ export function HomeSpacesPanel({
         </div>
       ) : (
         <>
-          <TemplateLibraryPanel
-            actionLabel={accountData.creatingManaged ? "创建中" : "创建空间"}
-            className="home-space-template-library"
-            description="从模板创建会新建账号托管空间，并把当前浏览器切换到这个新空间。"
-            disabled={Boolean(createManagedDisabledReason)}
-            disabledReason={createManagedDisabledReason}
-            selectedTemplateId={creatingTemplateId ?? undefined}
-            title={accountData.homeSpaces.length === 0 ? "从模板创建第一个首页空间" : "从模板创建新空间"}
-            onApply={handleCreateManagedFromTemplate}
-          />
-
-          <form className="home-space-create-form" onSubmit={handleCreateManaged}>
-            <label className="field">
-              <span>空间名称</span>
-              <input
-                type="text"
-                value={managedSpaceName}
-                maxLength={80}
-                placeholder="留空则使用模板名称或“我的首页”"
-                disabled={Boolean(createManagedDisabledReason)}
-                title={createManagedDisabledReason}
-                onChange={(event) => setManagedSpaceName(event.target.value)}
-              />
-            </label>
-            <button className="utility-button" type="submit" disabled={Boolean(createManagedDisabledReason)} title={createManagedDisabledReason ?? "创建由账号托管恢复凭证的首页空间"}>
-              {accountData.creatingManaged ? "创建中" : "用当前首页创建"}
+          <div className="home-space-create-actions">
+            <button
+              className="utility-button"
+              type="button"
+              disabled={Boolean(createManagedDisabledReason)}
+              title={createManagedDisabledReason ?? "使用当前浏览器首页创建账号托管空间"}
+              onClick={() => {
+                setCurrentCreateName(DEFAULT_MANAGED_SPACE_NAME);
+                setCreateDialog("current");
+              }}
+            >
+              使用当前首页创建空间
             </button>
-          </form>
+            <button
+              className="utility-button"
+              type="button"
+              disabled={Boolean(createManagedDisabledReason)}
+              title={createManagedDisabledReason ?? "从模板创建新的账号托管空间"}
+              onClick={() => {
+                setSelectedTemplateId(DEFAULT_TEMPLATE_ID);
+                setTemplateSpaceName("");
+                setCreateDialog("template-select");
+              }}
+            >
+              从模板创建新空间
+            </button>
+          </div>
 
           {!currentBinding ? (
             <div className="settings-placeholder">
@@ -411,9 +427,229 @@ export function HomeSpacesPanel({
           <StatusMessage role={panelHasError ? "alert" : "status"} tone={panelStatusTone}>
             {panelMessage}
           </StatusMessage>
+
+          {createDialog === "current" ? (
+            <CurrentHomeSpaceCreateDialog
+              actionPending={accountData.creatingManaged}
+              disabledReason={createManagedDisabledReason}
+              name={currentCreateName}
+              onCancel={() => setCreateDialog(null)}
+              onChangeName={setCurrentCreateName}
+              onSubmit={handleCreateManaged}
+              onUseDefaultName={() => setCurrentCreateName(DEFAULT_MANAGED_SPACE_NAME)}
+            />
+          ) : null}
+
+          {createDialog === "template-select" ? (
+            <TemplateHomeSpaceSelectDialog
+              actionPending={accountActionPending}
+              disabledReason={createManagedDisabledReason}
+              selectedTemplate={selectedTemplate}
+              selectedTemplateId={selectedTemplateId}
+              onCancel={() => setCreateDialog(null)}
+              onSelectTemplate={setSelectedTemplateId}
+              onSubmit={handleTemplateSelected}
+            />
+          ) : null}
+
+          {createDialog === "template-name" ? (
+            <TemplateHomeSpaceNameDialog
+              actionPending={accountData.creatingManaged}
+              creatingTemplateId={creatingTemplateId}
+              disabledReason={createManagedDisabledReason}
+              name={templateSpaceName}
+              selectedTemplate={selectedTemplate}
+              selectedTemplateId={selectedTemplateId}
+              onCancel={() => setCreateDialog(null)}
+              onChangeName={setTemplateSpaceName}
+              onSubmit={handleCreateManagedFromTemplate}
+            />
+          ) : null}
         </>
       )}
     </section>
+  );
+}
+
+function CurrentHomeSpaceCreateDialog({
+  actionPending,
+  disabledReason,
+  name,
+  onCancel,
+  onChangeName,
+  onSubmit,
+  onUseDefaultName
+}: {
+  actionPending: boolean;
+  disabledReason?: string;
+  name: string;
+  onCancel: () => void;
+  onChangeName: (value: string) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onUseDefaultName: () => void;
+}) {
+  return (
+    <div className="settings-modal" role="dialog" aria-modal="true" aria-labelledby="currentHomeSpaceCreateTitle">
+      <form className="settings-dialog home-space-create-dialog" onSubmit={onSubmit}>
+        <div className="settings-dialog-header">
+          <div>
+            <h2 id="currentHomeSpaceCreateTitle">使用当前首页创建空间</h2>
+            <p>创建成功后，当前浏览器会切换到新的账号托管空间。</p>
+          </div>
+          <button className="mini-button" type="button" onClick={onCancel} aria-label="关闭">×</button>
+        </div>
+        <div className="settings-dialog-body">
+          <label className="field">
+            <span>空间名称</span>
+            <input
+              type="text"
+              value={name}
+              maxLength={80}
+              autoFocus
+              disabled={actionPending}
+              placeholder={DEFAULT_MANAGED_SPACE_NAME}
+              onChange={(event) => onChangeName(event.target.value)}
+            />
+          </label>
+          <button className="utility-button" type="button" disabled={actionPending} onClick={onUseDefaultName}>
+            使用默认名称
+          </button>
+          <StatusMessage>
+            当前首页内容会复制到新空间；已有账号空间、同步码和云端内容不会删除。
+          </StatusMessage>
+        </div>
+        <div className="settings-dialog-footer">
+          <button className="utility-button" type="button" disabled={actionPending} onClick={onCancel}>取消</button>
+          <button className="utility-button" type="submit" disabled={actionPending || Boolean(disabledReason)} title={disabledReason ?? "确认创建账号托管空间"}>
+            {actionPending ? "创建中" : "确认创建"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function TemplateHomeSpaceSelectDialog({
+  actionPending,
+  disabledReason,
+  selectedTemplate,
+  selectedTemplateId,
+  onCancel,
+  onSelectTemplate,
+  onSubmit
+}: {
+  actionPending: boolean;
+  disabledReason?: string;
+  selectedTemplate: HomeTemplate;
+  selectedTemplateId: HomeTemplateId;
+  onCancel: () => void;
+  onSelectTemplate: (templateId: HomeTemplateId) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+  return (
+    <div className="settings-modal" role="dialog" aria-modal="true" aria-labelledby="templateHomeSpaceCreateTitle">
+      <form className="settings-dialog settings-dialog-wide home-space-template-dialog" onSubmit={onSubmit}>
+        <div className="settings-dialog-header">
+          <div>
+            <h2 id="templateHomeSpaceCreateTitle">从模板创建新空间</h2>
+            <p>选择模板后会创建新的账号托管空间，并切换当前浏览器到该空间。</p>
+          </div>
+          <button className="mini-button" type="button" onClick={onCancel} aria-label="关闭">×</button>
+        </div>
+        <div className="settings-dialog-body">
+          <div className="template-choice-grid" role="radiogroup" aria-label="模板选择">
+            {HOME_TEMPLATES.map((template) => {
+              const summary = summarizeHomeTemplate(template);
+              const selected = selectedTemplateId === template.id;
+
+              return (
+                <button
+                  className={`template-choice-card${selected ? " is-selected" : ""}`.trim()}
+                  key={template.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  disabled={actionPending}
+                  onClick={() => onSelectTemplate(template.id)}
+                >
+                  <span className="template-accent" style={{ backgroundColor: template.accent }} aria-hidden="true" />
+                  <strong>{template.name}</strong>
+                  <span>{summary.groupCount} 个分组 · {summary.siteCount} 个网站 · {summary.widgetCount} 个组件</span>
+                </button>
+              );
+            })}
+          </div>
+          <StatusMessage>
+            将使用“{selectedTemplate.name}”创建“{selectedTemplate.recommendedSpaceName}”。当前本地首页会被新空间内容替换。
+          </StatusMessage>
+        </div>
+        <div className="settings-dialog-footer">
+          <button className="utility-button" type="button" disabled={actionPending} onClick={onCancel}>取消</button>
+          <button className="utility-button" type="submit" disabled={actionPending || Boolean(disabledReason)} title={disabledReason ?? `确认使用“${selectedTemplate.name}”模板`}>
+            确认
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function TemplateHomeSpaceNameDialog({
+  actionPending,
+  creatingTemplateId,
+  disabledReason,
+  name,
+  selectedTemplate,
+  selectedTemplateId,
+  onCancel,
+  onChangeName,
+  onSubmit
+}: {
+  actionPending: boolean;
+  creatingTemplateId: HomeTemplateId | null;
+  disabledReason?: string;
+  name: string;
+  selectedTemplate: HomeTemplate;
+  selectedTemplateId: HomeTemplateId;
+  onCancel: () => void;
+  onChangeName: (value: string) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+  return (
+    <div className="settings-modal" role="dialog" aria-modal="true" aria-labelledby="templateHomeSpaceNameTitle">
+      <form className="settings-dialog home-space-create-dialog" onSubmit={onSubmit}>
+        <div className="settings-dialog-header">
+          <div>
+            <h2 id="templateHomeSpaceNameTitle">命名新空间</h2>
+            <p>将从“{selectedTemplate.name}”创建新的账号托管空间。</p>
+          </div>
+          <button className="mini-button" type="button" onClick={onCancel} aria-label="关闭">×</button>
+        </div>
+        <div className="settings-dialog-body">
+          <label className="field">
+            <span>空间名称</span>
+            <input
+              type="text"
+              value={name}
+              maxLength={80}
+              autoFocus
+              disabled={actionPending}
+              placeholder={selectedTemplate.recommendedSpaceName}
+              onChange={(event) => onChangeName(event.target.value)}
+            />
+          </label>
+          <StatusMessage>
+            创建成功后，当前浏览器会切换到这个新空间，并显示模板生成的首页。
+          </StatusMessage>
+        </div>
+        <div className="settings-dialog-footer">
+          <button className="utility-button" type="button" disabled={actionPending} onClick={onCancel}>取消</button>
+          <button className="utility-button" type="submit" disabled={actionPending || Boolean(disabledReason)} title={disabledReason ?? `确认从“${selectedTemplate.name}”创建空间`}>
+            {actionPending && creatingTemplateId === selectedTemplateId ? "创建中" : "确认创建"}
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }
 
@@ -629,15 +865,6 @@ function getCreateManagedDisabledReason(
   }
 
   return undefined;
-}
-
-function getTemplateCreateConfirmMessage(template: HomeTemplate): string {
-  return [
-    `从“${template.name}”创建新的账号托管空间？`,
-    "创建成功后，当前浏览器会切换到这个新空间，并显示模板生成的首页。",
-    "当前本地首页会被新空间内容替换；已有账号空间、同步码和云端内容不会删除。",
-    "继续？"
-  ].join("\n");
 }
 
 function getRestoreManagedDisabledReason(storageReady: boolean, actionPending: boolean): string | undefined {
