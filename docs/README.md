@@ -19,6 +19,8 @@
 - `implementation/phase-1/Phase1_7_Implement.md`：Phase 1.7，组件开发；记录组件框架与 Widget Registry、组件面板增删排序、Todo List v1、日历/万年历 v1、组件布局与编辑体验和组件默认配置。
 - `implementation/phase-1/Phase1_8_Implement.md`：Phase 1.8，主题与普通个性化；记录主题风格切换、空间级主题 preset、CSS token、Banner/背景图片 v1、Storage 上传、signed URL 渲染和个性化细节收口。
 - `implementation/phase-1/Phase1_9_Implement.md`：Phase 1.9，页面布局与导入需求集实施计划；拆分前端页面布局和 UI/UX 优化、浏览器收藏/标签导入需求集，并记录触屏设备不能依赖 hover 的交互约束。
+- `implementation/phase-1/Phase1_9_5_BookmarkImportDesign.md`：Phase 1.9.5，收藏/标签导入需求设计；记录普通网页权限边界、书签 HTML/URL 粘贴/浏览器扩展方案对比、导入草稿模型、隐私安全和 MVP 推荐路径。
+- `implementation/phase-1/Phase1_9_6_BulkImportExperienceDesign.md`：Phase 1.9.6，大批量导入体验设计；记录 5 步导入向导、localStorage 草稿与撤销记录、分页预览、分组映射、批量选择、性能边界和 Phase 1.9.7 MVP 范围。
 
 ## Tech Stack
 
