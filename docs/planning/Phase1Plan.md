@@ -19,7 +19,7 @@
 
 ### Current Status And Next Plan
 
-截至当前实现，Phase 1.1 到 Phase 1.6.8 已完成，Phase 1.7.0 组件框架与 Widget Registry、Phase 1.7.1 Todo List v1、Phase 1.7.2 日历/万年历 v1、Phase 1.7.3 组件布局与编辑体验、Phase 1.7.4 组件默认配置已接入，Phase 1.8.0 主题风格切换和 Phase 1.8.1 Banner/背景图片 v1 已接入。下一步主线是 Phase 1.8.2：个性化细节收口。
+截至当前实现，Phase 1.1 到 Phase 1.6.8 已完成，Phase 1.7.0 组件框架与 Widget Registry、Phase 1.7.1 Todo List v1、Phase 1.7.2 日历/万年历 v1、Phase 1.7.3 组件布局与编辑体验、Phase 1.7.4 组件默认配置已接入，Phase 1.8.0 主题风格切换、Phase 1.8.1 Banner/背景图片 v1 和 Phase 1.8.2 个性化细节收口已接入。下一步主线是 Phase 1.9：浏览器收藏/标签导入需求集设计。
 
 | 阶段 | 当前状态 | 已落地能力 | 后续动作 |
 |---|---|---|---|
@@ -30,7 +30,7 @@
 | Phase 1.5：账号登录与首页空间管理 | 已完成 | Magic Link、Resend SMTP、账号资料、偏好骨架、同步码认领、空间切换、安全收口 | 进入 Phase 1.6，不再扩展本阶段范围 |
 | Phase 1.6：账号托管同步与 Beta 打磨 | 已完成 | Phase 1.6.0 基础迁移已形成；Phase 1.6.1 账号托管空间创建已接入前端；Phase 1.6.1a 恢复默认同步保护已接入；Phase 1.6.2 空白设备账号恢复已接入；Phase 1.6.3 同步码迁移已接入；Phase 1.6.4/1.6.4a 首页空间 CRUD 与删除策略收口已接入；Phase 1.6.5/1.6.5a 同步码入口降级与管理边界补强已接入；Phase 1.6.6 全局偏好编辑已接入；Phase 1.6.7 Beta 状态统一已接入；Phase 1.6.7b 数据导出已接入；Phase 1.6.8 模板库 v1 已接入；Supabase 未配置时设置页中文降级已补齐 | 进入 Phase 1.7，不再扩展本阶段范围 |
 | Phase 1.7：组件开发 | 已完成 | Phase 1.7.0 组件框架与 Widget Registry 已接入：registry、config normalize、组件添加、删除、排序和占位预览；Phase 1.7.1 Todo List v1 已接入：任务新增、勾选、编辑、删除、排序和清除完成；Phase 1.7.2 日历/万年历 v1 已接入：公历月视图、月份切换、今天高亮和周起始设置；Phase 1.7.3 组件布局与编辑体验已接入：管理模式、重命名、折叠、拖拽排序和按钮兜底；Phase 1.7.4 组件默认配置已接入：模板默认组件、统一组件创建 helper 和模板组件摘要 | 进入 Phase 1.8 |
-| Phase 1.8：主题与普通个性化 | 进行中 | Phase 1.8.0 主题风格切换已接入：6 个空间级主题 preset、CSS token、设置页主题面板和模板 accent preset 推断；Phase 1.8.1 Banner/背景图片 v1 已接入：Storage 上传、外链图片、signed URL 渲染和设置页图片面板 | 继续 Phase 1.8.2 个性化细节收口 |
+| Phase 1.8：主题与普通个性化 | 已完成 | Phase 1.8.0 主题风格切换已接入：6 个空间级主题 preset、CSS token、设置页主题面板和模板 accent preset 推断；Phase 1.8.1 Banner/背景图片 v1 已接入：Storage 上传、外链图片、signed URL 渲染和设置页图片面板；Phase 1.8.2 个性化细节收口已接入：token 统一、响应式优化、主题桥接防闪和背景图可读性收口 | 进入 Phase 1.9 |
 | Phase 1.9：浏览器收藏/标签导入需求集 | 占位待设计 | 尚未实现 | 作为独立需求集重新设计，暂不细化 |
 | Phase 1.10：正式推出前收口 | 已形成候选计划 | 尚未实现 | 主域名准备、治理优化、数据恢复、审计、设备状态、账号删除 |
 | Phase 2：AI 能力、高级定制化与商业化 | 远期 | 尚未实现 | AI 能力待定需求、WebGL 动态/交互背景、付费高级组件、Stripe、VIP、自定义域名、公开主页、团队协作 |
@@ -60,7 +60,7 @@
 
 #### Next Implementation Focus
 
-Phase 1.6.8 的模板库 v1 已完成。浏览器收藏/标签导入从 Phase 1.6.9 移出，作为 Phase 1.9 独立需求集重新设计；原 Phase 1.9 正式推出前收口整体后移到 Phase 1.10。Phase 1.7.0 已完成组件框架与 Widget Registry，Phase 1.7.1 已完成 Todo List v1，Phase 1.7.2 已完成日历/万年历 v1，Phase 1.7.3 已完成组件布局与编辑体验，Phase 1.7.4 已完成组件默认配置。Phase 1.8.0 已完成主题风格切换，Phase 1.8.1 已完成 Banner/背景图片 v1。下一步优先进入 Phase 1.8.2：个性化细节收口。
+Phase 1.6.8 的模板库 v1 已完成。浏览器收藏/标签导入从 Phase 1.6.9 移出，作为 Phase 1.9 独立需求集重新设计；原 Phase 1.9 正式推出前收口整体后移到 Phase 1.10。Phase 1.7.0 已完成组件框架与 Widget Registry，Phase 1.7.1 已完成 Todo List v1，Phase 1.7.2 已完成日历/万年历 v1，Phase 1.7.3 已完成组件布局与编辑体验，Phase 1.7.4 已完成组件默认配置。Phase 1.8.0 已完成主题风格切换，Phase 1.8.1 已完成 Banner/背景图片 v1，Phase 1.8.2 已完成个性化细节收口。下一步优先进入 Phase 1.9：浏览器收藏/标签导入需求集设计。
 
 - 已落地：`空白首页`、`极简起步`、`通用效率`、`工作办公`、`开发者工作台`、`学习研究` 六个静态模板。
 - 已落地：模板生成普通 `HomeDocumentV2`，每次应用生成新的 document/group/site id，不新增 Supabase 表。
@@ -74,6 +74,7 @@ Phase 1.6.8 的模板库 v1 已完成。浏览器收藏/标签导入从 Phase 1.
 - 后续衔接：Phase 1.9 的收藏/标签导入需求集应复用模板库形成的分组/网站结构和预览确认模式，但需要先单独设计大批量导入、清洗、预览和浏览器权限边界。
 - 已落地：Phase 1.8.0 主题风格切换，支持经典蓝、石墨灰、薄荷绿、靛蓝、晨光、极简黑白 6 个空间级主题 preset；设置页可切换，首页和设置页实时应用，主题数据写入 `HomeDocumentV2.theme` 并随完整首页文档同步。
 - 已落地：Phase 1.8.1 Banner/背景图片 v1，支持登录用户上传图片到 Supabase Storage private bucket `home-assets`，也支持外链图片；图片引用写入 `HomeDocumentV2.theme.bannerAsset/backgroundAsset`，private bucket 图片通过 signed URL 渲染；Banner/背景遮罩强度作为空间级主题字段随首页文档同步。
+- 已落地：Phase 1.8.2 个性化细节收口，统一 focus、拖拽、浮层、阴影等 CSS token，补齐图片背景下的面板可读性，优化设置页图片面板、主题卡片、偏好行和日历控制区在窄屏/紧凑密度/不同字体下的布局。
 
 Phase 1.9 暂只保留“浏览器收藏/标签导入需求集”占位，不在当前计划中细化实现方案。已知边界：
 
@@ -94,6 +95,7 @@ Phase 1.9 暂只保留“浏览器收藏/标签导入需求集”占位，不在
 | Phase 1.7.4 | 组件默认配置 | 新空间和模板可直接生成可用工作台组件 | 无新增 SQL；模板 preset 生成普通 `HomeDocumentV2.widgets`，不写入 `account_preferences` | 已新增统一组件创建 helper，模板库和手动添加组件共用默认规则 | M | Medium | 只影响新建/套模板首页，不自动改已有首页；账号级默认组件偏好留到后续 |
 | Phase 1.8.0 | 主题风格切换 | 普通用户可快速切换当前首页空间的整体视觉风格 | 无新增 SQL；新增 `theme.presetId` 并随 `HomeDocumentV2.theme` 同步 | 已新增主题 preset registry、CSS token bridge 和设置页主题面板 | M | Medium | 账号全局明暗偏好与空间主题 preset 已分层；后续 Banner/背景图单独进入 Phase 1.8.1 |
 | Phase 1.8.1 | Banner/背景图片 v1 | 用户可设置当前首页空间的 Banner 和背景图片，并调节图片清晰度/可读性 | 新增 `012_home_assets_storage.sql`；图片引用和遮罩强度进入 `HomeDocumentV2.theme`；Storage 文件保存在 private bucket | 已新增图片上传/外链设置面板、Storage repository、图片 signed URL 渲染、遮罩强度滑条和背景/Banner CSS 层 | M-L | High | Storage policy 必须执行；private 图片跨设备依赖登录账号；图片文件本身不属于同步码端到端加密文档 |
+| Phase 1.8.2 | 个性化细节收口 | 字体、密度、主题、背景在首页和设置页表现一致 | 无新增 SQL；复用账号偏好、`HomeDocumentV2.theme` 和现有 CSS token | 已收口 focus/hover/drag/modal token、主题桥接防闪、图片背景可读性和窄屏布局 | M | Medium | CSS 覆盖面较广，需要回归浅色/深色、图片背景、紧凑密度、不同字体和移动端 |
 
 #### 后续计划表
 
@@ -101,7 +103,6 @@ Phase 1.9 暂只保留“浏览器收藏/标签导入需求集”占位，不在
 
 | 优先级 | 阶段 | 任务 | 主要用户价值 | 后端/数据改动 | 架构影响 | 复杂度 | 风险 | 关键风险点 |
 |---|---|---|---|---|---|---|---|---|
-| P2 | Phase 1.8.2 | 个性化细节收口 | 字体、密度、主题、背景在首页和设置页表现一致 | 通常不新增表；复用偏好和主题字段 | 需要统一 CSS token 和回归不同视口 | M | Medium | UI 重叠、主题变量冲突、可访问性 |
 | P1 | Phase 1.9 | 浏览器收藏/标签导入需求集 | 用户可把大量已有收藏和当前标签转成可整理的首页内容 | 暂不细化；需要先设计导入数据模型、权限边界和大批量处理策略 | 需要独立需求设计，后续再拆 parser、预览、去重、分组映射和可能的扩展能力 | L | High | 普通网页不能直接读取收藏夹/标签；用户收藏可能上千个；大批量清洗、预览和误导入回滚需要专门设计 |
 | P1 | Phase 1.10.0 | 主域名准备 | 正式推出前统一品牌入口和 Auth 回调 | Supabase Auth `Site URL`、Redirect URLs 需要同步配置 | `basePath`、assetPrefix、localStorage 域隔离都要回归 | M | High | 登录回调、静态资源路径、旧本地缓存不可直接迁移 |
 | P2 | Phase 1.10.1 | 数据导入/恢复 v1 | 和数据导出形成恢复闭环 | 优先只恢复本地首页 JSON，不导入 secret | 需要导入校验、预览和覆盖确认 | M | Medium-High | 不能把诊断包误作为完整账号恢复协议 |
@@ -255,6 +256,7 @@ Phase 1.9 暂只保留“浏览器收藏/标签导入需求集”占位，不在
   - 未登录时可保存外链图片。
   - 登录后可上传到 Supabase Storage private bucket `home-assets`。
   - 已限制图片大小、类型和尺寸，并通过 signed URL 渲染 private 图片。
+  - Phase 1.8.2 已完成个性化细节收口，后续高级主题、动态背景、图片库或裁剪器进入 Phase 2 方向。
 - Phase 1.9 浏览器收藏/标签导入需求集：
   - 作为独立需求集重新设计，暂不在当前计划中细化。
   - 重点先确认普通网页、用户主动导入文件、粘贴 URL 和浏览器扩展之间的权限边界。

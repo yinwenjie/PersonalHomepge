@@ -5,7 +5,6 @@ import { HomeAssetStorageRepository } from "@/infrastructure/home-asset-storage-
 import type { HomeTheme } from "@/domain/home-document";
 import {
   getHomeThemeCssVariables,
-  HOME_THEME_CSS_VARIABLE_NAMES,
   type HomeThemeColorScheme
 } from "@/domain/theme-preset";
 import type { ThemePreference } from "@/domain/ui-preferences";
@@ -45,9 +44,6 @@ export function HomeThemeStyleBridge({ theme }: HomeThemeStyleBridgeProps) {
 
     return () => {
       darkSchemeMedia.removeEventListener("change", applyThemeVariables);
-      for (const name of HOME_THEME_CSS_VARIABLE_NAMES) {
-        root.style.removeProperty(name);
-      }
     };
   }, [preferences.themePreference, theme]);
 
