@@ -23,6 +23,7 @@ import { TemplateLibraryPanel } from "@/components/template-library-panel";
 import { WidgetPanel } from "@/components/widget-panel";
 import { useHomeDocumentController } from "@/hooks/use-home-document-controller";
 import { useHomeDocumentEditor } from "@/hooks/use-home-document-editor";
+import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
 import { useUiPreferences } from "@/hooks/use-ui-preferences";
 
 const ONBOARDING_STORAGE_KEY = "homepage:onboarding:v1";
@@ -38,6 +39,7 @@ export function HomeDashboard() {
     updateSyncMeta
   } = useHomeDocumentController();
   const { preferences } = useUiPreferences();
+  const { user } = useSupabaseAuth();
   const {
     editor,
     formValues,
@@ -57,6 +59,8 @@ export function HomeDashboard() {
   const locale = preferences.locale;
   const searchEngine = preferences.defaultSearchEngine;
   const searchEngineName = searchEngineLabel(searchEngine);
+  const hasBannerImage = homeDocument.theme.bannerAsset?.source === "external"
+    || (homeDocument.theme.bannerAsset?.source === "storage" && Boolean(user));
 
   useEffect(() => {
     const timerId = window.setTimeout(() => {
@@ -147,7 +151,7 @@ export function HomeDashboard() {
     <>
       <HomeThemeStyleBridge theme={homeDocument.theme} />
       <main className="page">
-      <header className="masthead">
+      <header className={`masthead${hasBannerImage ? " masthead-banner" : ""}`}>
         <div>
           <p className="eyebrow">{todayLabel || "Home"}</p>
           <h1>Home</h1>

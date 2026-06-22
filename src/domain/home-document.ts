@@ -29,6 +29,12 @@ export type SyncStatus =
   | "conflict"
   | "error";
 export type HomeWidgetType = "calendar.month" | "todo.list";
+export type HomeThemeAssetSource = "storage" | "external";
+export type HomeThemeAssetSlot = "banner" | "background";
+
+export const HOME_THEME_ASSET_BUCKET = "home-assets";
+export const DEFAULT_HOME_BANNER_MASK_OPACITY = 35;
+export const DEFAULT_HOME_BACKGROUND_MASK_OPACITY = 50;
 
 export interface HomeSite {
   id: string;
@@ -60,11 +66,26 @@ export interface HomeWidgetLayout {
   collapsed: boolean;
 }
 
+export interface HomeThemeAsset {
+  source: HomeThemeAssetSource;
+  bucket: typeof HOME_THEME_ASSET_BUCKET | null;
+  path: string | null;
+  url: string | null;
+  contentType: string | null;
+  width: number | null;
+  height: number | null;
+  updatedAt: string;
+}
+
 export interface HomeTheme {
   presetId: HomeThemePresetId;
   accent: string;
   bannerUrl: string | null;
   backgroundUrl: string | null;
+  bannerAsset: HomeThemeAsset | null;
+  backgroundAsset: HomeThemeAsset | null;
+  bannerMaskOpacity: number;
+  backgroundMaskOpacity: number;
 }
 
 export interface HomeSyncMeta {
@@ -97,7 +118,11 @@ const DEFAULT_THEME: HomeTheme = {
   presetId: DEFAULT_HOME_THEME_PRESET_ID,
   accent: "#246bfe",
   bannerUrl: null,
-  backgroundUrl: null
+  backgroundUrl: null,
+  bannerAsset: null,
+  backgroundAsset: null,
+  bannerMaskOpacity: DEFAULT_HOME_BANNER_MASK_OPACITY,
+  backgroundMaskOpacity: DEFAULT_HOME_BACKGROUND_MASK_OPACITY
 };
 
 const DEFAULT_SYNC_META: HomeSyncMeta = {
@@ -497,13 +522,113 @@ function normalizeTheme(input: unknown): HomeTheme {
 
   const presetId = normalizeHomeThemePresetId(input.presetId, input.accent);
   const preset = getHomeThemePreset(presetId);
+  const bannerAsset = normalizeThemeAsset(input.bannerAsset, "banner") ?? normalizeLegacyThemeUrl(input.bannerUrl);
+  const backgroundAsset = normalizeThemeAsset(input.backgroundAsset, "background") ?? normalizeLegacyThemeUrl(input.backgroundUrl);
 
   return {
     presetId,
     accent: normalizeThemeAccent(input.accent) ?? preset.accent,
-    bannerUrl: isValidUrl(input.bannerUrl) ? normalizeUrl(input.bannerUrl) : null,
-    backgroundUrl: isValidUrl(input.backgroundUrl) ? normalizeUrl(input.backgroundUrl) : null
+    bannerUrl: bannerAsset?.source === "external" ? bannerAsset.url : null,
+    backgroundUrl: backgroundAsset?.source === "external" ? backgroundAsset.url : null,
+    bannerAsset,
+    backgroundAsset,
+    bannerMaskOpacity: normalizeThemeMaskOpacity(input.bannerMaskOpacity, DEFAULT_HOME_BANNER_MASK_OPACITY),
+    backgroundMaskOpacity: normalizeThemeMaskOpacity(input.backgroundMaskOpacity, DEFAULT_HOME_BACKGROUND_MASK_OPACITY)
   };
+}
+
+function normalizeThemeMaskOpacity(input: unknown, fallback: number): number {
+  const value = Math.round(Number(input));
+
+  if (!Number.isFinite(value)) {
+    return fallback;
+  }
+
+  return Math.min(100, Math.max(0, value));
+}
+
+function normalizeThemeAsset(input: unknown, slot: HomeThemeAssetSlot): HomeThemeAsset | null {
+  if (!isRecord(input)) {
+    return null;
+  }
+
+  if (input.source === "external") {
+    const url = isValidUrl(input.url) ? normalizeUrl(input.url) : null;
+
+    return url
+      ? {
+          source: "external",
+          bucket: null,
+          path: null,
+          url,
+          contentType: normalizeImageContentType(input.contentType),
+          width: normalizeOptionalPositiveInteger(input.width),
+          height: normalizeOptionalPositiveInteger(input.height),
+          updatedAt: normalizeText(input.updatedAt)
+        }
+      : null;
+  }
+
+  if (input.source !== "storage") {
+    return null;
+  }
+
+  const path = normalizeText(input.path);
+  if (!isValidHomeThemeStoragePath(path, slot)) {
+    return null;
+  }
+
+  return {
+    source: "storage",
+    bucket: HOME_THEME_ASSET_BUCKET,
+    path,
+    url: null,
+    contentType: normalizeImageContentType(input.contentType),
+    width: normalizeOptionalPositiveInteger(input.width),
+    height: normalizeOptionalPositiveInteger(input.height),
+    updatedAt: normalizeText(input.updatedAt)
+  };
+}
+
+function normalizeLegacyThemeUrl(input: unknown): HomeThemeAsset | null {
+  if (!isValidUrl(input)) {
+    return null;
+  }
+
+  return {
+    source: "external",
+    bucket: null,
+    path: null,
+    url: normalizeUrl(input),
+    contentType: null,
+    width: null,
+    height: null,
+    updatedAt: ""
+  };
+}
+
+function isValidHomeThemeStoragePath(path: string, slot: HomeThemeAssetSlot): boolean {
+  const escapedSlot = slot.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/${escapedSlot}/[a-z0-9-]+\\.(webp|png|jpg|jpeg|gif)$`, "i");
+
+  return pattern.test(path);
+}
+
+function normalizeImageContentType(input: unknown): string | null {
+  const contentType = normalizeText(input).toLowerCase();
+
+  return contentType === "image/jpeg"
+    || contentType === "image/png"
+    || contentType === "image/webp"
+    || contentType === "image/gif"
+    ? contentType
+    : null;
+}
+
+function normalizeOptionalPositiveInteger(input: unknown): number | null {
+  const value = Math.trunc(Number(input));
+
+  return Number.isFinite(value) && value > 0 ? value : null;
 }
 
 function normalizeSyncMeta(input: unknown): HomeSyncMeta {

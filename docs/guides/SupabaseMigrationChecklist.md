@@ -64,13 +64,25 @@
     - 执行前先回填历史非法值为默认值，避免新增约束失败。
     - 不修改 RLS、grants、`default_space_id` 或首页空间逻辑。
 
+11. `supabase/migrations/011_account_preferences_search_engine_yandex.sql`
+    - 将账号默认搜索引擎候选从 Baidu 替换为 Yandex。
+    - 回填已有 `baidu` 或非法值为 `duckduckgo`。
+    - 更新 `account_preferences_default_search_engine_allowed` 约束。
+
+12. `supabase/migrations/012_home_assets_storage.sql`
+    - 固化 `home-assets` Supabase Storage bucket 配置；如果 Dashboard 已手动创建，会保持同名 bucket 并更新参数。
+    - bucket 为 private，单文件限制 5MB，只允许 JPG、PNG、WebP 和 GIF。
+    - 在 `storage.objects` 上创建 Banner/背景图 RLS policy，限制登录用户只能访问自己目录下的图片。
+
 ## 执行规则
 
-- 新 Supabase project：按 `001 -> 002 -> 003 -> 004 -> 005 -> 006 -> 007 -> 008 -> 009 -> 010` 顺序执行。
-- 已经执行过 `001`、`002`、`003`、`004`、`005` 的项目：先执行 `006`，再执行 `007`、`008`、`009` 和 `010`。
-- 已经执行过 `006`、`007` 但未执行 `008` 的项目：先执行 `008`，再执行 `009` 和 `010`。
-- 已经执行过 `006`、`007`、`008` 的项目：先执行 `009`，再执行 `010`。
-- 已经执行过 `009` 的项目：只需补执行 `010`。
+- 新 Supabase project：按 `001 -> 002 -> 003 -> 004 -> 005 -> 006 -> 007 -> 008 -> 009 -> 010 -> 011 -> 012` 顺序执行。
+- 已经执行过 `001`、`002`、`003`、`004`、`005` 的项目：先执行 `006`，再执行 `007`、`008`、`009`、`010`、`011` 和 `012`。
+- 已经执行过 `006`、`007` 但未执行 `008` 的项目：先执行 `008`，再执行 `009`、`010`、`011` 和 `012`。
+- 已经执行过 `006`、`007`、`008` 的项目：先执行 `009`，再执行 `010`、`011` 和 `012`。
+- 已经执行过 `009` 的项目：先补执行 `010`、`011` 和 `012`。
+- 已经执行过 `010` 的项目：先补执行 `011`，再执行 `012`。
+- 已经手动创建 `home-assets` bucket 的项目：仍需执行 `012`，因为上传所需的 RLS policy 不会由 Dashboard 创建 bucket 自动生成。
 - 执行前确认目标 project 是线上使用的 Supabase project。
 - 执行 `003` 后可以在 SQL Editor 中检查 revision 函数是否存在：
 
@@ -136,6 +148,9 @@ where table_schema = 'public'
 - `009_home_space_crud.sql` 只管理账号侧空间索引。`remove_home_space_from_account(...)` 会删除账号托管凭证，但不会删除或废弃底层 `sync_spaces`。
 - Phase 1.6.4a 不新增迁移；如果需要复核删除策略，执行 `supabase/checks/011_home_space_removal_policy_verify.sql`。
 - `010_account_preferences_editing.sql` 是 Phase 1.6.6 偏好编辑迁移。建议先执行该脚本，再部署前端；如果前端先部署，账号偏好读取会降级到旧字段，但保存新偏好会提示需要先执行 `010`。
+- `011_account_preferences_search_engine_yandex.sql` 是默认搜索引擎候选热修。执行后 Baidu 不再是合法账号偏好值，历史 Baidu 会回落为 DuckDuckGo。
+- `012_home_assets_storage.sql` 是 Phase 1.8.1 Banner/背景图片上传所需迁移。前端可以保存外链图片，但登录用户上传 Storage 图片前必须执行该脚本。
+- `012_home_assets_storage.sql` 只允许用户访问 `{auth.uid()}/banner/...` 和 `{auth.uid()}/background/...` 路径下的图片；不要把通用文件缓存、公开分享或端到端加密文件复用到这个 bucket policy 中。
 - 新设备登录后看到账号空间列表，不代表已经拥有该空间的同步凭证；只有 `account-managed` 空间可以通过账号托管凭证直接恢复，普通 `sync-code` 空间仍需输入完整同步码。
 
 ## 辅助检查脚本
@@ -150,3 +165,4 @@ where table_schema = 'public'
 - `supabase/checks/010_home_space_crud_verify.sql`：验证 Phase 1.6.4 首页空间 CRUD RPC、权限、默认空间一致性、凭证约束和可选 A/B 回滚测试。
 - `supabase/checks/011_home_space_removal_policy_verify.sql`：验证 Phase 1.6.4a 删除策略，确认从账号移除不会删除、废弃或改写底层 `sync_spaces`。
 - `supabase/checks/012_account_preferences_editing_verify.sql`：验证 Phase 1.6.6 偏好编辑字段、默认值、约束、RLS、权限和默认空间 FK/RLS 边界。
+- `supabase/checks/013_home_assets_storage_verify.sql`：验证 Phase 1.8.1 `home-assets` bucket 参数、Storage object policies 和 RLS 状态。

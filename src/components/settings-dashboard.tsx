@@ -9,6 +9,7 @@ import { HomeSpacesPanel } from "@/components/home-spaces-panel";
 import { HomeThemeStyleBridge } from "@/components/home-theme-style-bridge";
 import { StatusMessage, type StatusTone } from "@/components/status-message";
 import { SyncPanel } from "@/components/sync-panel";
+import { ThemeImagePanel } from "@/components/theme-image-panel";
 import { ThemePresetPanel } from "@/components/theme-preset-panel";
 import type { HomeSpace } from "@/domain/account";
 import { buildHomepageDataExportV1, downloadJsonFile } from "@/domain/data-export";
@@ -266,6 +267,13 @@ export function SettingsDashboard() {
         <ThemePresetPanel
           documentValue={homeDocument}
           storageReady={storageReady}
+          onCommitDocument={commitHomeDocument}
+        />
+
+        <ThemeImagePanel
+          documentValue={homeDocument}
+          storageReady={storageReady}
+          userId={auth.user?.id ?? null}
           onCommitDocument={commitHomeDocument}
         />
 

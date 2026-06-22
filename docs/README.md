@@ -17,7 +17,7 @@
 - `implementation/phase-1/Phase1_5_Implement.md`：Phase 1.5，账号登录与首页空间管理；包含完整实施记录、账号模型、数据库安全计划和 Phase 1.6 衔接。
 - `implementation/phase-1/Phase1_6_Implement.md`：Phase 1.6，账号托管同步与 Beta 打磨；包含账号托管同步基础、账号托管空间创建、恢复默认同步保护、空白设备账号恢复、同步码迁移为账号托管、首页空间 CRUD、同步码入口降级、管理边界补强、全局偏好编辑、Beta 状态统一、数据导出、模板库 v1，以及浏览器收藏/标签导入移入 Phase 1.9 的阶段调整记录。
 - `implementation/phase-1/Phase1_7_Implement.md`：Phase 1.7，组件开发；记录组件框架与 Widget Registry、组件面板增删排序、Todo List v1、日历/万年历 v1、组件布局与编辑体验和组件默认配置。
-- `implementation/phase-1/Phase1_8_Implement.md`：Phase 1.8，主题与普通个性化；记录主题风格切换、空间级主题 preset、CSS token 和后续 Banner/背景图片衔接。
+- `implementation/phase-1/Phase1_8_Implement.md`：Phase 1.8，主题与普通个性化；记录主题风格切换、空间级主题 preset、CSS token、Banner/背景图片 v1、Storage 上传和 signed URL 渲染。
 
 ## Tech Stack
 
@@ -28,6 +28,7 @@
 - Drag and drop：`@dnd-kit/core`、`@dnd-kit/sortable`、`@dnd-kit/utilities`。
 - Persistence：浏览器 `localStorage` 保存本地首页文档、同步码绑定状态、UI 偏好缓存和最近一次恢复默认前备份。
 - Cloud sync：Supabase JavaScript SDK 调用 Postgres RPC。
+- Asset storage：Supabase Storage private bucket `home-assets` 保存登录用户的 Banner/背景图片。
 - Client-side encryption：浏览器 Web Crypto 对首页文档加密后上传；Supabase 不保存首页明文或 encryption key。
 - Database：Supabase Postgres，核心表包括 `sync_spaces`、`profiles`、`account_preferences` 和 `home_spaces`，配合 RLS、权限收敛和 `security definer` RPC。
 - Deployment：Next.js static export 输出到 `out/`，通过 GitHub Actions 部署到 GitHub Pages。
