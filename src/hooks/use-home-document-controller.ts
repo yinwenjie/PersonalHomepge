@@ -11,6 +11,7 @@ import {
   normalizeHomeDocument
 } from "@/domain/home-document";
 import { LocalHomeRepository } from "@/infrastructure/home-repository";
+import { recordLocalAuditEvent } from "@/infrastructure/local-audit-log-repository";
 
 interface ResetDefaultOptions {
   confirmMessage?: string;
@@ -67,6 +68,43 @@ export function useHomeDocumentController() {
     setSaveStatus(message);
   }, []);
 
+  const restoreHomeDocumentWithBackup = useCallback((nextDocument: HomeDocumentV2, message: string): boolean => {
+    const repository = repositoryRef.current;
+    if (!repository) {
+      window.alert("本地存储尚未就绪，请稍后重试。");
+      return false;
+    }
+
+    const currentDocument = homeDocumentRef.current;
+    try {
+      repository.saveResetBackup(currentDocument);
+    } catch (error) {
+      console.error(error);
+      window.alert("恢复前备份失败，已取消导入。");
+      recordLocalAuditEvent({
+        documentId: currentDocument.documentId,
+        level: "danger",
+        message: "数据恢复前备份失败，恢复已取消。",
+        type: "data_package.restore_backup_failed"
+      });
+      return false;
+    }
+
+    const normalized = normalizeHomeDocument({
+      ...nextDocument,
+      revision: nextRevision(currentDocument.revision),
+      updatedAt: new Date().toISOString()
+    });
+
+    repository.save(normalized);
+    homeDocumentRef.current = normalized;
+    setHomeDocument(normalized);
+    setHasStoredDocument(true);
+    setHasResetBackup(true);
+    setSaveStatus(message);
+    return true;
+  }, []);
+
   const updateSyncMeta = useCallback((syncMeta: HomeSyncMeta, message: string) => {
     setHomeDocument((currentDocument) => {
       const normalized = normalizeHomeDocument({
@@ -109,6 +147,16 @@ export function useHomeDocumentController() {
       }
 
       commitHomeDocument(imported, "已导入");
+      recordLocalAuditEvent({
+        documentId: imported.documentId,
+        message: "已通过 JSON 导入覆盖本地首页。",
+        metadata: {
+          groupCount: imported.groups.length,
+          siteCount: imported.groups.reduce((total, group) => total + group.sites.length, 0),
+          widgetCount: imported.widgets.length
+        },
+        type: "document.json_import"
+      });
     } catch {
       window.alert("导入失败：JSON 格式不正确。");
     }
@@ -133,9 +181,20 @@ export function useHomeDocumentController() {
 
     try {
       repository.saveResetBackup(currentDocument);
+      recordLocalAuditEvent({
+        documentId: currentDocument.documentId,
+        message: "恢复默认前已保存本地备份。",
+        type: "document.reset_backup_saved"
+      });
     } catch (error) {
       console.error(error);
       window.alert("重置前备份失败，已取消恢复默认。");
+      recordLocalAuditEvent({
+        documentId: currentDocument.documentId,
+        level: "danger",
+        message: "恢复默认前备份失败，恢复默认已取消。",
+        type: "document.reset_backup_failed"
+      });
       return;
     }
 
@@ -157,6 +216,15 @@ export function useHomeDocumentController() {
     setHomeDocument(defaultDocument);
     setHasStoredDocument(Boolean(options.syncMeta));
     setSaveStatus(options.successMessage ?? "已清空内容并恢复默认，重置前页面已备份");
+    recordLocalAuditEvent({
+      documentId: currentDocument.documentId,
+      level: "warning",
+      message: "已清空本地首页并恢复默认。",
+      metadata: {
+        syncPaused: Boolean(options.syncMeta)
+      },
+      type: "document.reset_default"
+    });
   }, []);
 
   const restoreResetBackup = useCallback(() => {
@@ -174,6 +242,11 @@ export function useHomeDocumentController() {
     }
 
     commitHomeDocument(backup, "已恢复上一次重置前页面");
+    recordLocalAuditEvent({
+      documentId: backup.documentId,
+      message: "已恢复上一次重置前页面。",
+      type: "document.reset_backup_restored"
+    });
   }, [commitHomeDocument]);
 
   return {
@@ -185,6 +258,7 @@ export function useHomeDocumentController() {
     isDefaultDocument,
     commitHomeDocument,
     replaceHomeDocument,
+    restoreHomeDocumentWithBackup,
     updateSyncMeta,
     importJson,
     exportJson,

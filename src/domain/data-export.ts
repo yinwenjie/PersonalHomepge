@@ -1,6 +1,8 @@
 import type { AccountPreferences, AccountProfile, HomeSpace } from "@/domain/account";
 import type { HomeDocumentV2 } from "@/domain/home-document";
 import type { StoredSyncBinding } from "@/domain/sync-code";
+import type { LocalAuditEvent } from "@/infrastructure/local-audit-log-repository";
+import type { LocalDeviceRecord } from "@/infrastructure/local-device-repository";
 
 export const DATA_EXPORT_SCHEMA = "homepage-data-export-v1";
 
@@ -28,7 +30,9 @@ export interface DataExportAccountInput {
 }
 
 export interface DataExportLocalInput {
+  auditEvents?: LocalAuditEvent[];
   currentBinding: StoredSyncBinding | null;
+  device?: LocalDeviceRecord | null;
   hasResetBackup: boolean;
   hasStoredDocument: boolean;
   homeDocument: HomeDocumentV2;
@@ -53,7 +57,7 @@ export interface HomepageDataExportV1 {
   };
   app: {
     documentVersion: HomeDocumentV2["version"];
-    phase: "1.6.7b";
+    phase: "1.10.0";
   };
   diagnostics: {
     browserLanguage: string | null;
@@ -65,7 +69,9 @@ export interface HomepageDataExportV1 {
   };
   exportedAt: string;
   local: {
+    auditEvents: LocalAuditEvent[];
     currentBinding: SafeSyncBindingSummary | null;
+    device: LocalDeviceRecord | null;
     hasResetBackup: boolean;
     hasStoredDocument: boolean;
     homeDocument: HomeDocumentV2;
@@ -88,7 +94,7 @@ export function buildHomepageDataExportV1(input: BuildHomepageDataExportInput): 
     schema: DATA_EXPORT_SCHEMA,
     exportedAt: new Date().toISOString(),
     app: {
-      phase: "1.6.7b",
+      phase: "1.10.0",
       documentVersion: input.local.homeDocument.version
     },
     account: {
@@ -102,10 +108,12 @@ export function buildHomepageDataExportV1(input: BuildHomepageDataExportInput): 
       homeSpaces: input.account.homeSpaces
     },
     local: {
+      auditEvents: input.local.auditEvents ?? [],
       homeDocument: input.local.homeDocument,
       hasStoredDocument: input.local.hasStoredDocument,
       hasResetBackup: input.local.hasResetBackup,
-      currentBinding: sanitizeSyncBinding(input.local.currentBinding)
+      currentBinding: sanitizeSyncBinding(input.local.currentBinding),
+      device: input.local.device ?? null
     },
     diagnostics: {
       generatedFrom: "browser",

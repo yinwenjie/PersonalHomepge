@@ -2143,6 +2143,108 @@ h1 {
   white-space: nowrap;
 }
 
+.device-status-grid,
+.data-restore-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.device-status-item,
+.data-restore-stat {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  min-height: 58px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.device-status-item span,
+.data-restore-stat span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.device-status-item strong,
+.data-restore-stat strong {
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.audit-log-list {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.audit-log-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.audit-log-item-warning {
+  border-color: var(--warning-line);
+  background: var(--warning-soft);
+}
+
+.audit-log-item-danger {
+  border-color: var(--danger-line);
+  background: var(--danger-soft);
+}
+
+.audit-log-item > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.audit-log-item strong,
+.audit-log-item span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.audit-log-item strong {
+  font-size: 13px;
+}
+
+.audit-log-item span,
+.audit-log-item time,
+.data-restore-ignored {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.audit-log-item time {
+  white-space: nowrap;
+}
+
+.data-restore-dialog .settings-dialog-body {
+  gap: 12px;
+}
+
+.data-restore-ignored {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 .preference-grid {
   display: grid;
   gap: 8px;

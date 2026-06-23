@@ -13,7 +13,9 @@ import {
 } from "@/domain/sync-code";
 import { StatusMessage } from "@/components/status-message";
 import { useUiPreferences } from "@/hooks/use-ui-preferences";
+import { recordLocalAuditEvent } from "@/infrastructure/local-audit-log-repository";
 import { isSupabaseConfigured, SUPABASE_CONFIGURATION_MESSAGE } from "@/infrastructure/supabase-client";
+import { runWithSyncLock, type SyncCoordinatorOperation } from "@/infrastructure/sync-coordinator";
 import { LocalSyncBindingRepository } from "@/infrastructure/sync-binding-repository";
 import { SyncCodeRepository, PullSyncSpaceResult } from "@/infrastructure/sync-code-repository";
 
@@ -99,7 +101,11 @@ export function SyncPanel({
 
   const runSyncAction = useCallback(async (
     action: () => Promise<void>,
-    options: { exposeBusy?: boolean } = {}
+    options: {
+      exposeBusy?: boolean;
+      operation?: SyncCoordinatorOperation;
+      spaceId?: string | null;
+    } = {}
   ): Promise<void> => {
     if (busyRef.current) {
       return;
@@ -123,7 +129,19 @@ export function SyncPanel({
     setMessage("");
 
     try {
-      await action();
+      if (options.operation && options.spaceId) {
+        const lockResult = await runWithSyncLock({
+          operation: options.operation,
+          spaceId: options.spaceId,
+          storage: window.localStorage
+        }, action);
+
+        if (lockResult.status === "busy") {
+          setMessage("其他标签页正在同步这个首页空间，本次操作已跳过。");
+        }
+      } else {
+        await action();
+      }
     } catch (actionError) {
       console.error(actionError);
       const activeBinding = bindingRef.current;
@@ -198,8 +216,18 @@ export function SyncPanel({
         };
         persistBinding(nextBinding);
         setSyncMetaFromBinding(nextBinding, hasPendingLocalChanges ? "linked" : "synced", hasPendingLocalChanges ? "有本地修改待上传" : "已是最新");
-        if (options.source !== "auto") {
+        if (shouldAuditPullSource(options.source)) {
           setMessage(hasPendingLocalChanges ? "云端无更新，本地修改待上传。" : "云端无更新。");
+          recordLocalAuditEvent({
+            documentId: localDocument.documentId,
+            message: "已检查云端首页，云端无更新。",
+            metadata: {
+              hasPendingLocalChanges,
+              source: options.source
+            },
+            spaceId: activeBinding.spaceId,
+            type: "sync.pull_no_changes"
+          });
         }
         return;
       }
@@ -213,12 +241,38 @@ export function SyncPanel({
         persistBinding(conflictBinding);
         setSyncMetaFromBinding(conflictBinding, "conflict", "云端和本地都有修改");
         setMessage("检测到冲突：云端和本地都有修改。");
+        recordLocalAuditEvent({
+          documentId: localDocument.documentId,
+          level: "warning",
+          message: "检测到同步冲突：云端和本地都有修改。",
+          metadata: {
+            source: options.source
+          },
+          spaceId: activeBinding.spaceId,
+          type: "sync.conflict"
+        });
         return;
       }
 
       applyCloudDocument(pulled, activeBinding, options.source === "auto" ? "已自动拉取云端首页" : "已拉取云端首页");
       setMessage(options.source === "auto" ? "已自动拉取云端首页。" : "已拉取云端首页。");
-    }, { exposeBusy: options.source !== "auto" });
+      if (shouldAuditPullSource(options.source)) {
+        recordLocalAuditEvent({
+          documentId: pulled.document.documentId,
+          message: "已拉取云端首页并覆盖本地首页。",
+          metadata: {
+            remoteRevision: pulled.revision,
+            source: options.source
+          },
+          spaceId: activeBinding.spaceId,
+          type: "sync.pull_applied"
+        });
+      }
+    }, {
+      exposeBusy: options.source !== "auto",
+      operation: "pull",
+      spaceId: activeBinding.spaceId
+    });
   }, [applyCloudDocument, getSyncRepository, persistBinding, runSyncAction, setSyncMetaFromBinding]);
 
   const performAutoRevisionCheck = useCallback(async () => {
@@ -253,7 +307,11 @@ export function SyncPanel({
         persistBinding(nextBinding);
         setSyncMetaFromBinding(nextBinding, hasPendingLocalChanges ? "linked" : "synced", hasPendingLocalChanges ? "有本地修改待上传" : "云端无更新");
       }
-    }, { exposeBusy: false });
+    }, {
+      exposeBusy: false,
+      operation: "check",
+      spaceId: activeBinding.spaceId
+    });
 
     if (shouldPull && bindingRef.current) {
       await performPull({ forceApply: false, source: "auto" });
@@ -297,6 +355,17 @@ export function SyncPanel({
         persistBinding(nextBinding);
         setSyncMetaFromBinding(nextBinding, "synced", "本地版本已覆盖云端");
         setMessage("本地版本已覆盖云端。");
+        recordLocalAuditEvent({
+          documentId: localDocument.documentId,
+          level: "warning",
+          message: "已用本地首页覆盖云端版本。",
+          metadata: {
+            remoteRevision: result.revision,
+            source: options.source
+          },
+          spaceId: activeBinding.spaceId,
+          type: "sync.force_push"
+        });
         return;
       }
 
@@ -310,6 +379,16 @@ export function SyncPanel({
         persistBinding(conflictBinding);
         setSyncMetaFromBinding(conflictBinding, "conflict", "云端已有更新");
         setMessage("检测到冲突：云端已有更新。");
+        recordLocalAuditEvent({
+          documentId: localDocument.documentId,
+          level: "warning",
+          message: "上传时检测到云端已有更新。",
+          metadata: {
+            source: options.source
+          },
+          spaceId: activeBinding.spaceId,
+          type: "sync.push_conflict"
+        });
         return;
       }
 
@@ -323,7 +402,23 @@ export function SyncPanel({
       persistBinding(nextBinding);
       setSyncMetaFromBinding(nextBinding, "synced", options.source === "auto" ? "已自动上传本地首页" : "已上传本地首页");
       setMessage(options.source === "auto" ? "已自动上传本地首页。" : "已上传本地首页。");
-    }, { exposeBusy: options.source !== "auto" });
+      if (options.source !== "auto") {
+        recordLocalAuditEvent({
+          documentId: localDocument.documentId,
+          message: "已上传本地首页到云端。",
+          metadata: {
+            remoteRevision: result.revision,
+            source: options.source
+          },
+          spaceId: activeBinding.spaceId,
+          type: "sync.push"
+        });
+      }
+    }, {
+      exposeBusy: options.source !== "auto",
+      operation: options.force ? "force-push" : "push",
+      spaceId: activeBinding.spaceId
+    });
   }, [getSyncRepository, persistBinding, runSyncAction, setSyncMetaFromBinding]);
 
   useEffect(() => {
@@ -468,6 +563,15 @@ export function SyncPanel({
       setSyncCode(formatSyncCode(nextBinding));
       setSyncMetaFromBinding(nextBinding, "synced", "同步码已创建");
       setMessage("同步码已创建，请保存到安全位置。");
+      recordLocalAuditEvent({
+        documentId: documentRef.current.documentId,
+        message: "已为当前首页创建同步码。",
+        metadata: {
+          remoteRevision: result.revision
+        },
+        spaceId: result.spaceId,
+        type: "sync.create_code"
+      });
     });
   }
 
@@ -496,6 +600,15 @@ export function SyncPanel({
         syncMeta: toSyncMeta(nextBinding, "synced")
       }, "已绑定同步码并拉取云端首页");
       setMessage("已绑定同步码。");
+      recordLocalAuditEvent({
+        documentId: pulled.document.documentId,
+        message: "已绑定同步码并拉取云端首页。",
+        metadata: {
+          remoteRevision: pulled.revision
+        },
+        spaceId: nextBinding.spaceId,
+        type: "sync.bind_code"
+      });
     });
   }
 
@@ -518,14 +631,24 @@ export function SyncPanel({
       return;
     }
 
+    const previousBinding = bindingRef.current;
     bindingRepositoryRef.current?.clear();
     bindingRef.current = null;
     setBinding(null);
     onBindingChange?.(null);
     setSyncCode("");
-    onSyncMetaChange(localSyncMeta(), binding?.accessMode === "account-managed" ? "已解除本机账号托管凭证" : "已解除本机同步码");
+    onSyncMetaChange(localSyncMeta(), previousBinding?.accessMode === "account-managed" ? "已解除本机账号托管凭证" : "已解除本机同步码");
     setMessage("已解除本机绑定。");
     setError("");
+    recordLocalAuditEvent({
+      documentId: documentRef.current.documentId,
+      message: previousBinding?.accessMode === "account-managed" ? "已解除本机账号托管凭证。" : "已解除本机同步码绑定。",
+      metadata: {
+        accessMode: previousBinding?.accessMode ?? "unknown"
+      },
+      spaceId: previousBinding?.spaceId ?? null,
+      type: "sync.unbind_local"
+    });
   }
 
   function restoreResetBackupFromPause() {
@@ -563,6 +686,16 @@ export function SyncPanel({
       setSyncCode("");
       onSyncMetaChange(localSyncMeta(), "同步码已废弃");
       setMessage("同步码已废弃。");
+      recordLocalAuditEvent({
+        documentId: documentRef.current.documentId,
+        level: "warning",
+        message: "已废弃当前同步码。",
+        spaceId: activeBinding.spaceId,
+        type: "sync.revoke_code"
+      });
+    }, {
+      operation: "revoke",
+      spaceId: activeBinding.spaceId
     });
   }
 
@@ -999,6 +1132,10 @@ function hasLocalDocumentChanges(documentValue: HomeDocumentV2, binding: StoredS
 
   return documentValue.revision !== binding.lastSyncedDocumentRevision
     || documentValue.updatedAt !== binding.lastSyncedDocumentUpdatedAt;
+}
+
+function shouldAuditPullSource(source: "auto" | "manual" | "resolve" | "startup"): boolean {
+  return source === "manual" || source === "resolve";
 }
 
 function isSyncPausedForBinding(documentValue: HomeDocumentV2, binding: StoredSyncBinding): boolean {

@@ -42,7 +42,7 @@ Account
 
 - 短期：
   - 继续使用 GitHub Pages 和当前项目路径。
-  - 主域名尚未决定，域名相关工作不阻塞 Phase 1.6.8 模板库、Phase 1.7 组件、Phase 1.8 普通个性化、Phase 1.9A 页面/UI 优化和 Phase 1.9B 浏览器收藏/标签导入需求集。
+  - 主域名尚未决定，域名相关工作不阻塞 Phase 1.6.8 模板库、Phase 1.7 组件、Phase 1.8 普通个性化、Phase 1.9A 页面/UI 优化、Phase 1.9B 浏览器收藏/标签导入需求集和 Phase 1.11 组件设计优化。
 - 正式推出前：
   - 绑定自购主域名，逐步摆脱 `/PersonalHomepge/` 项目路径。
   - Supabase Auth 的 `Site URL` 和 `Redirect URLs` 切换到统一主域名。
@@ -105,8 +105,8 @@ Account
 | 数据导入 | 浏览器收藏/标签导入需求集 | 把大量已有收藏和当前标签转成可整理的首页内容 | 暂不细化；先设计权限边界、大批量处理、清洗、预览和回滚策略 | P1 | Phase 1.9B |
 | 安全 | 数据导入/恢复 | 与数据导出形成恢复闭环 | 严格校验导入 schema，先恢复本地首页 JSON，不导入 secret | P2 | Phase 1.10 |
 | 安全 | 账号删除 | 合规和用户控制 | 删除账号数据、空间、偏好和绑定 | P2 | Phase 1.10 |
-| 部署与域名 | 统一自购主域名 | 摆脱 GitHub Pages 项目路径，统一品牌入口 | 主站从 `/PersonalHomepge/` 迁移到根路径，自定义 `Site URL` 和 redirect | P1 | Phase 1.10 |
-| 部署与域名 | 评估迁移到 Vercel 或 Cloudflare | 为后续平台化部署和域名管理做准备 | 保持 `basePath` 可配置，逐步从 GitHub Pages 脱离 | P2 | Phase 1.10 |
+| 部署与域名 | 统一自购主域名 | 摆脱 GitHub Pages 项目路径，统一品牌入口 | 主站从 `/PersonalHomepge/` 迁移到根路径，自定义 `Site URL` 和 redirect | P1 | Phase 1.12 |
+| 部署与域名 | 评估迁移到 Vercel 或 Cloudflare | 为后续平台化部署和域名管理做准备 | 保持 `basePath` 可配置，逐步从 GitHub Pages 脱离 | P2 | Phase 1.12 |
 | 部署与域名 | VIP 自定义域名 | 高感知付费能力 | 每个 `home_space` 可绑定一个或多个自定义域名，需验证所有权和证书状态 | P1 | Phase 2 |
 | 付费权益 | VIP 状态认证 | 付费功能入口 | Stripe customer 和 entitlement 关联账号 | P0 | Phase 2 |
 | 付费权益 | 首页空间数量限制 | 免费/付费分层 | free 限制空间数，VIP 增加额度 | P1 | Phase 2 |
@@ -266,12 +266,23 @@ Phase 1 暂不做：
 
 ### Phase 1.10
 
-- 正式推出前再做主域名准备，包括自购域名、Auth redirect、`basePath` 和本地缓存域隔离回归。
+- 正式推出前基础收口，不再把主域名准备放在本阶段首位。
 - 数据导入/恢复 v1。
 - 操作审计日志。
 - 设备状态 v1 和更完整的设备移除。
 - 账号删除。
 - 只读分享链接和密码保护空间评估。
+
+### Phase 1.11
+
+- 组件设计和优化，重点复盘 Todo、月历、组件管理模式和模板默认组件。
+- 统一组件配置入口、视觉密度、空状态、错误态、移动端布局和排序体验。
+- 后续组件候选只做设计评估，不默认引入复杂组件市场或后端表。
+
+### Phase 1.12
+
+- 主域名准备，包括自购域名、Auth redirect、`basePath` 和本地缓存域隔离回归。
+- 自购主域名上线后，`basePath`、Supabase Auth URL 配置和本地缓存域隔离都会变化，需要单独回归。
 
 ### Phase 2
 
