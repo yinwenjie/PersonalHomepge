@@ -5,6 +5,7 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import { AccountPanel } from "@/components/account-panel";
 import { AccountPreferencesPanel } from "@/components/account-preferences-panel";
+import { BookmarkImportPanel } from "@/components/bookmark-import-panel";
 import { HomeSpacesPanel } from "@/components/home-spaces-panel";
 import { HomeThemeStyleBridge } from "@/components/home-theme-style-bridge";
 import { StatusMessage } from "@/components/status-message";
@@ -274,6 +275,12 @@ export function SettingsDashboard() {
                 {syncPanel}
               </div>
             ) : null}
+
+            <BookmarkImportPanel
+              documentValue={homeDocument}
+              storageReady={storageReady}
+              onCommitDocument={commitHomeDocument}
+            />
 
             <div className="advanced-operation-block">
               <div className="advanced-operation-head">
