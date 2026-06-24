@@ -14,6 +14,7 @@ import {
 } from "@/domain/home-template";
 import { parseSyncCode, type StoredSyncBinding } from "@/domain/sync-code";
 import type { AccountDataState } from "@/hooks/use-account-data";
+import type { LocalHomeSnapshotSource } from "@/infrastructure/local-home-snapshot-repository";
 
 interface HomeSpacesPanelProps {
   accountData: AccountDataState;
@@ -23,6 +24,7 @@ interface HomeSpacesPanelProps {
   documentValue: HomeDocumentV2;
   storageReady: boolean;
   onActivateHomeSpace: (homeSpace: HomeSpace, syncCode: string) => Promise<boolean>;
+  onBeforeOverwrite: (source: LocalHomeSnapshotSource) => boolean;
   onRestoreManagedHomeSpace: (homeSpace: HomeSpace) => Promise<boolean>;
   onMigrateSyncCodeHomeSpace: (homeSpace: HomeSpace) => Promise<boolean>;
   onManagedHomeSpaceCreated: (binding: StoredSyncBinding, documentValue?: HomeDocumentV2) => void;
@@ -41,6 +43,7 @@ export function HomeSpacesPanel({
   documentValue,
   storageReady,
   onActivateHomeSpace,
+  onBeforeOverwrite,
   onRestoreManagedHomeSpace,
   onMigrateSyncCodeHomeSpace,
   onManagedHomeSpaceCreated
@@ -146,6 +149,11 @@ export function HomeSpacesPanel({
 
     const templateDocument = createHomeDocumentFromTemplate(selectedTemplate.id);
     const spaceName = templateSpaceName.trim() || selectedTemplate.recommendedSpaceName;
+    if (!onBeforeOverwrite("before-template-home-space-switch")) {
+      window.alert("未能保存当前首页，已取消创建并切换模板空间。");
+      return;
+    }
+
     setCreatingTemplateId(selectedTemplate.id);
     try {
       const binding = await accountData.createAccountManagedHomeSpace(spaceName, templateDocument);
@@ -185,6 +193,11 @@ export function HomeSpacesPanel({
       return;
     }
 
+    if (!onBeforeOverwrite("before-home-space-activate")) {
+      setActivationError("未能保存当前首页，已取消激活首页空间。");
+      return;
+    }
+
     setActivationPending(true);
     try {
       const activated = await onActivateHomeSpace(homeSpace, normalizedCode);
@@ -205,6 +218,11 @@ export function HomeSpacesPanel({
     setActiveSpaceId(null);
 
     if (!window.confirm("恢复该账号托管空间会拉取云端首页并覆盖当前浏览器本地首页，继续？")) {
+      return;
+    }
+
+    if (!onBeforeOverwrite("before-managed-home-space-restore")) {
+      setActivationError("未能保存当前首页，已取消恢复账号托管空间。");
       return;
     }
 

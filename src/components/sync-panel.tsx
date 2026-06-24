@@ -14,6 +14,7 @@ import {
 import { StatusMessage } from "@/components/status-message";
 import { useUiPreferences } from "@/hooks/use-ui-preferences";
 import { recordLocalAuditEvent } from "@/infrastructure/local-audit-log-repository";
+import type { LocalHomeSnapshotSource } from "@/infrastructure/local-home-snapshot-repository";
 import { isSupabaseConfigured, SUPABASE_CONFIGURATION_MESSAGE } from "@/infrastructure/supabase-client";
 import { runWithSyncLock, type SyncCoordinatorOperation } from "@/infrastructure/sync-coordinator";
 import { LocalSyncBindingRepository } from "@/infrastructure/sync-binding-repository";
@@ -25,6 +26,7 @@ interface SyncPanelProps {
   presentation?: "primary" | "advanced";
   storageReady: boolean;
   visible: boolean;
+  onBeforeOverwrite: (source: LocalHomeSnapshotSource) => boolean;
   onReplaceDocument: (documentValue: HomeDocumentV2, message: string) => void;
   onSyncMetaChange: (syncMeta: HomeSyncMeta, message: string) => void;
   onBindingChange?: (binding: StoredSyncBinding | null) => void;
@@ -43,6 +45,7 @@ export function SyncPanel({
   presentation = "primary",
   storageReady,
   visible,
+  onBeforeOverwrite,
   onReplaceDocument,
   onSyncMetaChange,
   onBindingChange,
@@ -98,6 +101,19 @@ export function SyncPanel({
 
     return syncRepositoryRef.current;
   }, []);
+
+  const protectBeforeOverwrite = useCallback((source: LocalHomeSnapshotSource, failureMessage: string): boolean => {
+    if (onBeforeOverwrite(source)) {
+      return true;
+    }
+
+    setError(failureMessage);
+    setMessage("");
+    if (!visible) {
+      window.alert(failureMessage);
+    }
+    return false;
+  }, [onBeforeOverwrite, visible]);
 
   const runSyncAction = useCallback(async (
     action: () => Promise<void>,
@@ -164,8 +180,13 @@ export function SyncPanel({
   const applyCloudDocument = useCallback((
     pulled: PullSyncSpaceResult,
     activeBinding: StoredSyncBinding,
-    statusMessage: string
-  ) => {
+    statusMessage: string,
+    snapshotSource: LocalHomeSnapshotSource
+  ): boolean => {
+    if (!protectBeforeOverwrite(snapshotSource, "未能保存当前首页，已取消云端覆盖。")) {
+      return false;
+    }
+
     const nextBinding: StoredSyncBinding = {
       ...activeBinding,
       remoteRevision: pulled.revision,
@@ -178,7 +199,8 @@ export function SyncPanel({
       ...pulled.document,
       syncMeta: toSyncMeta(nextBinding, "synced")
     }, statusMessage);
-  }, [onReplaceDocument, persistBinding]);
+    return true;
+  }, [onReplaceDocument, persistBinding, protectBeforeOverwrite]);
 
   const performPull = useCallback(async (options: { forceApply: boolean; source: "auto" | "manual" | "resolve" | "startup" }) => {
     const activeBinding = bindingRef.current;
@@ -254,7 +276,20 @@ export function SyncPanel({
         return;
       }
 
-      applyCloudDocument(pulled, activeBinding, options.source === "auto" ? "已自动拉取云端首页" : "已拉取云端首页");
+      const snapshotSource = options.source === "resolve" && localDocument.syncMeta.status === "conflict"
+        ? "before-conflict-cloud-resolve"
+        : "before-cloud-pull";
+      const cloudDocumentApplied = applyCloudDocument(
+        pulled,
+        activeBinding,
+        options.source === "auto" ? "已自动拉取云端首页" : "已拉取云端首页",
+        snapshotSource
+      );
+      if (!cloudDocumentApplied) {
+        setSyncMetaFromBinding(activeBinding, localDocument.syncMeta.status, "已取消拉取覆盖");
+        return;
+      }
+
       setMessage(options.source === "auto" ? "已自动拉取云端首页。" : "已拉取云端首页。");
       if (shouldAuditPullSource(options.source)) {
         recordLocalAuditEvent({
@@ -592,6 +627,11 @@ export function SyncPanel({
         lastSyncedDocumentRevision: pulled.document.revision,
         lastSyncedDocumentUpdatedAt: pulled.document.updatedAt
       };
+
+      if (!protectBeforeOverwrite("before-sync-code-bind", "未能保存当前首页，已取消绑定同步码。")) {
+        return;
+      }
+
       persistBinding(nextBinding);
       setSyncCode(formatSyncCode(nextBinding));
       setInputCode("");

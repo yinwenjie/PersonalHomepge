@@ -15,11 +15,20 @@ export const LOCAL_HOME_SNAPSHOTS_UPDATED_EVENT = "homepage:local-snapshots-upda
 const LOCAL_HOME_SNAPSHOT_SCHEMA = "homepage-local-snapshots-v1";
 
 export type LocalHomeSnapshotSource =
+  | "before-bookmark-import"
+  | "before-bookmark-import-undo"
+  | "before-cloud-pull"
+  | "before-conflict-cloud-resolve"
   | "before-data-package-restore"
+  | "before-home-space-activate"
   | "before-json-import"
   | "before-local-snapshot-restore"
+  | "before-managed-home-space-restore"
   | "before-reset-backup-restore"
-  | "before-reset-default";
+  | "before-reset-default"
+  | "before-sync-code-bind"
+  | "before-template-apply"
+  | "before-template-home-space-switch";
 
 export interface LocalHomeSnapshotSummary {
   groupCount: number;
@@ -189,11 +198,20 @@ function summarizeHomeDocument(documentValue: HomeDocumentV2): LocalHomeSnapshot
 }
 
 function isLocalHomeSnapshotSource(value: unknown): value is LocalHomeSnapshotSource {
-  return value === "before-data-package-restore"
+  return value === "before-bookmark-import"
+    || value === "before-bookmark-import-undo"
+    || value === "before-cloud-pull"
+    || value === "before-conflict-cloud-resolve"
+    || value === "before-data-package-restore"
+    || value === "before-home-space-activate"
     || value === "before-json-import"
     || value === "before-local-snapshot-restore"
+    || value === "before-managed-home-space-restore"
     || value === "before-reset-backup-restore"
-    || value === "before-reset-default";
+    || value === "before-reset-default"
+    || value === "before-sync-code-bind"
+    || value === "before-template-apply"
+    || value === "before-template-home-space-switch";
 }
 
 export function notifyLocalHomeSnapshotsUpdated(): void {

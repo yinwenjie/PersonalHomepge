@@ -1,7 +1,7 @@
 "use client";
 
 import type { ChangeEvent } from "react";
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import Link from "next/link";
 import { AccountPanel } from "@/components/account-panel";
 import { AccountPreferencesPanel } from "@/components/account-preferences-panel";
@@ -25,6 +25,7 @@ import { useHomeDocumentController } from "@/hooks/use-home-document-controller"
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
 import { LocalAuditLogRepository, recordLocalAuditEvent } from "@/infrastructure/local-audit-log-repository";
 import { LocalDeviceRepository } from "@/infrastructure/local-device-repository";
+import type { LocalHomeSnapshotSource } from "@/infrastructure/local-home-snapshot-repository";
 import { LocalSyncBindingRepository } from "@/infrastructure/sync-binding-repository";
 import { SyncCodeRepository } from "@/infrastructure/sync-code-repository";
 
@@ -49,6 +50,7 @@ export function SettingsDashboard() {
     isDefaultDocument,
     documentProtection,
     commitHomeDocument,
+    protectBeforeDangerousOverwrite,
     replaceHomeDocument,
     restoreHomeDocumentWithBackup,
     updateSyncMeta,
@@ -60,6 +62,9 @@ export function SettingsDashboard() {
   } = useHomeDocumentController();
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const dataPackageImportInputRef = useRef<HTMLInputElement | null>(null);
+  const handleBeforeOverwrite = useCallback((source: LocalHomeSnapshotSource) => {
+    return protectBeforeDangerousOverwrite(source).canContinue;
+  }, [protectBeforeDangerousOverwrite]);
 
   async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     try {
@@ -293,6 +298,7 @@ export function SettingsDashboard() {
       presentation={signedIn ? "advanced" : "primary"}
       storageReady={storageReady}
       visible
+      onBeforeOverwrite={handleBeforeOverwrite}
       onReplaceDocument={replaceHomeDocument}
       onSyncMetaChange={updateSyncMeta}
       onBindingChange={setCurrentBinding}
@@ -310,6 +316,7 @@ export function SettingsDashboard() {
       documentValue={homeDocument}
       storageReady={storageReady}
       onActivateHomeSpace={activateHomeSpace}
+      onBeforeOverwrite={handleBeforeOverwrite}
       onRestoreManagedHomeSpace={restoreManagedHomeSpace}
       onMigrateSyncCodeHomeSpace={migrateSyncCodeHomeSpace}
       onManagedHomeSpaceCreated={handleManagedHomeSpaceCreated}
@@ -400,6 +407,7 @@ export function SettingsDashboard() {
             <BookmarkImportPanel
               documentValue={homeDocument}
               storageReady={storageReady}
+              onBeforeOverwrite={handleBeforeOverwrite}
               onCommitDocument={commitHomeDocument}
             />
 

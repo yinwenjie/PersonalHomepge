@@ -1,7 +1,7 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   buildSearchUrl,
@@ -25,6 +25,7 @@ import { useHomeDocumentController } from "@/hooks/use-home-document-controller"
 import { useHomeDocumentEditor } from "@/hooks/use-home-document-editor";
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
 import { useUiPreferences } from "@/hooks/use-ui-preferences";
+import type { LocalHomeSnapshotSource } from "@/infrastructure/local-home-snapshot-repository";
 
 const ONBOARDING_STORAGE_KEY = "homepage:onboarding:v1";
 
@@ -35,6 +36,7 @@ export function HomeDashboard() {
     storageReady,
     hasStoredDocument,
     commitHomeDocument,
+    protectBeforeDangerousOverwrite,
     replaceHomeDocument,
     updateSyncMeta
   } = useHomeDocumentController();
@@ -113,6 +115,9 @@ export function HomeDashboard() {
 
   const visibleCount = filteredGroups.reduce((sum, { sites }) => sum + sites.length, 0);
   const dragDisabled = Boolean(normalizeText(activeQuery));
+  const handleBeforeOverwrite = useCallback((source: LocalHomeSnapshotSource) => {
+    return protectBeforeDangerousOverwrite(source).canContinue;
+  }, [protectBeforeDangerousOverwrite]);
 
   function completeOnboarding() {
     window.localStorage.setItem(ONBOARDING_STORAGE_KEY, "complete");
@@ -125,6 +130,11 @@ export function HomeDashboard() {
   }
 
   function applyTemplate(template: HomeTemplate) {
+    if (!protectBeforeDangerousOverwrite("before-template-apply").canContinue) {
+      window.alert("未能保存当前首页，已取消应用模板。");
+      return;
+    }
+
     replaceHomeDocument(createHomeDocumentFromTemplate(template.id), `已使用${template.name}`);
     completeOnboarding();
     if (template.id === "blank") {
@@ -207,6 +217,7 @@ export function HomeDashboard() {
         editorOpen={Boolean(editor)}
         storageReady={storageReady}
         visible={false}
+        onBeforeOverwrite={handleBeforeOverwrite}
         onReplaceDocument={replaceHomeDocument}
         onSyncMetaChange={updateSyncMeta}
       />

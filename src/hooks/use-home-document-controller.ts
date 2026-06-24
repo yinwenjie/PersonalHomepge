@@ -11,7 +11,8 @@ import {
 } from "@/domain/home-document";
 import {
   classifyHomeDocument,
-  createDocumentProtectionState
+  createDocumentProtectionState,
+  type HomeDocumentClass
 } from "@/domain/home-document-protection";
 import { LocalHomeRepository } from "@/infrastructure/home-repository";
 import { recordLocalAuditEvent } from "@/infrastructure/local-audit-log-repository";
@@ -32,6 +33,11 @@ interface RestoreLocalSnapshotOptions {
   successMessage?: string;
   syncMeta: HomeSyncMeta;
 }
+
+export type DangerousOverwriteProtectionResult =
+  | { canContinue: true; status: "saved"; snapshot: LocalHomeSnapshot }
+  | { canContinue: true; status: "skipped"; reason: "duplicate" | "system-document"; documentClass: HomeDocumentClass }
+  | { canContinue: false; status: "failed"; error: unknown };
 
 export function useHomeDocumentController() {
   const [homeDocument, setHomeDocument] = useState<HomeDocumentV2>(() => createDefaultHomeDocument());
@@ -61,11 +67,39 @@ export function useHomeDocumentController() {
   }, [homeDocument]);
   const isDefaultDocument = documentProtection.documentClass === "system-default";
 
-  const saveUserSnapshotBeforeOverwrite = useCallback((source: LocalHomeSnapshotSource) => {
+  const protectBeforeDangerousOverwrite = useCallback((source: LocalHomeSnapshotSource): DangerousOverwriteProtectionResult => {
     const currentDocument = homeDocumentRef.current;
+    const protection = createDocumentProtectionState(currentDocument);
+
+    if (!protection.isUserData) {
+      recordLocalAuditEvent({
+        documentId: currentDocument.documentId,
+        message: "当前首页属于系统态，未生成本地历史版本。",
+        metadata: {
+          documentClass: protection.documentClass,
+          source
+        },
+        spaceId: currentDocument.syncMeta.spaceId,
+        type: "local_snapshot.skipped_system_document"
+      });
+      return {
+        canContinue: true,
+        status: "skipped",
+        reason: "system-document",
+        documentClass: protection.documentClass
+      };
+    }
+
     const snapshotRepository = snapshotRepositoryRef.current;
     if (!snapshotRepository) {
-      return;
+      const error = new Error("Local snapshot repository is not ready.");
+      recordSnapshotFailure(currentDocument, source, error);
+      setSaveStatus("未能保存当前首页，已取消覆盖操作");
+      return {
+        canContinue: false,
+        status: "failed",
+        error
+      };
     }
 
     try {
@@ -85,34 +119,28 @@ export function useHomeDocumentController() {
           spaceId: currentDocument.syncMeta.spaceId,
           type: "local_snapshot.created"
         });
-        return;
+        return {
+          canContinue: true,
+          status: "saved",
+          snapshot: result.snapshot
+        };
       }
 
-      if (result.reason === "system-document") {
-        recordLocalAuditEvent({
-          documentId: currentDocument.documentId,
-          message: "当前首页属于系统态，未生成本地历史版本。",
-          metadata: {
-            documentClass: result.documentClass,
-            source
-          },
-          spaceId: currentDocument.syncMeta.spaceId,
-          type: "local_snapshot.skipped_system_document"
-        });
-      }
+      return {
+        canContinue: true,
+        status: "skipped",
+        reason: result.reason,
+        documentClass: result.documentClass
+      };
     } catch (error) {
       console.warn("Failed to save local home snapshot:", error);
-      recordLocalAuditEvent({
-        documentId: currentDocument.documentId,
-        level: "warning",
-        message: "本地历史版本保存失败，原操作继续。",
-        metadata: {
-          reason: error instanceof Error ? error.message : "unknown",
-          source
-        },
-        spaceId: currentDocument.syncMeta.spaceId,
-        type: "local_snapshot.failed"
-      });
+      recordSnapshotFailure(currentDocument, source, error);
+      setSaveStatus("未能保存当前首页，已取消覆盖操作");
+      return {
+        canContinue: false,
+        status: "failed",
+        error
+      };
     }
   }, []);
 
@@ -148,7 +176,11 @@ export function useHomeDocumentController() {
     }
 
     const currentDocument = homeDocumentRef.current;
-    saveUserSnapshotBeforeOverwrite("before-data-package-restore");
+    if (!protectBeforeDangerousOverwrite("before-data-package-restore").canContinue) {
+      window.alert("未能保存当前首页，已取消覆盖操作。");
+      return false;
+    }
+
     try {
       repository.saveResetBackup(currentDocument);
     } catch (error) {
@@ -176,7 +208,7 @@ export function useHomeDocumentController() {
     setHasResetBackup(true);
     setSaveStatus(message);
     return true;
-  }, [saveUserSnapshotBeforeOverwrite]);
+  }, [protectBeforeDangerousOverwrite]);
 
   const updateSyncMeta = useCallback((syncMeta: HomeSyncMeta, message: string) => {
     setHomeDocument((currentDocument) => {
@@ -219,7 +251,11 @@ export function useHomeDocumentController() {
         return;
       }
 
-      saveUserSnapshotBeforeOverwrite("before-json-import");
+      if (!protectBeforeDangerousOverwrite("before-json-import").canContinue) {
+        window.alert("未能保存当前首页，已取消覆盖操作。");
+        return;
+      }
+
       commitHomeDocument(imported, "已导入");
       recordLocalAuditEvent({
         documentId: imported.documentId,
@@ -234,7 +270,7 @@ export function useHomeDocumentController() {
     } catch {
       window.alert("导入失败：JSON 格式不正确。");
     }
-  }, [commitHomeDocument, saveUserSnapshotBeforeOverwrite]);
+  }, [commitHomeDocument, protectBeforeDangerousOverwrite]);
 
   const resetDefault = useCallback((options: ResetDefaultOptions = {}) => {
     if (!window.confirm(options.confirmMessage ?? "清空内容并恢复默认会覆盖当前浏览器中的首页。重置前会自动保存一份本地备份，继续？")) {
@@ -253,7 +289,11 @@ export function useHomeDocumentController() {
       return;
     }
 
-    saveUserSnapshotBeforeOverwrite("before-reset-default");
+    if (!protectBeforeDangerousOverwrite("before-reset-default").canContinue) {
+      window.alert("未能保存当前首页，已取消覆盖操作。");
+      return;
+    }
+
     try {
       repository.saveResetBackup(currentDocument);
       recordLocalAuditEvent({
@@ -300,7 +340,7 @@ export function useHomeDocumentController() {
       },
       type: "document.reset_default"
     });
-  }, [saveUserSnapshotBeforeOverwrite]);
+  }, [protectBeforeDangerousOverwrite]);
 
   const restoreResetBackup = useCallback(() => {
     if (!window.confirm("恢复备份会覆盖当前本地首页，继续？")) {
@@ -316,14 +356,18 @@ export function useHomeDocumentController() {
       return;
     }
 
-    saveUserSnapshotBeforeOverwrite("before-reset-backup-restore");
+    if (!protectBeforeDangerousOverwrite("before-reset-backup-restore").canContinue) {
+      window.alert("未能保存当前首页，已取消覆盖操作。");
+      return;
+    }
+
     commitHomeDocument(backup, "已恢复上一次重置前页面");
     recordLocalAuditEvent({
       documentId: backup.documentId,
       message: "已恢复上一次重置前页面。",
       type: "document.reset_backup_restored"
     });
-  }, [commitHomeDocument, saveUserSnapshotBeforeOverwrite]);
+  }, [commitHomeDocument, protectBeforeDangerousOverwrite]);
 
   const restoreLocalSnapshot = useCallback((
     snapshot: LocalHomeSnapshot,
@@ -337,7 +381,10 @@ export function useHomeDocumentController() {
 
     const currentDocument = homeDocumentRef.current;
     try {
-      saveUserSnapshotBeforeOverwrite("before-local-snapshot-restore");
+      if (!protectBeforeDangerousOverwrite("before-local-snapshot-restore").canContinue) {
+        return false;
+      }
+
       const normalized = normalizeHomeDocument({
         ...snapshot.document,
         revision: nextRevision(currentDocument.revision),
@@ -386,7 +433,7 @@ export function useHomeDocumentController() {
       window.alert("本地历史版本恢复失败，请稍后重试。");
       return false;
     }
-  }, [saveUserSnapshotBeforeOverwrite]);
+  }, [protectBeforeDangerousOverwrite]);
 
   return {
     homeDocument,
@@ -397,6 +444,7 @@ export function useHomeDocumentController() {
     isDefaultDocument,
     documentProtection,
     commitHomeDocument,
+    protectBeforeDangerousOverwrite,
     replaceHomeDocument,
     restoreHomeDocumentWithBackup,
     updateSyncMeta,
@@ -414,4 +462,22 @@ function parseImportedDocument(input: unknown): HomeDocumentV2 {
   } catch {
     return migrateV1ToV2(input);
   }
+}
+
+function recordSnapshotFailure(
+  documentValue: HomeDocumentV2,
+  source: LocalHomeSnapshotSource,
+  error: unknown
+): void {
+  recordLocalAuditEvent({
+    documentId: documentValue.documentId,
+    level: "danger",
+    message: "本地历史版本保存失败，覆盖操作已取消。",
+    metadata: {
+      reason: error instanceof Error ? error.message : "unknown",
+      source
+    },
+    spaceId: documentValue.syncMeta.spaceId,
+    type: "local_snapshot.failed"
+  });
 }

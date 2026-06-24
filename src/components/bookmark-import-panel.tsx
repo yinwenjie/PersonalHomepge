@@ -30,10 +30,12 @@ import {
 import type { HomeDocumentV2, HomeGroup } from "@/domain/home-document";
 import { parseUrlList } from "@/domain/url-list-import";
 import { BookmarkImportStorageRepository } from "@/infrastructure/bookmark-import-storage";
+import type { LocalHomeSnapshotSource } from "@/infrastructure/local-home-snapshot-repository";
 
 interface BookmarkImportPanelProps {
   documentValue: HomeDocumentV2;
   storageReady: boolean;
+  onBeforeOverwrite: (source: LocalHomeSnapshotSource) => boolean;
   onCommitDocument: (documentValue: HomeDocumentV2, message?: string) => void;
 }
 
@@ -75,6 +77,7 @@ function getBookmarkImportStorageState(storageReady: boolean, homeDocumentId: st
 export function BookmarkImportPanel({
   documentValue,
   storageReady,
+  onBeforeOverwrite,
   onCommitDocument
 }: BookmarkImportPanelProps) {
   const storageRepositoryRef = useRef<BookmarkImportStorageRepository | null>(null);
@@ -176,6 +179,12 @@ export function BookmarkImportPanel({
       return;
     }
 
+    if (!onBeforeOverwrite("before-bookmark-import")) {
+      setMessage("未能保存当前首页，已取消导入。");
+      setMessageTone("danger");
+      return;
+    }
+
     let undoSaved = true;
     try {
       getStorageRepository()?.saveUndo({
@@ -212,6 +221,12 @@ export function BookmarkImportPanel({
     }
 
     if (!window.confirm("撤销会移除最近一次导入新增的网站；如果之后移动过这些网站，会尽量按网站 ID 清理。继续？")) {
+      return;
+    }
+
+    if (!onBeforeOverwrite("before-bookmark-import-undo")) {
+      setMessage("未能保存当前首页，已取消撤销。");
+      setMessageTone("danger");
       return;
     }
 

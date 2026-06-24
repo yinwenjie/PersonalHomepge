@@ -95,9 +95,48 @@ Phase 1.11 将“用户数据保全、防止数据丢失”提升为 P0。所有
 - `src/hooks/use-home-document-controller.ts`
 - `src/infrastructure/local-home-snapshot-repository.ts`
 
+### Phase 1.11.3：危险写入保护
+
+新增统一危险覆盖保护入口 `protectBeforeDangerousOverwrite(source)`。
+
+已支持：
+
+- 覆盖当前本地首页前先判断当前文档分类。
+- 当前首页为有效用户数据时，必须成功生成本地快照或命中重复快照，才允许继续覆盖。
+- 当前首页为系统默认页、空白页或未编辑模板页时，记录跳过审计并允许继续。
+- 快照保存失败、localStorage 不可用或快照仓储未就绪时，阻止覆盖并写入 danger 级本地审计。
+- 不引入普通编辑节流快照；revision 之间没有快照仍属预期。
+
+新增覆盖前快照来源：
+
+- `before-bookmark-import`
+- `before-bookmark-import-undo`
+- `before-template-apply`
+- `before-template-home-space-switch`
+- `before-sync-code-bind`
+- `before-home-space-activate`
+- `before-managed-home-space-restore`
+- `before-cloud-pull`
+- `before-conflict-cloud-resolve`
+
+新增纳入保护的入口：
+
+- 书签/URL 导入确认写入前、撤销最近一次导入前。
+- 首页欢迎区应用模板或空白模板前。
+- 从模板创建账号托管空间并切换当前浏览器前。
+- 输入同步码绑定并拉取云端覆盖本地前。
+- 首页空间激活、账号托管空间恢复并覆盖本地前。
+- 手动拉取云端、暂停状态拉取云端、冲突选择云端版本、启动/自动拉取实际覆盖本地前。
+
+关键文件：
+
+- `src/hooks/use-home-document-controller.ts`
+- `src/components/bookmark-import-panel.tsx`
+- `src/components/sync-panel.tsx`
+- `src/components/home-spaces-panel.tsx`
+
 ## 尚未落地
 
-- Phase 1.11.3 危险写入保护：将书签导入、模板应用、空间切换、冲突解决等更多入口统一纳入保护。
 - Phase 1.11.4 同步误覆盖防护：云端拉取覆盖本地、本地上传覆盖云端前保存版本并加强确认。
 - Phase 1.11.5 之后的云端历史版本、账号托管可恢复模型、Supabase 后台 dashboard 和 P0 回归演练。
 
@@ -115,3 +154,4 @@ Phase 1.11 将“用户数据保全、防止数据丢失”提升为 P0。所有
 - 关键覆盖入口会对有效用户首页生成本地历史版本。
 - 默认页、空白页和未编辑模板页不会生成有效快照。
 - 数据恢复中心可展示、预览并恢复本地历史版本；已绑定同步空间时恢复后暂停自动同步。
+- 书签导入、模板应用、空间切换、同步码绑定和云端拉取覆盖本地前会先尝试保存本地快照；快照失败时取消覆盖。
