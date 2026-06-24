@@ -50,4 +50,5 @@
 - `backlog/AccountHomeSyncBacklog.md`：账号系统、首页空间、同步码管理和未来会员权益 backlog。
 - `backlog/AccountManagedSyncBacklog.md`：账号托管同步、空白设备恢复、同步码认领/迁移和未来密码保护空间 backlog。
 - `backlog/EncryptedFileCacheBacklog.md`：轻量级端到端加密文件缓存组件候选，记录 Supabase Storage、密钥模型、数据表和风险边界。
+- `backlog/DataPreservationBacklog.md`：Phase 1.11 数据保全与恢复体系 backlog，记录本地/云端快照、数据恢复中心、危险写入保护、同步误覆盖防护和后台审计设计。
 - `backlog/CodeOptimizationBacklog.md`：代码 review 发现的优化点，含 useSupabaseAuth 多订阅、SyncPanel 架构、round-trip 验证冗余等。

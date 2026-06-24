@@ -1,0 +1,339 @@
+# 数据保全与恢复体系 Backlog
+
+## 状态
+
+- 当前状态：Phase 1.11 主线候选，待实现。
+- 优先级：P0，高于隐私、防泄露、组件优化和 UI 打磨。
+- 需求背景：经历首页数据被清空/误覆盖事故后，产品规划必须先保证用户数据不会丢、可追踪、可预览、可恢复。
+- 阶段定位：建立本地历史版本、云端历史版本、数据恢复中心、危险写入保护、同步误覆盖防护、服务端审计和后台管理 dashboard。
+
+## 核心原则
+
+优先级重新排序：
+
+1. P0：用户数据保全，防止数据丢失。
+2. P1：隐私保护，防止数据泄露。
+3. P2：编辑体验、组件能力和视觉打磨。
+
+执行原则：
+
+- 任何可能覆盖有效用户首页的操作，都必须先生成可恢复快照。
+- 用户恢复前必须能完整预览目标版本。
+- 默认页、空白页和未编辑模板页不属于有效用户数据，不能污染历史版本和云端同步。
+- 同步范围是完整首页空间文档，不只是网站列表。
+- 账号托管空间优先追求可恢复、可审计和可后台辅助排障；普通同步码空间继续承担更强隐私边界。
+- 后台管理能力必须服务端受控，不能把 Supabase service role 或管理员密钥放进 GitHub Pages 前端。
+
+## 数据类型定义
+
+### 非有效用户数据
+
+以下内容不保存本地快照、不保存云端快照、不进行同步：
+
+- 默认首页。
+- 空白首页。
+- 未编辑的模板页。
+
+这些状态只能作为系统初始态、用户显式重置目标或模板预览存在。它们不能覆盖有效用户首页后立即被当成“新版本”上传，也不能成为恢复中心里的有效历史。
+
+### 有效用户首页
+
+以下内容合并为同一种有效用户数据：
+
+- 用户正常编辑后的首页。
+- 用户编辑后的模板页。
+- 数据包恢复后经用户确认保留的首页。
+- 浏览器收藏/URL 导入确认写入后的首页。
+
+只要用户对首页做过有效编辑，这份文档就应进入快照、同步和恢复保护流程。
+
+### 切换到系统态时的保护
+
+如果用户从有效用户首页切换到默认页、空白页或未编辑模板页：
+
+- 被覆盖的有效用户首页必须先保存快照。
+- 默认页、空白页或未编辑模板页本身不保存为有效快照。
+- 如果当前绑定同步空间，应进入暂停或确认流程，避免系统态静默上传覆盖云端有效数据。
+
+## 同步范围
+
+所有恢复、同步、快照和预览都以完整 `HomeDocumentV2` 为单位，而不是只处理 `groups[].sites`。
+
+必须覆盖：
+
+- 分组和网站列表。
+- 主题 preset 和主题 token。
+- Banner/背景图片引用、Storage asset ref、外链 URL 和遮罩强度。
+- 组件列表。
+- 组件配置。
+- 组件布局状态，例如顺序、标题、折叠状态。
+- `syncMeta`、`billing` 占位、`revision`、`updatedAt`。
+
+恢复中心的版本摘要至少显示：
+
+- 分组数。
+- 网站数。
+- 组件数和组件类型。
+- 主题 preset。
+- Banner/背景是否设置。
+- 文档更新时间。
+- 版本来源和风险标签。
+
+## 设置页信息架构
+
+数据恢复中心是一级设置项，不属于高级操作。
+
+最终顺序：
+
+1. 账号。
+2. 首页空间。
+3. 主题风格。
+4. Banner/背景。
+5. 账号偏好。
+6. 数据恢复中心。
+7. 高级操作。
+
+数据恢复中心包含：
+
+- 当前本地版本状态。
+- 本地历史版本列表。
+- 云端历史版本列表。
+- 最近危险操作记录。
+- 每个版本的完整预览。
+- 恢复按钮和二次确认。
+- 当前同步状态下的恢复后策略提示，例如恢复后暂停同步、恢复后上传云端、仅恢复本机。
+
+## 账号托管与同步码边界
+
+### 账号托管空间
+
+目标模型：
+
+- 账号管理同步的首页空间不再作为严格端到端加密空间处理。
+- Supabase 通过云端托管 secret 或服务端受控记录保存可恢复、可审计的首页内容。
+- 普通用户不直接访问 managed secret。
+- 前端仍通过普通账号权限读取自己的当前首页内容，但不能直接读取后台密钥或其他用户数据。
+- 管理员可通过受控后台查看非离线加密的当前内容、历史快照和操作记录，用于排障、审计和用户数据恢复。
+
+这意味着账号托管空间的产品定位是“账号可信托管、可恢复、可审计”，而不是“服务端零知识”。
+
+### 普通同步码空间
+
+普通同步码空间继续保持加密边界：
+
+- 云端默认只保存密文、revision 和元数据。
+- 管理员默认只能审计元数据和操作事件。
+- 只有用户提供同步码、迁移为空间账号托管，或后续显式选择可恢复托管模式时，后台才具备明文恢复能力。
+
+## 本地快照设计
+
+建议新增本地 key：
+
+```text
+homepage:local-snapshots:v1
+homepage:document-protection:v1
+```
+
+`homepage:local-snapshots:v1` 保存当前浏览器的有效用户首页历史版本。
+
+建议字段：
+
+```ts
+type LocalHomeSnapshot = {
+  id: string;
+  documentId: string;
+  revision: number;
+  source:
+    | "before-dangerous-write"
+    | "after-user-edit"
+    | "before-cloud-overwrite"
+    | "manual-restore-point"
+    | "import-commit";
+  documentClass: "user-data";
+  document: HomeDocumentV2;
+  summary: HomeDocumentSummary;
+  createdAt: string;
+  clientDeviceId: string;
+  operationId: string;
+};
+```
+
+`homepage:document-protection:v1` 记录当前文档分类和保护状态。
+
+建议字段：
+
+```ts
+type DocumentProtectionState = {
+  documentId: string;
+  documentClass:
+    | "system-default"
+    | "system-blank"
+    | "system-template"
+    | "user-data";
+  isUserEdited: boolean;
+  templateId?: string;
+  lastProtectedAt?: string;
+  lastSnapshotId?: string;
+};
+```
+
+本地快照策略：
+
+- 危险写入前保存。
+- 有效编辑后可节流保存，例如 5-10 分钟或 revision 变化阈值。
+- 每个浏览器限制保留数量，例如最近 20-50 个。
+- 大量导入、恢复数据包、恢复默认、云端覆盖本地必须强制保存覆盖前快照。
+- 旧 `homepage:reset-backup:v1` 保持兼容，但恢复中心优先展示新快照。
+
+## 云端快照设计
+
+建议新增 `home_space_snapshots`：
+
+```text
+id
+home_space_id
+user_id
+sync_space_id
+revision
+snapshot_source
+document_class
+document_json
+document_ciphertext
+summary
+created_at
+actor_user_id
+client_device_id
+operation_id
+```
+
+字段说明：
+
+- `snapshot_source`：`before-dangerous-write`、`after-user-edit`、`before-cloud-overwrite`、`manual-restore-point`、`import-commit`。
+- `document_class`：`user-data`、`system-default`、`system-blank`、`system-template`。
+- `document_json`：账号托管空间使用，支持后台预览和恢复。
+- `document_ciphertext`：同步码或 legacy 加密空间使用，后台默认不能预览明文。
+- `summary`：分组、网站、组件、主题、Banner/背景状态摘要。
+
+建议新增 `home_space_audit_events`：
+
+```text
+id
+user_id
+home_space_id
+sync_space_id
+event_type
+severity
+before_revision
+after_revision
+snapshot_id
+document_class_before
+document_class_after
+summary_before
+summary_after
+actor_user_id
+client_device_id
+created_at
+metadata
+```
+
+审计事件应覆盖：
+
+- 恢复默认。
+- 应用空白页。
+- 应用模板。
+- 用户编辑后保存。
+- 数据包恢复。
+- 收藏/URL 导入确认写入。
+- 空间切换。
+- 云端拉取覆盖本地。
+- 本地上传覆盖云端。
+- 冲突解决。
+- 管理员查看、预览和恢复辅助。
+
+## 后台管理 Dashboard
+
+目标：
+
+- 查看所有用户的非离线加密首页空间。
+- 查看账号托管空间当前内容。
+- 查看账号托管空间历史快照。
+- 查看操作审计事件。
+- 查看普通同步码空间的元数据和风险事件，但不默认查看明文。
+- 审计管理员自己的访问行为。
+
+建议架构：
+
+- 不在 GitHub Pages 前端保存 service role。
+- 使用 Supabase Edge Function、后台 Next.js 服务、或受控 admin RPC 作为管理入口。
+- `admin_users` 定义管理员身份。
+- `admin_audit_events` 记录管理员行为。
+- 后台只允许最小必要的查看、搜索、预览和导出，不默认提供危险修改能力。
+
+管理员操作原则：
+
+- 任何查看用户首页内容的动作都写入 `admin_audit_events`。
+- 任何导出、复制、恢复辅助动作都需要更高 severity。
+- 普通用户界面不暴露管理员接口。
+- 管理员 dashboard 仅用于排障、审计和用户请求的数据恢复支持。
+
+## Phase 1.11 子阶段建议
+
+| 子阶段 | 目标 | 主要交付 | 复杂度 | 风险 |
+|---|---|---|---|---|
+| Phase 1.11.0 | P0 原则和文档分类 | 文档分类 helper、默认/空白/模板/有效用户首页识别规则 | M | High |
+| Phase 1.11.1 | 本地历史版本 v1 | `homepage:local-snapshots:v1`、快照摘要、危险写入前备份 | M-L | High |
+| Phase 1.11.2 | 数据恢复中心 v1 | 设置页一级栏目、版本列表、完整预览、恢复确认 | L | High |
+| Phase 1.11.3 | 危险写入保护 | 恢复默认、模板、导入、数据包恢复、空间切换、云端覆盖前统一保护 | L | High |
+| Phase 1.11.4 | 同步误覆盖防护 | 默认/空白/未编辑模板不自动上传；恢复后暂停同步；有效数据覆盖前保存快照 | L | High |
+| Phase 1.11.5 | 云端历史版本 v1 | `home_space_snapshots`、`home_space_audit_events`、账号托管空间快照写入 | XL | High |
+| Phase 1.11.6 | 后台管理 dashboard 设计与最小实现 | `admin_users`、`admin_audit_events`、受控后台查看和审计入口 | XL | High |
+| Phase 1.11.7 | P0 回归测试集 | 数据清空、恢复默认、模板、导入、同步冲突、多设备覆盖回归用例 | M-L | High |
+
+推荐先实现 1.11.0-1.11.4，先把用户端误覆盖风险降下来；云端快照和后台 dashboard 可以作为后半段或拆分小版本推进。
+
+## 危险写入清单
+
+必须纳入统一保护：
+
+- 恢复默认。
+- 应用空白首页。
+- 应用未编辑模板。
+- 从模板创建并切换当前空间。
+- 数据包恢复。
+- JSON 导入。
+- 浏览器书签/URL 大批量导入。
+- 首页空间切换。
+- 从云端拉取并覆盖当前本地首页。
+- 本地强制上传覆盖云端。
+- 冲突解决选择本地或云端版本。
+- 账号托管空间迁移。
+
+每个危险写入都需要：
+
+- 判断当前文档是否为有效用户首页。
+- 如果是，先保存覆盖前快照。
+- 生成操作审计事件。
+- 在 UI 上提示恢复路径。
+- 对已绑定同步空间的写入，默认避免静默上传覆盖云端。
+
+## 风险点
+
+- 分类错误会把默认页误当有效数据，导致恢复中心被系统态污染。
+- 分类错误也可能把用户编辑后的模板页误当模板，导致用户数据不保存。
+- 云端快照会增加 Supabase 存储成本，需要快照数量、大小和保留周期限制。
+- 账号托管空间转向可审计明文/托管 secret 后，隐私文案和安全边界必须重新表述。
+- 管理员 dashboard 如果实现不当，风险高于普通产品功能，必须严格隔离 service role。
+- 大量用户或大首页空间可能导致快照表增长过快，需要摘要、分页和清理策略。
+
+## 验收标准
+
+- 默认页、空白页和未编辑模板页不会生成有效快照，也不会自动同步覆盖有效云端首页。
+- 用户编辑后的模板页和用户正常编辑首页都被视为有效用户首页。
+- 恢复默认、导入、数据包恢复、空间切换、云端覆盖本地前，当前有效用户首页会先生成快照。
+- 数据恢复中心在设置页作为一级栏目出现，排在账号偏好之后、高级操作之前。
+- 每个本地版本和云端版本都能生成完整预览。
+- 恢复任意版本前有明确二次确认。
+- 受账号管理同步的首页空间有云端快照和审计事件。
+- 普通同步码空间不因后台 dashboard 泄露密文内容。
+- 管理员查看非离线加密数据时写入管理员审计日志。
+- P0 回归用例覆盖首页清空、恢复默认、模板应用、批量导入、数据包恢复、多设备同步覆盖和冲突解决。
