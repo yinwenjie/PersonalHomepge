@@ -5,13 +5,20 @@ import {
   createDefaultHomeDocument,
   HomeDocumentV2,
   HomeSyncMeta,
-  isDefaultHomeDocumentContent,
   migrateV1ToV2,
   nextRevision,
   normalizeHomeDocument
 } from "@/domain/home-document";
+import {
+  classifyHomeDocument,
+  createDocumentProtectionState
+} from "@/domain/home-document-protection";
 import { LocalHomeRepository } from "@/infrastructure/home-repository";
 import { recordLocalAuditEvent } from "@/infrastructure/local-audit-log-repository";
+import {
+  LocalHomeSnapshotRepository,
+  type LocalHomeSnapshotSource
+} from "@/infrastructure/local-home-snapshot-repository";
 
 interface ResetDefaultOptions {
   confirmMessage?: string;
@@ -26,10 +33,12 @@ export function useHomeDocumentController() {
   const [hasStoredDocument, setHasStoredDocument] = useState(false);
   const [hasResetBackup, setHasResetBackup] = useState(false);
   const repositoryRef = useRef<LocalHomeRepository | null>(null);
+  const snapshotRepositoryRef = useRef<LocalHomeSnapshotRepository | null>(null);
   const homeDocumentRef = useRef(homeDocument);
 
   useEffect(() => {
     repositoryRef.current = new LocalHomeRepository(window.localStorage);
+    snapshotRepositoryRef.current = new LocalHomeSnapshotRepository(window.localStorage);
     const storedDocumentExists = repositoryRef.current.hasStoredDocument();
     const loadedDocument = repositoryRef.current.load();
 
@@ -40,9 +49,65 @@ export function useHomeDocumentController() {
     setStorageReady(true);
   }, []);
 
-  const isDefaultDocument = useMemo(() => {
-    return isDefaultHomeDocumentContent(homeDocument);
+  const documentProtection = useMemo(() => {
+    return createDocumentProtectionState(homeDocument);
   }, [homeDocument]);
+  const isDefaultDocument = documentProtection.documentClass === "system-default";
+
+  const saveUserSnapshotBeforeOverwrite = useCallback((source: LocalHomeSnapshotSource) => {
+    const currentDocument = homeDocumentRef.current;
+    const snapshotRepository = snapshotRepositoryRef.current;
+    if (!snapshotRepository) {
+      return;
+    }
+
+    try {
+      const result = snapshotRepository.saveSnapshot(currentDocument, source);
+      if (result.status === "saved") {
+        recordLocalAuditEvent({
+          documentId: currentDocument.documentId,
+          message: "已保存本地历史版本。",
+          metadata: {
+            groupCount: result.snapshot.summary.groupCount,
+            revision: result.snapshot.revision,
+            siteCount: result.snapshot.summary.siteCount,
+            snapshotId: result.snapshot.id,
+            source,
+            widgetCount: result.snapshot.summary.widgetCount
+          },
+          spaceId: currentDocument.syncMeta.spaceId,
+          type: "local_snapshot.created"
+        });
+        return;
+      }
+
+      if (result.reason === "system-document") {
+        recordLocalAuditEvent({
+          documentId: currentDocument.documentId,
+          message: "当前首页属于系统态，未生成本地历史版本。",
+          metadata: {
+            documentClass: result.documentClass,
+            source
+          },
+          spaceId: currentDocument.syncMeta.spaceId,
+          type: "local_snapshot.skipped_system_document"
+        });
+      }
+    } catch (error) {
+      console.warn("Failed to save local home snapshot:", error);
+      recordLocalAuditEvent({
+        documentId: currentDocument.documentId,
+        level: "warning",
+        message: "本地历史版本保存失败，原操作继续。",
+        metadata: {
+          reason: error instanceof Error ? error.message : "unknown",
+          source
+        },
+        spaceId: currentDocument.syncMeta.spaceId,
+        type: "local_snapshot.failed"
+      });
+    }
+  }, []);
 
   const commitHomeDocument = useCallback((nextDocument: HomeDocumentV2, message = "已保存") => {
     const normalized = normalizeHomeDocument({
@@ -76,6 +141,7 @@ export function useHomeDocumentController() {
     }
 
     const currentDocument = homeDocumentRef.current;
+    saveUserSnapshotBeforeOverwrite("before-data-package-restore");
     try {
       repository.saveResetBackup(currentDocument);
     } catch (error) {
@@ -103,7 +169,7 @@ export function useHomeDocumentController() {
     setHasResetBackup(true);
     setSaveStatus(message);
     return true;
-  }, []);
+  }, [saveUserSnapshotBeforeOverwrite]);
 
   const updateSyncMeta = useCallback((syncMeta: HomeSyncMeta, message: string) => {
     setHomeDocument((currentDocument) => {
@@ -146,6 +212,7 @@ export function useHomeDocumentController() {
         return;
       }
 
+      saveUserSnapshotBeforeOverwrite("before-json-import");
       commitHomeDocument(imported, "已导入");
       recordLocalAuditEvent({
         documentId: imported.documentId,
@@ -160,7 +227,7 @@ export function useHomeDocumentController() {
     } catch {
       window.alert("导入失败：JSON 格式不正确。");
     }
-  }, [commitHomeDocument]);
+  }, [commitHomeDocument, saveUserSnapshotBeforeOverwrite]);
 
   const resetDefault = useCallback((options: ResetDefaultOptions = {}) => {
     if (!window.confirm(options.confirmMessage ?? "清空内容并恢复默认会覆盖当前浏览器中的首页。重置前会自动保存一份本地备份，继续？")) {
@@ -174,11 +241,12 @@ export function useHomeDocumentController() {
     }
 
     const currentDocument = homeDocumentRef.current;
-    if (isDefaultHomeDocumentContent(currentDocument)) {
+    if (classifyHomeDocument(currentDocument).documentClass === "system-default") {
       setSaveStatus("当前已经是默认首页，未覆盖重置前备份");
       return;
     }
 
+    saveUserSnapshotBeforeOverwrite("before-reset-default");
     try {
       repository.saveResetBackup(currentDocument);
       recordLocalAuditEvent({
@@ -225,7 +293,7 @@ export function useHomeDocumentController() {
       },
       type: "document.reset_default"
     });
-  }, []);
+  }, [saveUserSnapshotBeforeOverwrite]);
 
   const restoreResetBackup = useCallback(() => {
     if (!window.confirm("恢复备份会覆盖当前本地首页，继续？")) {
@@ -241,13 +309,14 @@ export function useHomeDocumentController() {
       return;
     }
 
+    saveUserSnapshotBeforeOverwrite("before-reset-backup-restore");
     commitHomeDocument(backup, "已恢复上一次重置前页面");
     recordLocalAuditEvent({
       documentId: backup.documentId,
       message: "已恢复上一次重置前页面。",
       type: "document.reset_backup_restored"
     });
-  }, [commitHomeDocument]);
+  }, [commitHomeDocument, saveUserSnapshotBeforeOverwrite]);
 
   return {
     homeDocument,
@@ -256,6 +325,7 @@ export function useHomeDocumentController() {
     hasStoredDocument,
     hasResetBackup,
     isDefaultDocument,
+    documentProtection,
     commitHomeDocument,
     replaceHomeDocument,
     restoreHomeDocumentWithBackup,

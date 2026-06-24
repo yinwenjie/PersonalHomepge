@@ -46,6 +46,7 @@ export function SettingsDashboard() {
     hasStoredDocument,
     hasResetBackup,
     isDefaultDocument,
+    documentProtection,
     commitHomeDocument,
     replaceHomeDocument,
     restoreHomeDocumentWithBackup,
@@ -386,6 +387,7 @@ export function SettingsDashboard() {
             <DeviceStatusPanel
               currentBinding={currentBinding}
               currentHomeSpace={currentAccountHomeSpace}
+              documentProtection={documentProtection}
               documentValue={homeDocument}
               signedIn={signedIn}
             />

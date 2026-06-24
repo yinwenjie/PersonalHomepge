@@ -3,6 +3,10 @@
 import { useEffect, useState } from "react";
 import type { HomeSpace } from "@/domain/account";
 import type { HomeDocumentV2 } from "@/domain/home-document";
+import {
+  getHomeDocumentClassLabel,
+  type DocumentProtectionState
+} from "@/domain/home-document-protection";
 import type { LocalePreference } from "@/domain/ui-preferences";
 import { useUiPreferences } from "@/hooks/use-ui-preferences";
 import {
@@ -15,6 +19,7 @@ import type { StoredSyncBinding } from "@/domain/sync-code";
 interface DeviceStatusPanelProps {
   currentBinding: StoredSyncBinding | null;
   currentHomeSpace: HomeSpace | null;
+  documentProtection: DocumentProtectionState;
   documentValue: HomeDocumentV2;
   signedIn: boolean;
 }
@@ -22,6 +27,7 @@ interface DeviceStatusPanelProps {
 export function DeviceStatusPanel({
   currentBinding,
   currentHomeSpace,
+  documentProtection,
   documentValue,
   signedIn
 }: DeviceStatusPanelProps) {
@@ -54,6 +60,7 @@ export function DeviceStatusPanel({
         <DeviceStatusItem label="同步方式" value={bindingLabel} />
         <DeviceStatusItem label="首页空间" value={currentHomeSpace?.name ?? currentBinding?.spaceId ?? "本地首页"} />
         <DeviceStatusItem label="首页状态" value={documentValue.syncMeta.status} />
+        <DeviceStatusItem label="数据分类" value={getHomeDocumentClassLabel(documentProtection)} />
         <DeviceStatusItem label="本地版本" value={`rev ${documentValue.revision}`} />
         <DeviceStatusItem label="文档更新" value={formatDateTime(documentValue.updatedAt, preferences.locale)} />
         <DeviceStatusItem label="最后在线" value={formatDateTime(device?.lastSeenAt, preferences.locale)} />
