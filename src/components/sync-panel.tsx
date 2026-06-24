@@ -650,11 +650,13 @@ export function SyncPanel({
   const isPaused = Boolean(binding && isSyncPausedForBinding(documentValue, binding));
   const isAdvanced = presentation === "advanced";
   const isAccountManaged = binding?.accessMode === "account-managed";
-  const shouldUseAccountManagedStatusSlot = Boolean(accountManagedStatusTargetId && isAccountManaged && isPaused);
+  const isConflict = documentValue.syncMeta.status === "conflict";
+  const isAccountSyncContext = Boolean(binding && (isAdvanced || isAccountManaged || currentAccountHomeSpace));
+  const shouldUseAccountManagedStatusSlot = Boolean(accountManagedStatusTargetId && isAccountSyncContext && (isPaused || isConflict));
   const accountManagedStatusTarget = shouldUseAccountManagedStatusSlot && typeof document !== "undefined" && accountManagedStatusTargetId
     ? document.getElementById(accountManagedStatusTargetId)
     : null;
-  const needsAttention = (isPaused && !shouldUseAccountManagedStatusSlot) || documentValue.syncMeta.status === "conflict";
+  const needsAttention = ((isPaused || isConflict) && !shouldUseAccountManagedStatusSlot);
   const controlsVisible = !isAdvanced || advancedOpen || needsAttention;
 
   const statusText = useMemo(() => {
@@ -667,16 +669,24 @@ export function SyncPanel({
     }
 
     const syncedAt = binding.lastSyncedAt ? formatShortDateTime(binding.lastSyncedAt, preferences.locale) : "未同步";
+    if (isConflict) {
+      if (isAccountSyncContext && shouldUseAccountManagedStatusSlot) {
+        return `账号同步冲突见账号栏，最后同步 ${syncedAt}`;
+      }
+
+      return `${binding.accessMode === "account-managed" ? "账号托管" : "同步码"} 同步冲突，最后同步 ${syncedAt}`;
+    }
+
     if (isPaused) {
-      if (isAccountManaged && shouldUseAccountManagedStatusSlot) {
-        return `账号托管空间状态见账号栏，最后同步 ${syncedAt}`;
+      if (isAccountSyncContext && shouldUseAccountManagedStatusSlot) {
+        return `账号同步状态见账号栏，最后同步 ${syncedAt}`;
       }
 
       return `${binding.accessMode === "account-managed" ? "账号托管" : "同步码"} 已暂停，最后同步 ${syncedAt}`;
     }
 
     return `${binding.accessMode === "account-managed" ? "账号托管" : "同步码"} rev ${binding.remoteRevision}，最后同步 ${syncedAt}`;
-  }, [binding, isAccountManaged, isPaused, preferences.locale, shouldUseAccountManagedStatusSlot, syncServiceConfigured]);
+  }, [binding, isAccountSyncContext, isConflict, isPaused, preferences.locale, shouldUseAccountManagedStatusSlot, syncServiceConfigured]);
   const panelTitle = isAdvanced ? "离线同步码与恢复" : "同步码";
   const syncStatusMessage = error
     || (shouldUseAccountManagedStatusSlot ? "" : message)
@@ -863,11 +873,24 @@ export function SyncPanel({
       </div>
     </div>
   );
+  const conflictNotice = (
+    <div className="sync-conflict" role="status">
+      <div>
+        <strong>云端和本地都有修改</strong>
+        <p>自动同步已暂停。请选择保留哪一份数据。</p>
+      </div>
+      <div className="sync-panel-actions">
+        <button className="utility-button" type="button" onClick={() => performPull({ forceApply: true, source: "resolve" })} disabled={!syncServiceConfigured || busy} title={getRemoteActionDisabledReason(syncServiceConfigured, busy) ?? "用云端首页覆盖当前本地首页"}>使用云端版本</button>
+        <button className="danger-button" type="button" onClick={() => performPush({ force: true, source: "resolve" })} disabled={!syncServiceConfigured || busy} title={getRemoteActionDisabledReason(syncServiceConfigured, busy) ?? "把当前本地首页强制上传并覆盖云端"}>本地覆盖云端</button>
+        <button className="utility-button" type="button" onClick={() => setMessage("已暂停自动同步，冲突状态会保留。")} disabled={busy} title={busy ? "同步操作处理中，请稍后。" : "保留冲突状态，稍后再处理"}>暂不处理</button>
+      </div>
+    </div>
+  );
 
   return (
     <>
     {shouldUseAccountManagedStatusSlot && accountManagedStatusTarget
-      ? createPortal(pausedNotice, accountManagedStatusTarget)
+      ? createPortal(isConflict ? conflictNotice : pausedNotice, accountManagedStatusTarget)
       : null}
     <section className={`sync-panel${isAdvanced ? " sync-panel-advanced" : ""}`} aria-label={panelTitle}>
       <div className="sync-panel-head">
@@ -902,19 +925,7 @@ export function SyncPanel({
 
       {isPaused && !shouldUseAccountManagedStatusSlot ? pausedNotice : null}
 
-      {documentValue.syncMeta.status === "conflict" ? (
-        <div className="sync-conflict" role="status">
-          <div>
-            <strong>云端和本地都有修改</strong>
-            <p>自动同步已暂停。请选择保留哪一份数据。</p>
-          </div>
-          <div className="sync-panel-actions">
-            <button className="utility-button" type="button" onClick={() => performPull({ forceApply: true, source: "resolve" })} disabled={!syncServiceConfigured || busy} title={getRemoteActionDisabledReason(syncServiceConfigured, busy) ?? "用云端首页覆盖当前本地首页"}>使用云端版本</button>
-            <button className="danger-button" type="button" onClick={() => performPush({ force: true, source: "resolve" })} disabled={!syncServiceConfigured || busy} title={getRemoteActionDisabledReason(syncServiceConfigured, busy) ?? "把当前本地首页强制上传并覆盖云端"}>本地覆盖云端</button>
-            <button className="utility-button" type="button" onClick={() => setMessage("已暂停自动同步，冲突状态会保留。")} disabled={busy} title={busy ? "同步操作处理中，请稍后。" : "保留冲突状态，稍后再处理"}>暂不处理</button>
-          </div>
-        </div>
-      ) : null}
+      {isConflict && !shouldUseAccountManagedStatusSlot ? conflictNotice : null}
 
       {controlsVisible ? (
         <>

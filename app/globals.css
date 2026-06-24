@@ -2108,6 +2108,7 @@ h1 {
   display: none;
 }
 
+.account-sync-action-slot .sync-conflict,
 .account-sync-action-slot .sync-paused {
   margin-top: 4px;
 }

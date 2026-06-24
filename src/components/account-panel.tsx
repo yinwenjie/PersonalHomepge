@@ -190,6 +190,14 @@ function getAccountSyncSummary({
   }
 
   if (syncStatus === "conflict") {
+    if (signedIn && currentBinding) {
+      return {
+        detail: "云端和本地都有修改，自动同步已暂停；请在下方选择使用云端版本、本地覆盖云端或暂不处理。",
+        title: "同步冲突",
+        tone: "danger"
+      };
+    }
+
     return {
       detail: "云端和本地都有修改，自动同步已暂停；请在高级操作中处理同步冲突。",
       title: "同步冲突",
@@ -198,7 +206,7 @@ function getAccountSyncSummary({
   }
 
   if (syncStatus === "paused") {
-    if (currentBinding?.accessMode === "account-managed") {
+    if (signedIn && currentBinding) {
       return {
         detail: "自动同步已暂停；请在下方选择上传本地、拉取云端、解除本机或恢复备份。",
         title: "同步暂停",
