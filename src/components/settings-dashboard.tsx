@@ -33,6 +33,8 @@ interface DataPackageRestoreDialogState extends ParsedHomepageDataRestore {
   fileName: string;
 }
 
+const ACCOUNT_MANAGED_SYNC_STATUS_SLOT_ID = "account-managed-sync-status-slot";
+
 export function SettingsDashboard() {
   const auth = useSupabaseAuth();
   const accountData = useAccountData(auth.user);
@@ -51,6 +53,7 @@ export function SettingsDashboard() {
     documentProtection,
     commitHomeDocument,
     protectBeforeDangerousOverwrite,
+    protectDocumentBeforeDangerousOverwrite,
     replaceHomeDocument,
     restoreHomeDocumentWithBackup,
     updateSyncMeta,
@@ -65,6 +68,9 @@ export function SettingsDashboard() {
   const handleBeforeOverwrite = useCallback((source: LocalHomeSnapshotSource) => {
     return protectBeforeDangerousOverwrite(source).canContinue;
   }, [protectBeforeDangerousOverwrite]);
+  const handleBeforeCloudOverwrite = useCallback((documentValue: HomeDocumentV2, source: LocalHomeSnapshotSource) => {
+    return protectDocumentBeforeDangerousOverwrite(documentValue, source).canContinue;
+  }, [protectDocumentBeforeDangerousOverwrite]);
 
   async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     try {
@@ -295,9 +301,11 @@ export function SettingsDashboard() {
       key={syncPanelKey}
       documentValue={homeDocument}
       editorOpen={false}
+      accountManagedStatusTargetId={ACCOUNT_MANAGED_SYNC_STATUS_SLOT_ID}
       presentation={signedIn ? "advanced" : "primary"}
       storageReady={storageReady}
       visible
+      onBeforeCloudOverwrite={handleBeforeCloudOverwrite}
       onBeforeOverwrite={handleBeforeOverwrite}
       onReplaceDocument={replaceHomeDocument}
       onSyncMetaChange={updateSyncMeta}
@@ -340,6 +348,7 @@ export function SettingsDashboard() {
           accountData={accountData}
           currentBinding={currentBinding}
           currentHomeSpace={currentAccountHomeSpace}
+          syncActionSlotId={ACCOUNT_MANAGED_SYNC_STATUS_SLOT_ID}
           syncStatus={homeDocument.syncMeta.status}
         />
 

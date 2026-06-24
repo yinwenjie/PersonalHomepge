@@ -7,6 +7,7 @@ import {
   buildSearchUrl,
   searchEngineLabel
 } from "@/domain/ui-preferences";
+import type { HomeDocumentV2 } from "@/domain/home-document";
 import {
   isUngroupedGroup,
   normalizeSearchText,
@@ -37,6 +38,7 @@ export function HomeDashboard() {
     hasStoredDocument,
     commitHomeDocument,
     protectBeforeDangerousOverwrite,
+    protectDocumentBeforeDangerousOverwrite,
     replaceHomeDocument,
     updateSyncMeta
   } = useHomeDocumentController();
@@ -118,6 +120,9 @@ export function HomeDashboard() {
   const handleBeforeOverwrite = useCallback((source: LocalHomeSnapshotSource) => {
     return protectBeforeDangerousOverwrite(source).canContinue;
   }, [protectBeforeDangerousOverwrite]);
+  const handleBeforeCloudOverwrite = useCallback((documentValue: HomeDocumentV2, source: LocalHomeSnapshotSource) => {
+    return protectDocumentBeforeDangerousOverwrite(documentValue, source).canContinue;
+  }, [protectDocumentBeforeDangerousOverwrite]);
 
   function completeOnboarding() {
     window.localStorage.setItem(ONBOARDING_STORAGE_KEY, "complete");
@@ -217,6 +222,7 @@ export function HomeDashboard() {
         editorOpen={Boolean(editor)}
         storageReady={storageReady}
         visible={false}
+        onBeforeCloudOverwrite={handleBeforeCloudOverwrite}
         onBeforeOverwrite={handleBeforeOverwrite}
         onReplaceDocument={replaceHomeDocument}
         onSyncMetaChange={updateSyncMeta}

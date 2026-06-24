@@ -13,6 +13,7 @@ interface AccountPanelProps {
   accountData: AccountDataState;
   currentBinding?: StoredSyncBinding | null;
   currentHomeSpace?: HomeSpace | null;
+  syncActionSlotId?: string;
   syncStatus?: HomeSyncMeta["status"];
 }
 
@@ -20,6 +21,7 @@ export function AccountPanel({
   accountData,
   currentBinding = null,
   currentHomeSpace = null,
+  syncActionSlotId,
   syncStatus = "local-only"
 }: AccountPanelProps) {
   const [email, setEmail] = useState("");
@@ -97,6 +99,9 @@ export function AccountPanel({
         <StatusMessage tone={syncSummary.tone}>
           {syncSummary.detail}
         </StatusMessage>
+        {syncActionSlotId ? (
+          <div id={syncActionSlotId} className="account-sync-action-slot" />
+        ) : null}
       </div>
 
       <StatusMessage role={accountHasError ? "alert" : "status"} tone={accountStatusTone}>
@@ -193,8 +198,16 @@ function getAccountSyncSummary({
   }
 
   if (syncStatus === "paused") {
+    if (currentBinding?.accessMode === "account-managed") {
+      return {
+        detail: "自动同步已暂停；请在下方选择上传本地、拉取云端、解除本机或恢复备份。",
+        title: "同步暂停",
+        tone: "warning"
+      };
+    }
+
     return {
-      detail: "恢复默认后自动同步已暂停；请在高级操作中选择下一步。",
+      detail: "自动同步已暂停；请在高级操作中选择下一步。",
       title: "同步暂停",
       tone: "warning"
     };

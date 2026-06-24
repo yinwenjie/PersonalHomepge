@@ -135,9 +135,34 @@ Phase 1.11 将“用户数据保全、防止数据丢失”提升为 P0。所有
 - `src/components/sync-panel.tsx`
 - `src/components/home-spaces-panel.tsx`
 
+### Phase 1.11.4：同步误覆盖防护
+
+在本地覆盖保护之外，补齐同步上传方向的误覆盖防护。
+
+已支持：
+
+- 新增快照来源 `before-cloud-overwrite`，用于保存即将被本地上传覆盖的当前云端版本。
+- `useHomeDocumentController` 新增对任意 `HomeDocumentV2` 的保护入口，可保存从云端拉取到的完整文档。
+- 系统默认页、空白页和未编辑模板页不会自动上传；检测到系统态待自动上传时会暂停同步并写入 warning 审计。
+- 手动上传本地首页或冲突中选择“本地覆盖云端”前，会先弹出强确认。
+- 强确认后先拉取当前云端版本，并保存到本机数据恢复中心；保存失败、拉取失败或用户取消时不会覆盖云端。
+- 手动拉取云端覆盖本地、冲突中选择云端版本前补充明确确认；启动和自动拉取仍不弹窗，但有本地待上传修改时继续进入冲突。
+- 暂停同步文案从“恢复默认后同步已暂停”收口为通用“同步已暂停”，覆盖恢复默认、恢复历史版本、数据包恢复和系统态阻断等来源。
+
+新增本地审计事件：
+
+- `sync.auto_push_skipped_system_document`
+- `sync.cloud_overwrite_cancelled`
+- `sync.cloud_overwrite_protection_failed`
+
+关键文件：
+
+- `src/components/sync-panel.tsx`
+- `src/hooks/use-home-document-controller.ts`
+- `src/infrastructure/local-home-snapshot-repository.ts`
+
 ## 尚未落地
 
-- Phase 1.11.4 同步误覆盖防护：云端拉取覆盖本地、本地上传覆盖云端前保存版本并加强确认。
 - Phase 1.11.5 之后的云端历史版本、账号托管可恢复模型、Supabase 后台 dashboard 和 P0 回归演练。
 
 ## 验证记录
@@ -155,3 +180,4 @@ Phase 1.11 将“用户数据保全、防止数据丢失”提升为 P0。所有
 - 默认页、空白页和未编辑模板页不会生成有效快照。
 - 数据恢复中心可展示、预览并恢复本地历史版本；已绑定同步空间时恢复后暂停自动同步。
 - 书签导入、模板应用、空间切换、同步码绑定和云端拉取覆盖本地前会先尝试保存本地快照；快照失败时取消覆盖。
+- 系统态首页不会自动上传；手动覆盖云端前会先保护当前云端版本。

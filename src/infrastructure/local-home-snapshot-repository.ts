@@ -17,6 +17,7 @@ const LOCAL_HOME_SNAPSHOT_SCHEMA = "homepage-local-snapshots-v1";
 export type LocalHomeSnapshotSource =
   | "before-bookmark-import"
   | "before-bookmark-import-undo"
+  | "before-cloud-overwrite"
   | "before-cloud-pull"
   | "before-conflict-cloud-resolve"
   | "before-data-package-restore"
@@ -200,6 +201,7 @@ function summarizeHomeDocument(documentValue: HomeDocumentV2): LocalHomeSnapshot
 function isLocalHomeSnapshotSource(value: unknown): value is LocalHomeSnapshotSource {
   return value === "before-bookmark-import"
     || value === "before-bookmark-import-undo"
+    || value === "before-cloud-overwrite"
     || value === "before-cloud-pull"
     || value === "before-conflict-cloud-resolve"
     || value === "before-data-package-restore"

@@ -939,7 +939,7 @@ function getMigrationBlockReason(status: HomeDocumentV2["syncMeta"]["status"]): 
   }
 
   if (status === "paused") {
-    return "恢复默认后同步已暂停，请先选择上传默认、拉取云端、解除本机或恢复备份。";
+    return "同步已暂停，请先选择上传本地、拉取云端、解除本机或恢复备份。";
   }
 
   return "";

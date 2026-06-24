@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { HomeSpace } from "@/domain/account";
 import { getErrorMessage } from "@/domain/errors";
 import { HomeDocumentV2, HomeSyncMeta } from "@/domain/home-document";
+import { classifyHomeDocument, getHomeDocumentClassLabel } from "@/domain/home-document-protection";
 import type { LocalePreference } from "@/domain/ui-preferences";
 import {
   createSyncSecrets,
@@ -23,9 +25,11 @@ import { SyncCodeRepository, PullSyncSpaceResult } from "@/infrastructure/sync-c
 interface SyncPanelProps {
   documentValue: HomeDocumentV2;
   editorOpen: boolean;
+  accountManagedStatusTargetId?: string;
   presentation?: "primary" | "advanced";
   storageReady: boolean;
   visible: boolean;
+  onBeforeCloudOverwrite: (documentValue: HomeDocumentV2, source: LocalHomeSnapshotSource) => boolean;
   onBeforeOverwrite: (source: LocalHomeSnapshotSource) => boolean;
   onReplaceDocument: (documentValue: HomeDocumentV2, message: string) => void;
   onSyncMetaChange: (syncMeta: HomeSyncMeta, message: string) => void;
@@ -42,9 +46,11 @@ const AUTO_PULL_INTERVAL_MS = 60000;
 export function SyncPanel({
   documentValue,
   editorOpen,
+  accountManagedStatusTargetId,
   presentation = "primary",
   storageReady,
   visible,
+  onBeforeCloudOverwrite,
   onBeforeOverwrite,
   onReplaceDocument,
   onSyncMetaChange,
@@ -115,6 +121,39 @@ export function SyncPanel({
     return false;
   }, [onBeforeOverwrite, visible]);
 
+  const protectCloudBeforeOverwrite = useCallback(async (activeBinding: StoredSyncBinding): Promise<boolean> => {
+    const pulled = await getSyncRepository().pull(activeBinding);
+    const cloudBinding: StoredSyncBinding = {
+      ...activeBinding,
+      remoteRevision: pulled.revision,
+      lastSyncedAt: pulled.updatedAt,
+      lastSyncedDocumentRevision: pulled.document.revision,
+      lastSyncedDocumentUpdatedAt: pulled.document.updatedAt
+    };
+    const cloudDocument = {
+      ...pulled.document,
+      syncMeta: toSyncMeta(cloudBinding, "synced")
+    };
+
+    if (onBeforeCloudOverwrite(cloudDocument, "before-cloud-overwrite")) {
+      return true;
+    }
+
+    setError("未能保存当前云端首页，已取消覆盖云端。");
+    setMessage("");
+    recordLocalAuditEvent({
+      documentId: cloudDocument.documentId,
+      level: "danger",
+      message: "云端首页覆盖前保护失败，覆盖云端已取消。",
+      metadata: {
+        remoteRevision: pulled.revision
+      },
+      spaceId: activeBinding.spaceId,
+      type: "sync.cloud_overwrite_protection_failed"
+    });
+    return false;
+  }, [getSyncRepository, onBeforeCloudOverwrite]);
+
   const runSyncAction = useCallback(async (
     action: () => Promise<void>,
     options: {
@@ -163,8 +202,8 @@ export function SyncPanel({
       const activeBinding = bindingRef.current;
       setError(getErrorMessage(actionError, "同步操作失败。"));
       if (pausedBinding) {
-        setSyncMetaFromBinding(pausedBinding, "paused", "恢复默认后同步已暂停");
-        setMessage("恢复默认后同步仍暂停，请重试或选择其他操作。");
+        setSyncMetaFromBinding(pausedBinding, "paused", "同步已暂停");
+        setMessage("同步仍暂停，请重试或选择其他操作。");
         return;
       }
 
@@ -279,6 +318,12 @@ export function SyncPanel({
       const snapshotSource = options.source === "resolve" && localDocument.syncMeta.status === "conflict"
         ? "before-conflict-cloud-resolve"
         : "before-cloud-pull";
+      if (shouldConfirmCloudPull(options.source) && !window.confirm(getCloudPullConfirmMessage(options.source))) {
+        setSyncMetaFromBinding(activeBinding, getCancelSyncStatus(localDocument), "已取消拉取覆盖");
+        setMessage("已取消拉取，当前本地首页未改变。");
+        return;
+      }
+
       const cloudDocumentApplied = applyCloudDocument(
         pulled,
         activeBinding,
@@ -371,7 +416,33 @@ export function SyncPanel({
       return;
     }
 
+    const localClassification = classifyHomeDocument(localDocument);
+    if (options.source !== "auto" && !window.confirm(getCloudOverwriteConfirmMessage(localClassification, options.force))) {
+      setMessage("已取消上传，云端首页未改变。");
+      setError("");
+      recordLocalAuditEvent({
+        documentId: localDocument.documentId,
+        level: "warning",
+        message: "用户取消用本地首页覆盖云端。",
+        metadata: {
+          documentClass: localClassification.documentClass,
+          force: options.force,
+          source: options.source
+        },
+        spaceId: activeBinding.spaceId,
+        type: "sync.cloud_overwrite_cancelled"
+      });
+      return;
+    }
+
     await runSyncAction(async () => {
+      if (options.source !== "auto") {
+        const cloudProtected = await protectCloudBeforeOverwrite(activeBinding);
+        if (!cloudProtected) {
+          return;
+        }
+      }
+
       setSyncMetaFromBinding(activeBinding, "syncing", "正在上传本地首页");
       const documentToPush = {
         ...localDocument,
@@ -454,7 +525,7 @@ export function SyncPanel({
       operation: options.force ? "force-push" : "push",
       spaceId: activeBinding.spaceId
     });
-  }, [getSyncRepository, persistBinding, runSyncAction, setSyncMetaFromBinding]);
+  }, [getSyncRepository, persistBinding, protectCloudBeforeOverwrite, runSyncAction, setSyncMetaFromBinding]);
 
   useEffect(() => {
     if (!storageReady) {
@@ -480,7 +551,7 @@ export function SyncPanel({
     }
 
     if (isSyncPausedForBinding(documentRef.current, storedBinding)) {
-      setMessage("恢复默认后同步已暂停。请选择上传默认、拉取云端、解除本机或恢复备份。");
+      setMessage("同步已暂停。请选择上传本地、拉取云端、解除本机或恢复备份。");
       return;
     }
 
@@ -536,6 +607,31 @@ export function SyncPanel({
       return;
     }
 
+    const classification = classifyHomeDocument(documentValue);
+    if (!classification.isUserData) {
+      if (autoPushTimerRef.current) {
+        clearTimeout(autoPushTimerRef.current);
+      }
+
+      const pauseTimerId = window.setTimeout(() => {
+        setSyncMetaFromBinding(activeBinding, "paused", "同步已暂停");
+        setMessage("当前首页属于系统态，已停止自动上传。请手动选择上传本地或拉取云端。");
+        setError("");
+        recordLocalAuditEvent({
+          documentId: documentValue.documentId,
+          level: "warning",
+          message: "系统态首页已阻止自动上传，避免覆盖云端有效数据。",
+          metadata: {
+            documentClass: classification.documentClass
+          },
+          spaceId: activeBinding.spaceId,
+          type: "sync.auto_push_skipped_system_document"
+        });
+      }, 0);
+
+      return () => window.clearTimeout(pauseTimerId);
+    }
+
     if (autoPushTimerRef.current) {
       clearTimeout(autoPushTimerRef.current);
     }
@@ -549,11 +645,16 @@ export function SyncPanel({
         clearTimeout(autoPushTimerRef.current);
       }
     };
-  }, [binding, documentValue, performPush, syncServiceConfigured]);
+  }, [binding, documentValue, performPush, setSyncMetaFromBinding, syncServiceConfigured]);
 
   const isPaused = Boolean(binding && isSyncPausedForBinding(documentValue, binding));
   const isAdvanced = presentation === "advanced";
-  const needsAttention = isPaused || documentValue.syncMeta.status === "conflict";
+  const isAccountManaged = binding?.accessMode === "account-managed";
+  const shouldUseAccountManagedStatusSlot = Boolean(accountManagedStatusTargetId && isAccountManaged && isPaused);
+  const accountManagedStatusTarget = shouldUseAccountManagedStatusSlot && typeof document !== "undefined" && accountManagedStatusTargetId
+    ? document.getElementById(accountManagedStatusTargetId)
+    : null;
+  const needsAttention = (isPaused && !shouldUseAccountManagedStatusSlot) || documentValue.syncMeta.status === "conflict";
   const controlsVisible = !isAdvanced || advancedOpen || needsAttention;
 
   const statusText = useMemo(() => {
@@ -567,14 +668,19 @@ export function SyncPanel({
 
     const syncedAt = binding.lastSyncedAt ? formatShortDateTime(binding.lastSyncedAt, preferences.locale) : "未同步";
     if (isPaused) {
+      if (isAccountManaged && shouldUseAccountManagedStatusSlot) {
+        return `账号托管空间状态见账号栏，最后同步 ${syncedAt}`;
+      }
+
       return `${binding.accessMode === "account-managed" ? "账号托管" : "同步码"} 已暂停，最后同步 ${syncedAt}`;
     }
 
     return `${binding.accessMode === "account-managed" ? "账号托管" : "同步码"} rev ${binding.remoteRevision}，最后同步 ${syncedAt}`;
-  }, [binding, isPaused, preferences.locale, syncServiceConfigured]);
-  const isAccountManaged = binding?.accessMode === "account-managed";
+  }, [binding, isAccountManaged, isPaused, preferences.locale, shouldUseAccountManagedStatusSlot, syncServiceConfigured]);
   const panelTitle = isAdvanced ? "离线同步码与恢复" : "同步码";
-  const syncStatusMessage = error || message || (!syncServiceConfigured ? SUPABASE_CONFIGURATION_MESSAGE : "");
+  const syncStatusMessage = error
+    || (shouldUseAccountManagedStatusSlot ? "" : message)
+    || (!syncServiceConfigured ? SUPABASE_CONFIGURATION_MESSAGE : "");
   const syncStatusTone = error ? "danger" : !syncServiceConfigured ? "warning" : message ? "success" : "neutral";
   const syncStatusRole = error ? "alert" : "status";
 
@@ -743,7 +849,26 @@ export function SyncPanel({
     return null;
   }
 
+  const pausedNotice = (
+    <div className="sync-paused" role="status">
+      <div>
+        <strong>同步已暂停</strong>
+        <p>当前本地首页暂未自动上传。请选择下一步，避免误覆盖已有同步空间。</p>
+      </div>
+      <div className="sync-panel-actions">
+        <button className="utility-button" type="button" onClick={() => performPush({ force: false, source: "manual" })} disabled={!syncServiceConfigured || busy} title={getRemoteActionDisabledReason(syncServiceConfigured, busy) ?? "把当前本地首页上传到当前同步空间"}>上传本地</button>
+        <button className="utility-button" type="button" onClick={() => performPull({ forceApply: true, source: "manual" })} disabled={!syncServiceConfigured || busy} title={getRemoteActionDisabledReason(syncServiceConfigured, busy) ?? "用云端首页覆盖当前本地首页"}>拉取云端</button>
+        <button className="utility-button" type="button" onClick={unbindLocal} disabled={busy} title={busy ? "同步操作处理中，请稍后。" : "只解除当前浏览器绑定，保留本地首页"}>解除本机</button>
+        <button className="utility-button" type="button" onClick={restoreResetBackupFromPause} disabled={busy || !hasResetBackup || !onRestoreResetBackup} title={getRestoreBackupDisabledReason(busy, hasResetBackup, Boolean(onRestoreResetBackup)) ?? "恢复重置前自动保存的本地备份"}>恢复备份</button>
+      </div>
+    </div>
+  );
+
   return (
+    <>
+    {shouldUseAccountManagedStatusSlot && accountManagedStatusTarget
+      ? createPortal(pausedNotice, accountManagedStatusTarget)
+      : null}
     <section className={`sync-panel${isAdvanced ? " sync-panel-advanced" : ""}`} aria-label={panelTitle}>
       <div className="sync-panel-head">
         <div>
@@ -775,20 +900,7 @@ export function SyncPanel({
         )}
       </div>
 
-      {isPaused ? (
-        <div className="sync-paused" role="status">
-          <div>
-            <strong>恢复默认后同步已暂停</strong>
-            <p>当前默认首页还没有上传到云端。请选择下一步，避免误覆盖已有同步空间。</p>
-          </div>
-          <div className="sync-panel-actions">
-            <button className="utility-button" type="button" onClick={() => performPush({ force: false, source: "manual" })} disabled={!syncServiceConfigured || busy} title={getRemoteActionDisabledReason(syncServiceConfigured, busy) ?? "把当前默认首页上传到当前同步空间"}>上传默认</button>
-            <button className="utility-button" type="button" onClick={() => performPull({ forceApply: true, source: "manual" })} disabled={!syncServiceConfigured || busy} title={getRemoteActionDisabledReason(syncServiceConfigured, busy) ?? "用云端首页覆盖当前本地默认首页"}>拉取云端</button>
-            <button className="utility-button" type="button" onClick={unbindLocal} disabled={busy} title={busy ? "同步操作处理中，请稍后。" : "只解除当前浏览器绑定，保留本地首页"}>解除本机</button>
-            <button className="utility-button" type="button" onClick={restoreResetBackupFromPause} disabled={busy || !hasResetBackup || !onRestoreResetBackup} title={getRestoreBackupDisabledReason(busy, hasResetBackup, Boolean(onRestoreResetBackup)) ?? "恢复重置前自动保存的本地备份"}>恢复备份</button>
-          </div>
-        </div>
-      ) : null}
+      {isPaused && !shouldUseAccountManagedStatusSlot ? pausedNotice : null}
 
       {documentValue.syncMeta.status === "conflict" ? (
         <div className="sync-conflict" role="status">
@@ -874,6 +986,7 @@ export function SyncPanel({
         </StatusMessage>
       )}
     </section>
+    </>
   );
 }
 
@@ -947,7 +1060,7 @@ function getCreateDisabledReason(serviceConfigured: boolean, busy: boolean, isPa
   }
 
   if (isPaused) {
-    return "恢复默认后同步已暂停，请先选择上传默认、拉取云端、解除本机或恢复备份。";
+    return "同步已暂停，请先选择上传本地、拉取云端、解除本机或恢复备份。";
   }
 
   return undefined;
@@ -984,7 +1097,7 @@ function getPullDisabledReason(
   }
 
   if (isPaused) {
-    return "恢复默认后同步已暂停，请使用提示区中的“拉取云端”。";
+    return "同步已暂停，请使用提示区中的“拉取云端”。";
   }
 
   return undefined;
@@ -1010,7 +1123,7 @@ function getPushDisabledReason(
   }
 
   if (isPaused) {
-    return "恢复默认后同步已暂停，请使用提示区中的“上传默认”。";
+    return "同步已暂停，请使用提示区中的“上传本地”。";
   }
 
   if (status === "conflict") {
@@ -1130,6 +1243,44 @@ function getRevokeConfirmMessage(homeSpace: HomeSpace | null): string {
   return "废弃后，所有设备都无法继续使用这个同步码。继续？";
 }
 
+function shouldConfirmCloudPull(source: "auto" | "manual" | "resolve" | "startup"): boolean {
+  return source === "manual" || source === "resolve";
+}
+
+function getCloudPullConfirmMessage(source: "auto" | "manual" | "resolve" | "startup"): string {
+  const action = source === "resolve" ? "使用云端版本" : "拉取云端首页";
+
+  return [
+    `${action}会用云端首页覆盖当前本地首页。`,
+    "覆盖前会先保存当前有效本地首页到数据恢复中心。",
+    "继续？"
+  ].join("\n");
+}
+
+function getCloudOverwriteConfirmMessage(
+  classification: ReturnType<typeof classifyHomeDocument>,
+  force: boolean
+): string {
+  const overwriteLine = force
+    ? "继续会强制用当前本地首页覆盖云端版本。"
+    : "继续会用当前本地首页上传并覆盖云端版本。";
+
+  if (classification.isUserData) {
+    return [
+      overwriteLine,
+      "覆盖前会先把当前云端版本保存到本机数据恢复中心。",
+      "继续？"
+    ].join("\n");
+  }
+
+  return [
+    `当前本地首页是${getHomeDocumentClassLabel(classification)}，系统不会自动上传这类首页。`,
+    overwriteLine,
+    "覆盖前会先把当前云端版本保存到本机数据恢复中心。",
+    "继续？"
+  ].join("\n");
+}
+
 function toSyncMeta(binding: StoredSyncBinding, status: HomeSyncMeta["status"]): HomeSyncMeta {
   return {
     mode: "sync-code",
@@ -1172,6 +1323,12 @@ function hasLocalDocumentChanges(documentValue: HomeDocumentV2, binding: StoredS
 
   return documentValue.revision !== binding.lastSyncedDocumentRevision
     || documentValue.updatedAt !== binding.lastSyncedDocumentUpdatedAt;
+}
+
+function getCancelSyncStatus(documentValue: HomeDocumentV2): HomeSyncMeta["status"] {
+  return documentValue.syncMeta.mode === "sync-code" && documentValue.syncMeta.status !== "local-only"
+    ? documentValue.syncMeta.status
+    : "linked";
 }
 
 function shouldAuditPullSource(source: "auto" | "manual" | "resolve" | "startup"): boolean {

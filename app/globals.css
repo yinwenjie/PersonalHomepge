@@ -2100,6 +2100,18 @@ h1 {
   white-space: nowrap;
 }
 
+.account-sync-summary > .account-sync-action-slot {
+  display: block;
+}
+
+.account-sync-action-slot:empty {
+  display: none;
+}
+
+.account-sync-action-slot .sync-paused {
+  margin-top: 4px;
+}
+
 .advanced-operation-grid {
   display: grid;
   gap: 12px;

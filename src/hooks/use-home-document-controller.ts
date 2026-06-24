@@ -67,19 +67,22 @@ export function useHomeDocumentController() {
   }, [homeDocument]);
   const isDefaultDocument = documentProtection.documentClass === "system-default";
 
-  const protectBeforeDangerousOverwrite = useCallback((source: LocalHomeSnapshotSource): DangerousOverwriteProtectionResult => {
-    const currentDocument = homeDocumentRef.current;
-    const protection = createDocumentProtectionState(currentDocument);
+  const protectDocumentBeforeDangerousOverwrite = useCallback((
+    documentValue: HomeDocumentV2,
+    source: LocalHomeSnapshotSource
+  ): DangerousOverwriteProtectionResult => {
+    const protectedDocument = normalizeHomeDocument(documentValue);
+    const protection = createDocumentProtectionState(protectedDocument);
 
     if (!protection.isUserData) {
       recordLocalAuditEvent({
-        documentId: currentDocument.documentId,
-        message: "当前首页属于系统态，未生成本地历史版本。",
+        documentId: protectedDocument.documentId,
+        message: "目标首页属于系统态，未生成本地历史版本。",
         metadata: {
           documentClass: protection.documentClass,
           source
         },
-        spaceId: currentDocument.syncMeta.spaceId,
+        spaceId: protectedDocument.syncMeta.spaceId,
         type: "local_snapshot.skipped_system_document"
       });
       return {
@@ -93,7 +96,7 @@ export function useHomeDocumentController() {
     const snapshotRepository = snapshotRepositoryRef.current;
     if (!snapshotRepository) {
       const error = new Error("Local snapshot repository is not ready.");
-      recordSnapshotFailure(currentDocument, source, error);
+      recordSnapshotFailure(protectedDocument, source, error);
       setSaveStatus("未能保存当前首页，已取消覆盖操作");
       return {
         canContinue: false,
@@ -103,10 +106,10 @@ export function useHomeDocumentController() {
     }
 
     try {
-      const result = snapshotRepository.saveSnapshot(currentDocument, source);
+      const result = snapshotRepository.saveSnapshot(protectedDocument, source);
       if (result.status === "saved") {
         recordLocalAuditEvent({
-          documentId: currentDocument.documentId,
+          documentId: protectedDocument.documentId,
           message: "已保存本地历史版本。",
           metadata: {
             groupCount: result.snapshot.summary.groupCount,
@@ -116,7 +119,7 @@ export function useHomeDocumentController() {
             source,
             widgetCount: result.snapshot.summary.widgetCount
           },
-          spaceId: currentDocument.syncMeta.spaceId,
+          spaceId: protectedDocument.syncMeta.spaceId,
           type: "local_snapshot.created"
         });
         return {
@@ -134,7 +137,7 @@ export function useHomeDocumentController() {
       };
     } catch (error) {
       console.warn("Failed to save local home snapshot:", error);
-      recordSnapshotFailure(currentDocument, source, error);
+      recordSnapshotFailure(protectedDocument, source, error);
       setSaveStatus("未能保存当前首页，已取消覆盖操作");
       return {
         canContinue: false,
@@ -143,6 +146,10 @@ export function useHomeDocumentController() {
       };
     }
   }, []);
+
+  const protectBeforeDangerousOverwrite = useCallback((source: LocalHomeSnapshotSource): DangerousOverwriteProtectionResult => {
+    return protectDocumentBeforeDangerousOverwrite(homeDocumentRef.current, source);
+  }, [protectDocumentBeforeDangerousOverwrite]);
 
   const commitHomeDocument = useCallback((nextDocument: HomeDocumentV2, message = "已保存") => {
     const normalized = normalizeHomeDocument({
@@ -445,6 +452,7 @@ export function useHomeDocumentController() {
     documentProtection,
     commitHomeDocument,
     protectBeforeDangerousOverwrite,
+    protectDocumentBeforeDangerousOverwrite,
     replaceHomeDocument,
     restoreHomeDocumentWithBackup,
     updateSyncMeta,
