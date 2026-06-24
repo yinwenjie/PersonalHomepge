@@ -6,6 +6,7 @@ import Link from "next/link";
 import { AccountPanel } from "@/components/account-panel";
 import { AccountPreferencesPanel } from "@/components/account-preferences-panel";
 import { BookmarkImportPanel } from "@/components/bookmark-import-panel";
+import { DataRecoveryCenterPanel } from "@/components/data-recovery-center-panel";
 import { DeviceStatusPanel } from "@/components/device-status-panel";
 import { HomeSpacesPanel } from "@/components/home-spaces-panel";
 import { HomeThemeStyleBridge } from "@/components/home-theme-style-bridge";
@@ -54,7 +55,8 @@ export function SettingsDashboard() {
     importJson,
     exportJson,
     resetDefault,
-    restoreResetBackup
+    restoreResetBackup,
+    restoreLocalSnapshot
   } = useHomeDocumentController();
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const dataPackageImportInputRef = useRef<HTMLInputElement | null>(null);
@@ -360,6 +362,23 @@ export function SettingsDashboard() {
           accountData={accountData}
           authLoading={auth.loading}
           signedIn={signedIn}
+        />
+
+        <DataRecoveryCenterPanel
+          hasSyncBinding={Boolean(currentBinding)}
+          storageReady={storageReady}
+          onRestoreSnapshot={(snapshot) => {
+            const restored = restoreLocalSnapshot(snapshot, {
+              syncMeta: currentBinding ? toSyncMeta(currentBinding, "paused") : localSyncMeta(),
+              successMessage: currentBinding ? "已恢复本地历史版本，自动同步已暂停" : "已恢复本地历史版本"
+            });
+
+            if (restored) {
+              setSyncPanelKey((value) => value + 1);
+            }
+
+            return restored;
+          }}
         />
 
         <section className="settings-panel" aria-label="高级操作">

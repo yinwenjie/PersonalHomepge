@@ -10,12 +10,14 @@ import {
 
 export const LOCAL_HOME_SNAPSHOTS_STORAGE_KEY = "homepage:local-snapshots:v1";
 export const LOCAL_HOME_SNAPSHOT_LIMIT = 30;
+export const LOCAL_HOME_SNAPSHOTS_UPDATED_EVENT = "homepage:local-snapshots-updated";
 
 const LOCAL_HOME_SNAPSHOT_SCHEMA = "homepage-local-snapshots-v1";
 
 export type LocalHomeSnapshotSource =
   | "before-data-package-restore"
   | "before-json-import"
+  | "before-local-snapshot-restore"
   | "before-reset-backup-restore"
   | "before-reset-default";
 
@@ -106,6 +108,7 @@ export class LocalHomeSnapshotRepository {
       schema: LOCAL_HOME_SNAPSHOT_SCHEMA,
       snapshots: nextSnapshots
     } satisfies LocalHomeSnapshotStorageValue));
+    notifyLocalHomeSnapshotsUpdated();
 
     return {
       status: "saved",
@@ -115,6 +118,7 @@ export class LocalHomeSnapshotRepository {
 
   clear(): void {
     this.storage.removeItem(LOCAL_HOME_SNAPSHOTS_STORAGE_KEY);
+    notifyLocalHomeSnapshotsUpdated();
   }
 
   private read(): LocalHomeSnapshotStorageValue | null {
@@ -187,8 +191,17 @@ function summarizeHomeDocument(documentValue: HomeDocumentV2): LocalHomeSnapshot
 function isLocalHomeSnapshotSource(value: unknown): value is LocalHomeSnapshotSource {
   return value === "before-data-package-restore"
     || value === "before-json-import"
+    || value === "before-local-snapshot-restore"
     || value === "before-reset-backup-restore"
     || value === "before-reset-default";
+}
+
+export function notifyLocalHomeSnapshotsUpdated(): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.dispatchEvent(new CustomEvent(LOCAL_HOME_SNAPSHOTS_UPDATED_EVENT));
 }
 
 function isSnapshotSummary(value: unknown): value is LocalHomeSnapshotSummary {

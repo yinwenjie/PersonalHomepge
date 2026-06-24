@@ -17,6 +17,8 @@ import { LocalHomeRepository } from "@/infrastructure/home-repository";
 import { recordLocalAuditEvent } from "@/infrastructure/local-audit-log-repository";
 import {
   LocalHomeSnapshotRepository,
+  notifyLocalHomeSnapshotsUpdated,
+  type LocalHomeSnapshot,
   type LocalHomeSnapshotSource
 } from "@/infrastructure/local-home-snapshot-repository";
 
@@ -24,6 +26,11 @@ interface ResetDefaultOptions {
   confirmMessage?: string;
   syncMeta?: HomeSyncMeta;
   successMessage?: string;
+}
+
+interface RestoreLocalSnapshotOptions {
+  successMessage?: string;
+  syncMeta: HomeSyncMeta;
 }
 
 export function useHomeDocumentController() {
@@ -318,6 +325,69 @@ export function useHomeDocumentController() {
     });
   }, [commitHomeDocument, saveUserSnapshotBeforeOverwrite]);
 
+  const restoreLocalSnapshot = useCallback((
+    snapshot: LocalHomeSnapshot,
+    options: RestoreLocalSnapshotOptions
+  ): boolean => {
+    const repository = repositoryRef.current;
+    if (!repository) {
+      window.alert("本地存储尚未就绪，请稍后重试。");
+      return false;
+    }
+
+    const currentDocument = homeDocumentRef.current;
+    try {
+      saveUserSnapshotBeforeOverwrite("before-local-snapshot-restore");
+      const normalized = normalizeHomeDocument({
+        ...snapshot.document,
+        revision: nextRevision(currentDocument.revision),
+        updatedAt: new Date().toISOString(),
+        syncMeta: options.syncMeta
+      });
+
+      repository.save(normalized);
+      homeDocumentRef.current = normalized;
+      setHomeDocument(normalized);
+      setHasStoredDocument(true);
+      setSaveStatus(options.successMessage ?? "已恢复本地历史版本");
+      notifyLocalHomeSnapshotsUpdated();
+      recordLocalAuditEvent({
+        documentId: normalized.documentId,
+        message: "已恢复本地历史版本。",
+        metadata: {
+          groupCount: snapshot.summary.groupCount,
+          originalRevision: snapshot.revision,
+          nextRevision: normalized.revision,
+          siteCount: snapshot.summary.siteCount,
+          snapshotId: snapshot.id,
+          snapshotSource: snapshot.source,
+          syncPaused: options.syncMeta.status === "paused",
+          widgetCount: snapshot.summary.widgetCount
+        },
+        spaceId: options.syncMeta.spaceId,
+        type: "local_snapshot.restored"
+      });
+      return true;
+    } catch (error) {
+      console.error(error);
+      setSaveStatus("本地历史版本恢复失败");
+      recordLocalAuditEvent({
+        documentId: currentDocument.documentId,
+        level: "danger",
+        message: "本地历史版本恢复失败。",
+        metadata: {
+          reason: error instanceof Error ? error.message : "unknown",
+          snapshotId: snapshot.id,
+          snapshotSource: snapshot.source
+        },
+        spaceId: currentDocument.syncMeta.spaceId,
+        type: "local_snapshot.restore_failed"
+      });
+      window.alert("本地历史版本恢复失败，请稍后重试。");
+      return false;
+    }
+  }, [saveUserSnapshotBeforeOverwrite]);
+
   return {
     homeDocument,
     storageReady,
@@ -333,7 +403,8 @@ export function useHomeDocumentController() {
     importJson,
     exportJson,
     resetDefault,
-    restoreResetBackup
+    restoreResetBackup,
+    restoreLocalSnapshot
   };
 }
 

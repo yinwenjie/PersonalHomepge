@@ -2245,6 +2245,200 @@ h1 {
   overflow-wrap: anywhere;
 }
 
+.local-snapshot-list {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.local-snapshot-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+}
+
+.local-snapshot-copy {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.local-snapshot-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.local-snapshot-title strong {
+  overflow: hidden;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.local-snapshot-title time {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.local-snapshot-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.local-snapshot-meta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  max-width: 180px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.local-snapshot-actions {
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+}
+
+.local-snapshot-preview-dialog {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: min(960px, 100%);
+  max-height: min(760px, calc(100vh - 40px));
+}
+
+.local-snapshot-preview-dialog .settings-dialog-body {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.snapshot-preview-section {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.snapshot-preview-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.snapshot-preview-section-head h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 680;
+}
+
+.snapshot-preview-section-head span {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.snapshot-preview-group-list,
+.snapshot-preview-widget-list {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.snapshot-preview-group,
+.snapshot-preview-widget {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+}
+
+.snapshot-preview-group header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.snapshot-preview-group header strong,
+.snapshot-preview-widget strong {
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.snapshot-preview-group header span,
+.snapshot-preview-widget span,
+.snapshot-preview-empty {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.snapshot-preview-site-list {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.snapshot-preview-site {
+  display: grid;
+  grid-template-columns: minmax(90px, 0.35fr) minmax(0, 1fr) minmax(80px, 0.3fr);
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.snapshot-preview-site strong,
+.snapshot-preview-site span,
+.snapshot-preview-site small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.snapshot-preview-site strong {
+  font-size: 13px;
+}
+
+.snapshot-preview-site span,
+.snapshot-preview-site small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.snapshot-preview-empty {
+  margin: 0;
+}
+
 .preference-grid {
   display: grid;
   gap: 8px;
@@ -3458,6 +3652,22 @@ h1 {
 
   .settings-status-chips {
     justify-content: flex-start;
+  }
+
+  .local-snapshot-card,
+  .snapshot-preview-site {
+    grid-template-columns: 1fr;
+  }
+
+  .local-snapshot-actions {
+    justify-content: flex-start;
+  }
+
+  .local-snapshot-title,
+  .snapshot-preview-group header,
+  .snapshot-preview-section-head {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .bookmark-import-stepper,
