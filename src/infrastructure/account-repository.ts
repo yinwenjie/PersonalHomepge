@@ -14,6 +14,10 @@ import type {
 import type { HomeDocumentV2 } from "@/domain/home-document";
 import { normalizeUiPreferences } from "@/domain/ui-preferences";
 import { createSyncSecrets, SYNC_CODE_VERSION, type StoredSyncBinding } from "@/domain/sync-code";
+import {
+  CloudHomeSnapshotRepository,
+  createCloudSnapshotPayload
+} from "@/infrastructure/cloud-home-snapshot-repository";
 import { encryptHomeDocument, type EncryptedHomeDocument } from "@/infrastructure/sync-crypto";
 import { SyncCodeRepository } from "@/infrastructure/sync-code-repository";
 import { getSupabaseBrowserClient } from "@/infrastructure/supabase-client";
@@ -61,6 +65,7 @@ interface CreateAccountManagedHomeSpaceRow {
   sync_space_id: string;
   revision: number;
   updated_at: string;
+  snapshot_id?: string | null;
 }
 
 interface MigrateSyncCodeHomeSpaceRow {
@@ -149,11 +154,12 @@ export class AccountRepository {
   ): Promise<CreatedAccountManagedHomeSpaceResult> {
     const secrets = createSyncSecrets();
     const encryptedDocument = await encryptHomeDocument(documentValue, secrets.encryptionKey);
-    const row = await rpcSingle<CreateAccountManagedHomeSpaceRow>("create_account_managed_home_space", {
+    const row = await rpcSingle<CreateAccountManagedHomeSpaceRow>("create_account_managed_home_space_v2", {
       p_name: name.trim(),
       p_access_token: secrets.accessToken,
       p_encryption_key: secrets.encryptionKey,
-      ...toRpcEncryptedDocument(encryptedDocument)
+      ...toRpcEncryptedDocument(encryptedDocument),
+      ...createCloudSnapshotPayload(documentValue, "account-managed-created")
     });
 
     const activated = await this.markHomeSpaceActive(userId, row.home_space_id);
@@ -204,6 +210,16 @@ export class AccountRepository {
       throw new Error("账号托管空间恢复后未能读取空间列表");
     }
 
+    try {
+      await new CloudHomeSnapshotRepository().createBaselineIfMissing(
+        activatedHomeSpace,
+        pulled.document,
+        pulled.revision
+      );
+    } catch (snapshotError) {
+      console.warn("Failed to create account-managed cloud baseline snapshot:", snapshotError);
+    }
+
     return {
       ...activated,
       homeSpace: activatedHomeSpace,
@@ -249,10 +265,11 @@ export class AccountRepository {
       throw new Error("云端首页已有更新，请先拉取云端后再迁移");
     }
 
-    const row = await rpcSingle<MigrateSyncCodeHomeSpaceRow>("migrate_sync_code_home_space_to_account_managed", {
+    const row = await rpcSingle<MigrateSyncCodeHomeSpaceRow>("migrate_sync_code_home_space_to_account_managed_v2", {
       p_home_space_id: homeSpaceId,
       p_access_token: binding.accessToken,
-      p_encryption_key: binding.encryptionKey
+      p_encryption_key: binding.encryptionKey,
+      ...createCloudSnapshotPayload(pulled.document, "cloud-baseline")
     });
     const activated = await this.markHomeSpaceActive(userId, row.home_space_id);
     const migratedHomeSpace = activated.homeSpaces.find((candidate) => candidate.id === row.home_space_id);

@@ -74,14 +74,21 @@
     - bucket 为 private，单文件限制 5MB，只允许 JPG、PNG、WebP 和 GIF。
     - 在 `storage.objects` 上创建 Banner/背景图 RLS policy，限制登录用户只能访问自己目录下的图片。
 
+13. `supabase/migrations/013_cloud_home_snapshots.sql`
+    - 新增账号托管空间云端历史表 `home_space_snapshots`，只保存有效用户首页的完整 `document_json`。
+    - 新增账号托管空间审计表 `home_space_audit_events`。
+    - 新增账号托管专用 v2 创建/迁移 RPC，以及普通上传/强制覆盖 RPC；普通同步码 RPC 保持兼容。
+    - 每个账号托管首页空间最多保留最近 50 个云端快照。
+
 ## 执行规则
 
-- 新 Supabase project：按 `001 -> 002 -> 003 -> 004 -> 005 -> 006 -> 007 -> 008 -> 009 -> 010 -> 011 -> 012` 顺序执行。
-- 已经执行过 `001`、`002`、`003`、`004`、`005` 的项目：先执行 `006`，再执行 `007`、`008`、`009`、`010`、`011` 和 `012`。
-- 已经执行过 `006`、`007` 但未执行 `008` 的项目：先执行 `008`，再执行 `009`、`010`、`011` 和 `012`。
-- 已经执行过 `006`、`007`、`008` 的项目：先执行 `009`，再执行 `010`、`011` 和 `012`。
-- 已经执行过 `009` 的项目：先补执行 `010`、`011` 和 `012`。
-- 已经执行过 `010` 的项目：先补执行 `011`，再执行 `012`。
+- 新 Supabase project：按 `001 -> 002 -> 003 -> 004 -> 005 -> 006 -> 007 -> 008 -> 009 -> 010 -> 011 -> 012 -> 013` 顺序执行。
+- 已经执行过 `001`、`002`、`003`、`004`、`005` 的项目：先执行 `006`，再执行 `007`、`008`、`009`、`010`、`011`、`012` 和 `013`。
+- 已经执行过 `006`、`007` 但未执行 `008` 的项目：先执行 `008`，再执行 `009`、`010`、`011`、`012` 和 `013`。
+- 已经执行过 `006`、`007`、`008` 的项目：先执行 `009`，再执行 `010`、`011`、`012` 和 `013`。
+- 已经执行过 `009` 的项目：先补执行 `010`、`011`、`012` 和 `013`。
+- 已经执行过 `010` 的项目：先补执行 `011`，再执行 `012` 和 `013`。
+- 已经执行过 `012` 的项目：补执行 `013`。
 - 已经手动创建 `home-assets` bucket 的项目：仍需执行 `012`，因为上传所需的 RLS policy 不会由 Dashboard 创建 bucket 自动生成。
 - 执行前确认目标 project 是线上使用的 Supabase project。
 - 执行 `003` 后可以在 SQL Editor 中检查 revision 函数是否存在：
@@ -151,6 +158,8 @@ where table_schema = 'public'
 - `011_account_preferences_search_engine_yandex.sql` 是默认搜索引擎候选热修。执行后 Baidu 不再是合法账号偏好值，历史 Baidu 会回落为 DuckDuckGo。
 - `012_home_assets_storage.sql` 是 Phase 1.8.1 Banner/背景图片上传所需迁移。前端可以保存外链图片，但登录用户上传 Storage 图片前必须执行该脚本。
 - `012_home_assets_storage.sql` 只允许用户访问 `{auth.uid()}/banner/...` 和 `{auth.uid()}/background/...` 路径下的图片；不要把通用文件缓存、公开分享或端到端加密文件复用到这个 bucket policy 中。
+- `013_cloud_home_snapshots.sql` 是 Phase 1.11.5 账号托管云端历史版本所需迁移。执行前端代码但未执行该脚本时，账号托管上传和数据恢复中心云端历史读取会失败。
+- `013_cloud_home_snapshots.sql` 只为 `account-managed` 空间保存明文 `document_json` 云端历史；普通 `sync-code` 空间继续使用既有密文同步模型，不保存可预览明文历史。
 - 新设备登录后看到账号空间列表，不代表已经拥有该空间的同步凭证；只有 `account-managed` 空间可以通过账号托管凭证直接恢复，普通 `sync-code` 空间仍需输入完整同步码。
 
 ## 辅助检查脚本
@@ -166,3 +175,4 @@ where table_schema = 'public'
 - `supabase/checks/011_home_space_removal_policy_verify.sql`：验证 Phase 1.6.4a 删除策略，确认从账号移除不会删除、废弃或改写底层 `sync_spaces`。
 - `supabase/checks/012_account_preferences_editing_verify.sql`：验证 Phase 1.6.6 偏好编辑字段、默认值、约束、RLS、权限和默认空间 FK/RLS 边界。
 - `supabase/checks/013_home_assets_storage_verify.sql`：验证 Phase 1.8.1 `home-assets` bucket 参数、Storage object policies 和 RLS 状态。
+- `supabase/checks/014_cloud_home_snapshots_verify.sql`：验证 Phase 1.11.5 云端历史表、审计表、RLS、权限、账号托管 RPC、旧同步码 RPC 兼容和快照约束。

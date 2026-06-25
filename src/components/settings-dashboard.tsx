@@ -24,6 +24,7 @@ import { useAccountData } from "@/hooks/use-account-data";
 import { useHomeDocumentController } from "@/hooks/use-home-document-controller";
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
 import { LocalAuditLogRepository, recordLocalAuditEvent } from "@/infrastructure/local-audit-log-repository";
+import type { CloudHomeSnapshot } from "@/infrastructure/cloud-home-snapshot-repository";
 import { LocalDeviceRepository } from "@/infrastructure/local-device-repository";
 import type { LocalHomeSnapshotSource } from "@/infrastructure/local-home-snapshot-repository";
 import { LocalSyncBindingRepository } from "@/infrastructure/sync-binding-repository";
@@ -61,7 +62,8 @@ export function SettingsDashboard() {
     exportJson,
     resetDefault,
     restoreResetBackup,
-    restoreLocalSnapshot
+    restoreLocalSnapshot,
+    restoreCloudSnapshot
   } = useHomeDocumentController();
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const dataPackageImportInputRef = useRef<HTMLInputElement | null>(null);
@@ -381,8 +383,21 @@ export function SettingsDashboard() {
         />
 
         <DataRecoveryCenterPanel
+          currentHomeSpace={currentAccountHomeSpace}
           hasSyncBinding={Boolean(currentBinding)}
           storageReady={storageReady}
+          onRestoreCloudSnapshot={(snapshot: CloudHomeSnapshot) => {
+            const restored = restoreCloudSnapshot(snapshot, {
+              syncMeta: currentBinding ? toSyncMeta(currentBinding, "paused") : localSyncMeta(),
+              successMessage: currentBinding ? "已恢复云端历史版本，自动同步已暂停" : "已恢复云端历史版本"
+            });
+
+            if (restored) {
+              setSyncPanelKey((value) => value + 1);
+            }
+
+            return restored;
+          }}
           onRestoreSnapshot={(snapshot) => {
             const restored = restoreLocalSnapshot(snapshot, {
               syncMeta: currentBinding ? toSyncMeta(currentBinding, "paused") : localSyncMeta(),

@@ -2,7 +2,7 @@
 
 ## 状态
 
-- 当前状态：Phase 1.11 主线进行中；Phase 1.11.0 数据保全基线与文档分类、Phase 1.11.1 本地历史版本 v1、Phase 1.11.2 数据恢复中心 v1、Phase 1.11.3 危险写入保护、Phase 1.11.4 同步误覆盖防护已完成。
+- 当前状态：Phase 1.11 主线进行中；Phase 1.11.0 数据保全基线与文档分类、Phase 1.11.1 本地历史版本 v1、Phase 1.11.2 数据恢复中心 v1、Phase 1.11.3 危险写入保护、Phase 1.11.4 同步误覆盖防护、Phase 1.11.5 云端历史版本 v1 已完成。
 - 优先级：P0，高于隐私、防泄露、组件优化和 UI 打磨。
 - 需求背景：经历首页数据被清空/误覆盖事故后，产品规划必须先保证用户数据不会丢、可追踪、可预览、可恢复。
 - 阶段定位：建立本地历史版本、云端历史版本、数据恢复中心、危险写入保护、同步误覆盖防护、服务端审计和后台管理 dashboard。
@@ -187,7 +187,7 @@ type DocumentProtectionState = {
 
 ## 云端快照设计
 
-建议新增 `home_space_snapshots`：
+Phase 1.11.5 已新增账号托管空间 v1 的 `home_space_snapshots`：
 
 ```text
 id
@@ -198,7 +198,6 @@ revision
 snapshot_source
 document_class
 document_json
-document_ciphertext
 summary
 created_at
 actor_user_id
@@ -208,13 +207,13 @@ operation_id
 
 字段说明：
 
-- `snapshot_source`：`before-dangerous-write`、`after-user-edit`、`before-cloud-overwrite`、`manual-restore-point`、`import-commit`。
-- `document_class`：`user-data`、`system-default`、`system-blank`、`system-template`。
-- `document_json`：账号托管空间使用，支持后台预览和恢复。
-- `document_ciphertext`：同步码或 legacy 加密空间使用，后台默认不能预览明文。
+- `snapshot_source` v1：`account-managed-created`、`cloud-baseline`、`after-cloud-push`、`after-cloud-force-push`。
+- `document_class` v1 只允许 `user-data`，默认页、空白页和未编辑模板页不进入云端历史。
+- `document_json`：账号托管空间使用，保存完整明文 `HomeDocumentV2`，支持数据恢复中心预览和恢复到本机。
+- 普通同步码空间 v1 不写入该表，不保存明文 `document_json` 或可预览云端历史，继续使用既有密文同步模型。
 - `summary`：分组、网站、组件、主题、Banner/背景状态摘要。
 
-建议新增 `home_space_audit_events`：
+Phase 1.11.5 已新增 `home_space_audit_events`：
 
 ```text
 id
@@ -238,17 +237,8 @@ metadata
 
 审计事件应覆盖：
 
-- 恢复默认。
-- 应用空白页。
-- 应用模板。
-- 用户编辑后保存。
-- 数据包恢复。
-- 收藏/URL 导入确认写入。
-- 空间切换。
-- 云端拉取覆盖本地。
-- 本地上传覆盖云端。
-- 冲突解决。
-- 管理员查看、预览和恢复辅助。
+- Phase 1.11.5 v1 已覆盖：账号托管空间创建、同步码空间迁移为账号托管、账号托管普通上传、账号托管强制覆盖、推送冲突、机会性基线快照和云端历史恢复到本机。
+- 后续阶段继续覆盖：恢复默认、应用空白页、应用模板、数据包恢复、收藏/URL 导入确认写入、空间切换、云端拉取覆盖本地、管理员查看、预览和恢复辅助。
 
 ## 后台管理 Dashboard
 
@@ -285,12 +275,12 @@ metadata
 | Phase 1.11.2 | 数据恢复中心 v1 | 已实现设置页一级栏目、位置固定为第 6 项、本地版本列表、完整预览、恢复确认、恢复前再快照和恢复后同步暂停提示 | L | High |
 | Phase 1.11.3 | 危险写入保护 | 已实现恢复默认、空白页/模板、数据包恢复、JSON/书签导入、空间切换、同步码绑定、云端拉取和冲突选择云端前统一保存有效用户首页快照；快照失败时阻止覆盖 | L | High |
 | Phase 1.11.4 | 同步误覆盖防护 | 已实现系统态不自动上传；手动上传或本地覆盖云端前保存当前云端版本；手动拉取覆盖本地前明确二次确认 | L | High |
-| Phase 1.11.5 | 云端历史版本 v1 | `home_space_snapshots`、`home_space_audit_events`、账号托管空间云端快照、云端完整预览和审计事件 | XL | High |
+| Phase 1.11.5 | 云端历史版本 v1 | 已实现 `home_space_snapshots`、`home_space_audit_events`、账号托管专用上传 RPC、账号托管空间云端快照、云端完整预览、恢复到本机和审计事件；普通同步码空间继续保持密文边界 | XL | High |
 | Phase 1.11.6 | 账号托管可恢复模型收口 | 云端托管 secret 与可审计明文记录模型；普通用户不直接访问 managed secret；同步码空间继续密文隔离 | L-XL | High |
 | Phase 1.11.7 | Supabase 后台管理 dashboard | `admin_users`、`admin_audit_events`、受控后台入口、非离线加密数据审计、管理员访问留痕 | XL | High |
 | Phase 1.11.8 | P0 回归测试与事故演练 | 首页清空、恢复默认、模板、导入、数据包恢复、空间切换、同步冲突、多设备覆盖和后台审计测试清单 | M-L | High |
 
-推荐实施顺序：先完成 Phase 1.11.0-1.11.4，优先阻断用户端误覆盖；再做 Phase 1.11.5-1.11.7 的云端快照和后台审计；最后用 Phase 1.11.8 固化 P0 回归测试与事故演练。
+推荐实施顺序：Phase 1.11.0-1.11.5 已完成，已先阻断用户端误覆盖并补齐账号托管云端历史；后续继续做 Phase 1.11.6-1.11.7 的账号托管恢复模型和后台审计；最后用 Phase 1.11.8 固化 P0 回归测试与事故演练。
 
 ## 危险写入清单
 

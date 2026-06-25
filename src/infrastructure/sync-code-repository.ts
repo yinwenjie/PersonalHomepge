@@ -1,5 +1,6 @@
 import { HomeDocumentV2 } from "@/domain/home-document";
 import { StoredSyncBinding } from "@/domain/sync-code";
+import { createCloudSnapshotPayload } from "@/infrastructure/cloud-home-snapshot-repository";
 import { decryptHomeDocument, encryptHomeDocument, EncryptedHomeDocument } from "@/infrastructure/sync-crypto";
 import { getSupabaseBrowserClient } from "@/infrastructure/supabase-client";
 
@@ -28,12 +29,14 @@ interface PushSyncSpaceRow {
   revision: number;
   remote_revision: number;
   updated_at: string;
+  snapshot_id?: string | null;
 }
 
 interface ForcePushSyncSpaceRow {
   status: "ok";
   revision: number;
   updated_at: string;
+  snapshot_id?: string | null;
 }
 
 interface RevokeSyncSpaceRow {
@@ -103,15 +106,20 @@ export class SyncCodeRepository {
   }
 
   async push(
-    binding: Pick<StoredSyncBinding, "spaceId" | "accessToken" | "encryptionKey" | "remoteRevision">,
+    binding: Pick<StoredSyncBinding, "accessMode" | "spaceId" | "accessToken" | "encryptionKey" | "remoteRevision">,
     documentValue: HomeDocumentV2
   ): Promise<PushSyncSpaceResult> {
     const encryptedDocument = await encryptHomeDocument(documentValue, binding.encryptionKey);
-    const row = await rpcSingle<PushSyncSpaceRow>("push_sync_space", {
+    const row = await rpcSingle<PushSyncSpaceRow>(binding.accessMode === "account-managed"
+      ? "push_account_managed_sync_space"
+      : "push_sync_space", {
       p_space_id: binding.spaceId,
       p_access_token: binding.accessToken,
       p_base_revision: binding.remoteRevision,
-      ...toRpcEncryptedDocument(encryptedDocument)
+      ...toRpcEncryptedDocument(encryptedDocument),
+      ...(binding.accessMode === "account-managed"
+        ? createCloudSnapshotPayload(documentValue, "after-cloud-push")
+        : {})
     });
 
     if (row.status === "conflict") {
@@ -130,14 +138,19 @@ export class SyncCodeRepository {
   }
 
   async forcePush(
-    binding: Pick<StoredSyncBinding, "spaceId" | "accessToken" | "encryptionKey">,
+    binding: Pick<StoredSyncBinding, "accessMode" | "spaceId" | "accessToken" | "encryptionKey">,
     documentValue: HomeDocumentV2
   ): Promise<CreateSyncSpaceResult> {
     const encryptedDocument = await encryptHomeDocument(documentValue, binding.encryptionKey);
-    const row = await rpcSingle<ForcePushSyncSpaceRow>("force_push_sync_space", {
+    const row = await rpcSingle<ForcePushSyncSpaceRow>(binding.accessMode === "account-managed"
+      ? "force_push_account_managed_sync_space"
+      : "force_push_sync_space", {
       p_space_id: binding.spaceId,
       p_access_token: binding.accessToken,
-      ...toRpcEncryptedDocument(encryptedDocument)
+      ...toRpcEncryptedDocument(encryptedDocument),
+      ...(binding.accessMode === "account-managed"
+        ? createCloudSnapshotPayload(documentValue, "after-cloud-force-push")
+        : {})
     });
 
     return {

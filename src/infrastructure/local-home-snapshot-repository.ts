@@ -19,6 +19,7 @@ export type LocalHomeSnapshotSource =
   | "before-bookmark-import-undo"
   | "before-cloud-overwrite"
   | "before-cloud-pull"
+  | "before-cloud-snapshot-restore"
   | "before-conflict-cloud-resolve"
   | "before-data-package-restore"
   | "before-home-space-activate"
@@ -185,7 +186,7 @@ function normalizeSnapshot(value: unknown): LocalHomeSnapshot | null {
   }
 }
 
-function summarizeHomeDocument(documentValue: HomeDocumentV2): LocalHomeSnapshotSummary {
+export function summarizeHomeDocument(documentValue: HomeDocumentV2): LocalHomeSnapshotSummary {
   return {
     groupCount: documentValue.groups.length,
     hasBackground: Boolean(documentValue.theme.backgroundAsset || documentValue.theme.backgroundUrl),
@@ -203,6 +204,7 @@ function isLocalHomeSnapshotSource(value: unknown): value is LocalHomeSnapshotSo
     || value === "before-bookmark-import-undo"
     || value === "before-cloud-overwrite"
     || value === "before-cloud-pull"
+    || value === "before-cloud-snapshot-restore"
     || value === "before-conflict-cloud-resolve"
     || value === "before-data-package-restore"
     || value === "before-home-space-activate"

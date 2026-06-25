@@ -22,7 +22,7 @@
 - `implementation/phase-1/Phase1_9_5_BookmarkImportDesign.md`：Phase 1.9.5，收藏/标签导入需求设计；记录普通网页权限边界、书签 HTML/URL 粘贴/浏览器扩展方案对比、导入草稿模型、隐私安全和 MVP 推荐路径。
 - `implementation/phase-1/Phase1_9_6_BulkImportExperienceDesign.md`：Phase 1.9.6，大批量导入体验设计；记录 5 步导入向导、localStorage 草稿与撤销记录、分页预览、分组映射、批量选择、性能边界和 Phase 1.9.7 MVP 范围。
 - `implementation/phase-1/Phase1_10_Implement.md`：Phase 1.10，正式推出前基础收口；记录数据包恢复、本地审计日志、本机状态、同步请求多标签协调，以及账号删除、只读分享链接、密码保护空间的高风险候选设计。
-- `implementation/phase-1/Phase1_11_Implement.md`：Phase 1.11，数据保全与恢复体系；记录文档分类、本地历史版本、保护状态缓存和关键覆盖入口快照。
+- `implementation/phase-1/Phase1_11_Implement.md`：Phase 1.11，数据保全与恢复体系；记录文档分类、本地历史版本、数据恢复中心、危险写入保护、同步误覆盖防护和账号托管云端历史版本。
 
 ## Tech Stack
 

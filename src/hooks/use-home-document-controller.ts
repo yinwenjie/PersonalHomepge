@@ -15,6 +15,7 @@ import {
   type HomeDocumentClass
 } from "@/domain/home-document-protection";
 import { LocalHomeRepository } from "@/infrastructure/home-repository";
+import type { CloudHomeSnapshot } from "@/infrastructure/cloud-home-snapshot-repository";
 import { recordLocalAuditEvent } from "@/infrastructure/local-audit-log-repository";
 import {
   LocalHomeSnapshotRepository,
@@ -30,6 +31,11 @@ interface ResetDefaultOptions {
 }
 
 interface RestoreLocalSnapshotOptions {
+  successMessage?: string;
+  syncMeta: HomeSyncMeta;
+}
+
+interface RestoreCloudSnapshotOptions {
   successMessage?: string;
   syncMeta: HomeSyncMeta;
 }
@@ -442,6 +448,72 @@ export function useHomeDocumentController() {
     }
   }, [protectBeforeDangerousOverwrite]);
 
+  const restoreCloudSnapshot = useCallback((
+    snapshot: CloudHomeSnapshot,
+    options: RestoreCloudSnapshotOptions
+  ): boolean => {
+    const repository = repositoryRef.current;
+    if (!repository) {
+      window.alert("本地存储尚未就绪，请稍后重试。");
+      return false;
+    }
+
+    const currentDocument = homeDocumentRef.current;
+    try {
+      if (!protectBeforeDangerousOverwrite("before-cloud-snapshot-restore").canContinue) {
+        return false;
+      }
+
+      const normalized = normalizeHomeDocument({
+        ...snapshot.document,
+        revision: nextRevision(currentDocument.revision),
+        updatedAt: new Date().toISOString(),
+        syncMeta: options.syncMeta
+      });
+
+      repository.save(normalized);
+      homeDocumentRef.current = normalized;
+      setHomeDocument(normalized);
+      setHasStoredDocument(true);
+      setSaveStatus(options.successMessage ?? "已恢复云端历史版本");
+      notifyLocalHomeSnapshotsUpdated();
+      recordLocalAuditEvent({
+        documentId: normalized.documentId,
+        message: "已恢复云端历史版本到本机。",
+        metadata: {
+          cloudRevision: snapshot.revision,
+          groupCount: snapshot.summary.groupCount,
+          nextRevision: normalized.revision,
+          siteCount: snapshot.summary.siteCount,
+          snapshotId: snapshot.id,
+          snapshotSource: snapshot.source,
+          syncPaused: options.syncMeta.status === "paused",
+          widgetCount: snapshot.summary.widgetCount
+        },
+        spaceId: options.syncMeta.spaceId,
+        type: "cloud_snapshot.restored_to_local"
+      });
+      return true;
+    } catch (error) {
+      console.error(error);
+      setSaveStatus("云端历史版本恢复失败");
+      recordLocalAuditEvent({
+        documentId: currentDocument.documentId,
+        level: "danger",
+        message: "云端历史版本恢复失败。",
+        metadata: {
+          reason: error instanceof Error ? error.message : "unknown",
+          snapshotId: snapshot.id,
+          snapshotSource: snapshot.source
+        },
+        spaceId: currentDocument.syncMeta.spaceId,
+        type: "cloud_snapshot.restore_failed"
+      });
+      window.alert("云端历史版本恢复失败，请稍后重试。");
+      return false;
+    }
+  }, [protectBeforeDangerousOverwrite]);
+
   return {
     homeDocument,
     storageReady,
@@ -460,7 +532,8 @@ export function useHomeDocumentController() {
     exportJson,
     resetDefault,
     restoreResetBackup,
-    restoreLocalSnapshot
+    restoreLocalSnapshot,
+    restoreCloudSnapshot
   };
 }
 

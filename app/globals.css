@@ -2258,6 +2258,37 @@ h1 {
   overflow-wrap: anywhere;
 }
 
+.recovery-history-section {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.recovery-history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.recovery-history-head h3 {
+  margin: 0;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 680;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recovery-history-head span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .local-snapshot-list {
   display: grid;
   gap: 8px;

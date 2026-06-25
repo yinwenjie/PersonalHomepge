@@ -161,9 +161,55 @@ Phase 1.11 将“用户数据保全、防止数据丢失”提升为 P0。所有
 - `src/hooks/use-home-document-controller.ts`
 - `src/infrastructure/local-home-snapshot-repository.ts`
 
+### Phase 1.11.5：云端历史版本 v1
+
+为账号托管空间新增云端历史版本能力；普通同步码空间继续保持当前密文同步边界，不保存可预览的明文云端历史。
+
+已支持：
+
+- 新增 Supabase migration `supabase/migrations/013_cloud_home_snapshots.sql`。
+- 新增 `home_space_snapshots` 表，只保存账号托管空间的 `user-data` 快照，包含完整 `document_json`、摘要、内容指纹、来源、设备 id、操作 id 和云端 revision。
+- 新增 `home_space_audit_events` 表，记录账号托管空间创建、迁移、普通上传、强制覆盖、基线快照和云端历史恢复到本机等关键事件。
+- 每个账号托管首页空间最多保留最近 50 个云端快照；重复内容指纹会跳过新增快照，但仍写入上传审计。
+- 新增账号托管专用 RPC：
+  - `create_account_managed_home_space_v2(...)`
+  - `migrate_sync_code_home_space_to_account_managed_v2(...)`
+  - `push_account_managed_sync_space(...)`
+  - `force_push_account_managed_sync_space(...)`
+- 账号托管空间成功创建、迁移、普通上传和强制覆盖时，在同一事务中保存云端快照和审计事件；有效用户首页快照保存失败时，账号托管上传整体失败。
+- 系统默认页、空白页和未编辑模板页允许用户强确认后上传，但不会写入云端历史快照，只写 warning 审计。
+- 前端新增 `CloudHomeSnapshotRepository`，封装云端历史列表、机会性基线快照和恢复到本机审计。
+- `SyncCodeRepository` 在 `binding.accessMode === "account-managed"` 时切换到账号托管专用 RPC；普通同步码仍走既有 `push_sync_space` / `force_push_sync_space`。
+- 数据恢复中心新增“云端历史版本”区，仅在已登录且当前首页空间为 `account-managed` 时显示。
+- 云端历史支持完整只读预览，并可恢复到当前本机首页；恢复前先保护当前有效本地首页，恢复后将当前同步绑定置为 `paused`，不会自动覆盖云端。
+- 新增检查脚本 `supabase/checks/014_cloud_home_snapshots_verify.sql`，用于验证表、RLS、grants、RPC 权限、旧同步码 RPC 兼容和约束。
+
+新增审计事件：
+
+- 云端：`account_managed.created`
+- 云端：`account_managed.migrated`
+- 云端：`sync.account_managed_push`
+- 云端：`sync.account_managed_push_conflict`
+- 云端：`sync.account_managed_force_push`
+- 云端：`cloud_snapshot.baseline_created`
+- 云端：`cloud_snapshot.restored_to_local`
+- 本地：`cloud_snapshot.restored_to_local`
+- 本地：`cloud_snapshot.restore_failed`
+
+关键文件：
+
+- `supabase/migrations/013_cloud_home_snapshots.sql`
+- `supabase/checks/014_cloud_home_snapshots_verify.sql`
+- `src/infrastructure/cloud-home-snapshot-repository.ts`
+- `src/infrastructure/sync-code-repository.ts`
+- `src/infrastructure/account-repository.ts`
+- `src/components/data-recovery-center-panel.tsx`
+- `src/hooks/use-home-document-controller.ts`
+
 ## 尚未落地
 
-- Phase 1.11.5 之后的云端历史版本、账号托管可恢复模型、Supabase 后台 dashboard 和 P0 回归演练。
+- Phase 1.11.6 之后的账号托管可恢复模型收口、Supabase 后台 dashboard 和 P0 回归演练。
+- Phase 1.11.5 v1 暂不为普通同步码空间保存可预览云端历史；同步码空间继续只保存密文、revision 和元数据。
 
 ## 验证记录
 
@@ -181,3 +227,5 @@ Phase 1.11 将“用户数据保全、防止数据丢失”提升为 P0。所有
 - 数据恢复中心可展示、预览并恢复本地历史版本；已绑定同步空间时恢复后暂停自动同步。
 - 书签导入、模板应用、空间切换、同步码绑定和云端拉取覆盖本地前会先尝试保存本地快照；快照失败时取消覆盖。
 - 系统态首页不会自动上传；手动覆盖云端前会先保护当前云端版本。
+- 账号托管空间成功上传有效用户首页后会保存云端历史快照；数据恢复中心可读取、预览并恢复云端历史到本机。
+- 普通同步码空间不显示云端历史版本，不保存明文 `document_json`。
