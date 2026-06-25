@@ -206,10 +206,41 @@ Phase 1.11 将“用户数据保全、防止数据丢失”提升为 P0。所有
 - `src/components/data-recovery-center-panel.tsx`
 - `src/hooks/use-home-document-controller.ts`
 
+### Phase 1.11.6：账号托管可恢复模型收口
+
+本阶段不重写同步架构，不新增 Supabase migration。目标是把 Phase 1.11.5 后的账号托管产品、安全和恢复模型收口为一致 v1：
+
+- 账号托管空间定位为“账号可信托管、可恢复、可审计”。
+- 普通同步码空间继续保持用户持有完整同步码、云端默认只保存密文的边界。
+- 高隐私需求继续放入未来 `password-protected` 或更强隐私模式，不混入账号托管默认路径。
+- 当前阶段继续保留前端通过本人 RLS 读取 `home_space_credentials` 的空白设备恢复链路；“前端完全不接触 managed secret”的服务端托管模型留到后续后台/服务端阶段。
+
+已支持：
+
+- 设置页账号当前首页、首页空间创建/恢复/迁移/移除确认、离线同步码与恢复、数据恢复中心和数据包导出提示统一使用同一套边界术语。
+- 迁移为账号托管时明确提示账号会保存恢复凭证，账号托管云端历史可用于恢复、完整预览和审计；旧同步码本阶段仍不自动废弃。
+- 账号托管空间不再暗示严格端到端加密；普通同步码空间才强调用户持有完整同步码和云端密文边界。
+- 数据包导出诊断阶段标记更新为 `1.11.6`，并明确不包含 `StoredSyncBinding.accessToken`、`StoredSyncBinding.encryptionKey`、`home_space_credentials.access_token`、`home_space_credentials.encryption_key`、登录 session 或云端历史 `home_space_snapshots.document_json`。
+- 新增只读 Supabase 检查脚本 `supabase/checks/015_account_managed_recovery_model_verify.sql`，验证账号托管恢复表 RLS、anon/PUBLIC 表权限、authenticated grant、账号托管 v2 RPC 权限、旧同步码 RPC 兼容和可选 A/B RLS 隔离。
+
+关键文件：
+
+- `src/components/account-panel.tsx`
+- `src/components/home-spaces-panel.tsx`
+- `src/components/sync-panel.tsx`
+- `src/components/data-recovery-center-panel.tsx`
+- `src/components/settings-dashboard.tsx`
+- `src/domain/data-export.ts`
+- `supabase/checks/015_account_managed_recovery_model_verify.sql`
+- `docs/guides/SyncCodeUserGuide.md`
+- `docs/backlog/DataPreservationBacklog.md`
+- `docs/backlog/AccountManagedSyncBacklog.md`
+
 ## 尚未落地
 
-- Phase 1.11.6 之后的账号托管可恢复模型收口、Supabase 后台 dashboard 和 P0 回归演练。
+- Phase 1.11.7 Supabase 后台 dashboard 和 Phase 1.11.8 P0 回归演练。
 - Phase 1.11.5 v1 暂不为普通同步码空间保存可预览云端历史；同步码空间继续只保存密文、revision 和元数据。
+- Phase 1.11.6 仍保留当前账号托管凭证恢复链路；“前端完全不接触 managed secret”的服务端托管模型需后续单独设计。
 
 ## 验证记录
 
@@ -229,3 +260,5 @@ Phase 1.11 将“用户数据保全、防止数据丢失”提升为 P0。所有
 - 系统态首页不会自动上传；手动覆盖云端前会先保护当前云端版本。
 - 账号托管空间成功上传有效用户首页后会保存云端历史快照；数据恢复中心可读取、预览并恢复云端历史到本机。
 - 普通同步码空间不显示云端历史版本，不保存明文 `document_json`。
+- 设置页和用户指南已统一账号托管、普通同步码和高隐私模式边界。
+- 数据包导出不包含完整同步码、账号托管恢复凭证、登录 session 或云端历史 `document_json`。

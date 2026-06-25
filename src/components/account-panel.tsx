@@ -224,8 +224,8 @@ function getAccountSyncSummary({
   if (currentBinding?.accessMode === "account-managed") {
     return {
       detail: currentHomeSpace
-        ? `当前本机使用账号托管空间“${currentHomeSpace.name}”，可在首页空间中管理。`
-        : "当前本机使用账号托管空间，账号空间列表刷新后会显示名称。",
+        ? `当前本机使用账号可信托管空间“${currentHomeSpace.name}”，支持账号恢复、云端历史和审计。`
+        : "当前本机使用账号可信托管空间，账号空间列表刷新后会显示名称。",
       title: "账号托管",
       tone: "success"
     };
@@ -234,9 +234,9 @@ function getAccountSyncSummary({
   if (currentBinding?.accessMode === "sync-code") {
     return {
       detail: currentHomeSpace
-        ? `当前普通同步码已记录到账号空间“${currentHomeSpace.name}”。`
+        ? `当前普通同步码空间已记录到账号空间“${currentHomeSpace.name}”，云端仍保持密文同步边界。`
         : signedIn
-          ? "当前浏览器绑定普通同步码；可在首页空间中认领或迁移。"
+          ? "当前浏览器绑定普通同步码；可在首页空间中认领或迁移为账号托管。"
           : "当前浏览器绑定普通同步码；登录后可认领到账号。",
       title: "普通同步码",
       tone: "info"

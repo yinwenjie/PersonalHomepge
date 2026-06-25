@@ -558,7 +558,7 @@ export function SyncPanel({
     setSyncMetaFromBinding(
       storedBinding,
       "linked",
-      storedBinding.accessMode === "account-managed" ? "已读取本机账号托管凭证" : "已读取本机同步码"
+      storedBinding.accessMode === "account-managed" ? "已读取本机账号托管绑定" : "已读取本机同步码"
     );
     window.setTimeout(() => {
       performPull({ forceApply: false, source: "startup" });
@@ -661,7 +661,7 @@ export function SyncPanel({
 
   const statusText = useMemo(() => {
     if (!syncServiceConfigured) {
-      return binding ? "本机已保存同步码，云端未配置" : "云端未配置";
+      return binding ? "本机已保存同步绑定，云端未配置" : "云端未配置";
     }
 
     if (!binding) {
@@ -793,12 +793,12 @@ export function SyncPanel({
     setBinding(null);
     onBindingChange?.(null);
     setSyncCode("");
-    onSyncMetaChange(localSyncMeta(), previousBinding?.accessMode === "account-managed" ? "已解除本机账号托管凭证" : "已解除本机同步码");
+    onSyncMetaChange(localSyncMeta(), previousBinding?.accessMode === "account-managed" ? "已解除本机账号托管绑定" : "已解除本机同步码");
     setMessage("已解除本机绑定。");
     setError("");
     recordLocalAuditEvent({
       documentId: documentRef.current.documentId,
-      message: previousBinding?.accessMode === "account-managed" ? "已解除本机账号托管凭证。" : "已解除本机同步码绑定。",
+      message: previousBinding?.accessMode === "account-managed" ? "已解除本机账号托管绑定。" : "已解除本机同步码绑定。",
       metadata: {
         accessMode: previousBinding?.accessMode ?? "unknown"
       },
@@ -944,7 +944,7 @@ export function SyncPanel({
           ) : null}
 
           {isAccountManaged ? (
-            <p className="sync-managed-note">当前空间由账号托管恢复凭证，不显示完整同步码，也不能在这里废弃底层同步空间。</p>
+            <p className="sync-managed-note">当前空间由账号可信托管，不显示完整同步码；账号会保存恢复凭证，云端历史可用于恢复和审计。</p>
           ) : (
             <div className="sync-code-grid">
               <label className="field">
@@ -1199,15 +1199,15 @@ function getRestoreBackupDisabledReason(
 function getBoundaryNote(homeSpace: HomeSpace | null, isAccountManaged: boolean): string {
   if (isAccountManaged) {
     return homeSpace
-      ? `当前账号托管空间“${homeSpace.name}”由账号保存恢复凭证。这里的解除本机只影响当前浏览器；账号空间仍保留。`
-      : "当前账号托管空间由账号保存恢复凭证。这里的解除本机只影响当前浏览器；账号空间仍保留。";
+      ? `当前账号托管空间“${homeSpace.name}”采用账号可信托管模型：账号保存恢复凭证，有效用户首页可进入云端历史。这里的解除本机只影响当前浏览器；账号空间仍保留。`
+      : "当前账号托管空间采用账号可信托管模型：账号保存恢复凭证，有效用户首页可进入云端历史。这里的解除本机只影响当前浏览器；账号空间仍保留。";
   }
 
   if (homeSpace?.accessMode === "sync-code") {
-    return `当前普通同步码已在账号中记录为首页空间“${homeSpace.name}”。废弃同步码只会让底层同步码失效，不会自动从账号移除该空间。`;
+    return `当前普通同步码已在账号中记录为首页空间“${homeSpace.name}”。账号只保存索引，完整同步码仍由用户持有；废弃同步码只会让底层同步码失效，不会自动从账号移除该空间。`;
   }
 
-  return "这里只管理当前浏览器的同步码绑定和底层同步码；输入同步码不会自动认领到账号，也不会迁移为账号托管。";
+  return "这里只管理当前浏览器的普通同步码绑定；输入同步码不会自动认领到账号，也不会迁移为账号托管。普通同步码空间云端默认只保存密文。";
 }
 
 function getBindConfirmMessage(isAdvanced: boolean): string {
@@ -1223,7 +1223,7 @@ function getUnbindConfirmMessage(homeSpace: HomeSpace | null): string {
     return [
       `解除本机账号托管空间“${homeSpace.name}”？`,
       "这只会清除当前浏览器的本机绑定，本地首页内容会保留。",
-      "账号中的首页空间和托管恢复凭证不会删除，之后仍可在“首页空间”中恢复。",
+      "账号中的首页空间、恢复凭证和账号托管云端历史不会删除，之后仍可在“首页空间”中恢复。",
       "继续？"
     ].join("\n");
   }

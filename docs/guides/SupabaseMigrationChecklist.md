@@ -160,6 +160,7 @@ where table_schema = 'public'
 - `012_home_assets_storage.sql` 只允许用户访问 `{auth.uid()}/banner/...` 和 `{auth.uid()}/background/...` 路径下的图片；不要把通用文件缓存、公开分享或端到端加密文件复用到这个 bucket policy 中。
 - `013_cloud_home_snapshots.sql` 是 Phase 1.11.5 账号托管云端历史版本所需迁移。执行前端代码但未执行该脚本时，账号托管上传和数据恢复中心云端历史读取会失败。
 - `013_cloud_home_snapshots.sql` 只为 `account-managed` 空间保存明文 `document_json` 云端历史；普通 `sync-code` 空间继续使用既有密文同步模型，不保存可预览明文历史。
+- Phase 1.11.6 不新增 migration。账号托管空间的 v1 定位是账号可信托管、可恢复、可审计；当前仍通过本人 RLS 读取 `home_space_credentials` 完成空白设备恢复，不代表前端完全不接触 managed secret。可执行 `supabase/checks/015_account_managed_recovery_model_verify.sql` 复核当前权限边界。
 - 新设备登录后看到账号空间列表，不代表已经拥有该空间的同步凭证；只有 `account-managed` 空间可以通过账号托管凭证直接恢复，普通 `sync-code` 空间仍需输入完整同步码。
 
 ## 辅助检查脚本
@@ -176,3 +177,4 @@ where table_schema = 'public'
 - `supabase/checks/012_account_preferences_editing_verify.sql`：验证 Phase 1.6.6 偏好编辑字段、默认值、约束、RLS、权限和默认空间 FK/RLS 边界。
 - `supabase/checks/013_home_assets_storage_verify.sql`：验证 Phase 1.8.1 `home-assets` bucket 参数、Storage object policies 和 RLS 状态。
 - `supabase/checks/014_cloud_home_snapshots_verify.sql`：验证 Phase 1.11.5 云端历史表、审计表、RLS、权限、账号托管 RPC、旧同步码 RPC 兼容和快照约束。
+- `supabase/checks/015_account_managed_recovery_model_verify.sql`：验证 Phase 1.11.6 账号托管可恢复模型的当前 v1 权限边界，包括 `home_space_credentials`、云端历史表、审计表的 RLS、anon/PUBLIC 权限、账号托管 RPC 权限和旧同步码 RPC 兼容。

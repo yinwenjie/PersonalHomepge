@@ -108,7 +108,7 @@ export function HomeSpacesPanel({
     || accountData.managedCreateMessage
     || accountData.claimMessage
     || accountData.activationMessage
-    || "账号托管空间不显示完整同步码；从账号移除不会废弃底层同步空间。";
+    || "账号托管空间由账号保存恢复凭证，可用于跨设备恢复、云端历史和审计；普通同步码空间继续保持用户持有码和云端密文边界。";
   const panelStatusTone = panelHasError
     ? "danger"
     : accountData.homeSpaceMessage
@@ -243,7 +243,7 @@ export function HomeSpacesPanel({
       return;
     }
 
-    if (!window.confirm("迁移为账号托管后，当前账号会保存该空间的托管恢复凭证，空白设备可登录账号恢复。旧同步码本阶段不会自动废弃，仍可继续使用。继续？")) {
+    if (!window.confirm("迁移为账号托管后，当前账号会保存该空间的恢复凭证，并为有效用户首页建立可恢复、可预览、可审计的账号托管云端历史。账号托管不是严格端到端加密模式；旧同步码本阶段不会自动废弃，仍可继续使用。继续？")) {
       return;
     }
 
@@ -328,7 +328,7 @@ export function HomeSpacesPanel({
       ) : !signedIn ? (
         <div className="settings-placeholder">
           <strong>登录后认领同步码首页</strong>
-          <p>账号只保存首页空间索引，不保存同步码 secret。</p>
+          <p>普通同步码空间只保存账号索引；迁移为账号托管后才会由账号保存恢复凭证。</p>
         </div>
       ) : accountData.error ? (
         <div className="settings-placeholder">
@@ -533,7 +533,7 @@ function CurrentHomeSpaceCreateDialog({
             使用默认名称
           </button>
           <StatusMessage>
-            当前首页内容会复制到新空间；已有账号空间、同步码和云端内容不会删除。
+            当前首页内容会复制到新的账号托管空间；账号会保存恢复凭证，有效用户首页会进入可恢复、可预览、可审计的云端历史。已有账号空间、同步码和云端内容不会删除。
           </StatusMessage>
         </div>
         <div className="settings-dialog-footer">
@@ -598,7 +598,7 @@ function TemplateHomeSpaceSelectDialog({
             })}
           </div>
           <StatusMessage>
-            将使用“{selectedTemplate.name}”创建“{selectedTemplate.recommendedSpaceName}”。当前本地首页会被新空间内容替换。
+            将使用“{selectedTemplate.name}”创建“{selectedTemplate.recommendedSpaceName}”。新空间为账号托管模式，当前本地首页会被新空间内容替换。
           </StatusMessage>
         </div>
         <div className="settings-dialog-footer">
@@ -657,7 +657,7 @@ function TemplateHomeSpaceNameDialog({
             />
           </label>
           <StatusMessage>
-            创建成功后，当前浏览器会切换到这个新空间，并显示模板生成的首页。
+            创建成功后，当前浏览器会切换到这个账号托管空间，并显示模板生成的首页。
           </StatusMessage>
         </div>
         <div className="settings-dialog-footer">
@@ -954,9 +954,9 @@ function removeConfirmMessage(homeSpace: HomeSpace, isCurrent: boolean): string 
   if (homeSpace.accessMode === "account-managed") {
     return [
       `从账号移除“${homeSpace.name}”？`,
-      "这只会删除账号侧首页空间索引和托管恢复凭证。",
+      "这只会删除账号侧首页空间索引和账号托管恢复凭证。",
       "空白设备将不能再通过账号恢复它。",
-      "底层同步空间不会删除、不会废弃，也不会执行密钥轮换。",
+      "该账号空间关联的账号托管历史可能不再可用；底层同步空间不会删除、不会废弃，也不会执行密钥轮换。",
       defaultNote
     ].filter(Boolean).join("\n");
   }

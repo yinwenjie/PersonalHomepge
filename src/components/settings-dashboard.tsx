@@ -127,7 +127,7 @@ export function SettingsDashboard() {
       });
 
       downloadJsonFile(exportValue, "homepage-data-export");
-      setAdvancedActionMessage("数据包已导出，不包含完整同步码或账号托管凭证。");
+      setAdvancedActionMessage("数据包已导出，不包含完整同步码、账号托管恢复凭证、登录 session 或云端历史 document_json。");
       recordLocalAuditEvent({
         documentId: homeDocument.documentId,
         message: "已导出首页数据包。",
@@ -504,7 +504,7 @@ export function SettingsDashboard() {
                 />
               </div>
               <StatusMessage role={advancedActionError ? "alert" : "status"} tone={advancedActionError ? "danger" : advancedActionMessage ? "success" : "neutral"}>
-                {advancedActionError || advancedActionMessage || "数据包用于备份和排障，不包含完整同步码、账号托管凭证或登录 session。"}
+                {advancedActionError || advancedActionMessage || "数据包用于备份和排障，不包含完整同步码、账号托管恢复凭证、登录 session 或云端历史 document_json。"}
               </StatusMessage>
             </div>
 
@@ -535,7 +535,7 @@ export function SettingsDashboard() {
                 <DataRestoreStat label="文档更新" value={formatRestoreDate(dataPackageRestore.preview.updatedAt)} />
               </div>
               <StatusMessage tone="warning">
-                只会恢复首页内容；账号资料、首页空间索引、同步码摘要和诊断信息不会写回。恢复前会保存当前首页备份。
+                只会恢复数据包里的本机首页内容；账号资料、首页空间索引、同步码摘要、账号托管恢复凭证、云端历史 document_json 和诊断信息不会写回。恢复前会保存当前首页备份。
               </StatusMessage>
               {currentBinding ? (
                 <StatusMessage tone="warning">

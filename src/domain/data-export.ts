@@ -57,10 +57,11 @@ export interface HomepageDataExportV1 {
   };
   app: {
     documentVersion: HomeDocumentV2["version"];
-    phase: "1.10.0";
+    phase: "1.11.6";
   };
   diagnostics: {
     browserLanguage: string | null;
+    excludedServerData: string[];
     generatedFrom: "browser";
     redactedFields: string[];
     storageReady: boolean;
@@ -94,7 +95,7 @@ export function buildHomepageDataExportV1(input: BuildHomepageDataExportInput): 
     schema: DATA_EXPORT_SCHEMA,
     exportedAt: new Date().toISOString(),
     app: {
-      phase: "1.10.0",
+      phase: "1.11.6",
       documentVersion: input.local.homeDocument.version
     },
     account: {
@@ -121,11 +122,17 @@ export function buildHomepageDataExportV1(input: BuildHomepageDataExportInput): 
       syncStatus: input.local.homeDocument.syncMeta.status,
       browserLanguage: getBrowserLanguage(),
       timeZone: getTimeZone(),
+      excludedServerData: [
+        "home_space_snapshots.document_json",
+        "home_space_audit_events",
+        "Supabase auth session"
+      ],
       redactedFields: [
         "StoredSyncBinding.accessToken",
         "StoredSyncBinding.encryptionKey",
         "home_space_credentials.access_token",
         "home_space_credentials.encryption_key",
+        "home_space_snapshots.document_json",
         "Supabase session"
       ]
     }

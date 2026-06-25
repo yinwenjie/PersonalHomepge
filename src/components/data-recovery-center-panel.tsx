@@ -192,8 +192,8 @@ export function DataRecoveryCenterPanel({
 
       <StatusMessage role={error ? "alert" : "status"} tone={error ? "danger" : message ? "success" : "warning"}>
         {error || message || (canUseCloudSnapshots
-          ? "可恢复当前浏览器本地历史版本和当前账号托管空间的云端历史版本；恢复后不会自动覆盖云端。"
-          : "当前仅恢复当前浏览器中的本地历史版本；账号托管空间会显示云端历史版本。")}
+          ? "可恢复当前浏览器本地历史版本和当前账号托管空间的云端历史版本；账号托管历史用于恢复、完整预览和审计，恢复后不会自动覆盖云端。"
+          : "当前仅恢复当前浏览器中的本地历史版本；只有账号托管空间会显示可预览的云端历史版本，普通同步码空间保持云端密文边界。")}
       </StatusMessage>
 
       <div className="recovery-history-section">
@@ -248,7 +248,7 @@ export function DataRecoveryCenterPanel({
             </div>
           ) : (
             <StatusMessage tone="neutral">
-              {cloudLoading ? "正在读取云端历史版本。" : "当前账号托管空间暂无云端历史版本；下一次成功上传有效用户首页后会自动生成。"}
+              {cloudLoading ? "正在读取云端历史版本。" : "当前账号托管空间暂无云端历史版本；下一次成功上传有效用户首页后会自动生成。系统默认页、空白页和未编辑模板页不会进入云端历史。"}
             </StatusMessage>
           )}
         </div>
@@ -342,7 +342,7 @@ function SnapshotPreviewDialog({
 
           <StatusMessage tone="warning">
             {kind === "cloud"
-              ? "这是云端历史版本的只读预览。恢复只会覆盖当前本机首页，并会暂停自动同步。"
+              ? "这是账号托管云端历史版本的只读预览。恢复只会覆盖当前本机首页，并会暂停自动同步。"
               : "这是只读预览。恢复会覆盖当前首页，恢复前会再保存一份当前首页快照。"}
           </StatusMessage>
 
