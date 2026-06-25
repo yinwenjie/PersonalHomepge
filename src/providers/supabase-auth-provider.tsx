@@ -10,6 +10,7 @@ import {
   isSupabaseConfigured,
   SUPABASE_CONFIGURATION_MESSAGE
 } from "@/infrastructure/supabase-client";
+import { trackProductEvent } from "@/infrastructure/product-analytics-repository";
 
 interface SupabaseAuthProviderProps {
   children: ReactNode;
@@ -34,7 +35,7 @@ export function SupabaseAuthProvider({ children }: SupabaseAuthProviderProps) {
 
     try {
       const supabase = getSupabaseBrowserClient();
-      const { data: subscriptionData } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      const { data: subscriptionData } = supabase.auth.onAuthStateChange((event, nextSession) => {
         if (!mounted) {
           return;
         }
@@ -44,6 +45,11 @@ export function SupabaseAuthProvider({ children }: SupabaseAuthProviderProps) {
         if (nextSession?.user) {
           setMessage("账号已登录。");
           setError("");
+        }
+        if (event === "SIGNED_IN") {
+          trackProductEvent("auth.signed_in", {
+            result: "success"
+          });
         }
       });
 
@@ -111,12 +117,21 @@ export function SupabaseAuthProvider({ children }: SupabaseAuthProviderProps) {
 
       if (signInError) {
         setError(signInError.message);
+        trackProductEvent("auth.magic_link_failed", {
+          reasonCode: "provider-error"
+        });
         return;
       }
 
       setMessage("登录链接已发送，请打开邮件完成登录。");
+      trackProductEvent("auth.magic_link_requested", {
+        result: "success"
+      });
     } catch (authError) {
       setError(getErrorMessage(authError, "账号服务暂时不可用。"));
+      trackProductEvent("auth.magic_link_failed", {
+        reasonCode: "exception"
+      });
     } finally {
       setActionPending(false);
     }
@@ -145,6 +160,9 @@ export function SupabaseAuthProvider({ children }: SupabaseAuthProviderProps) {
 
       setSession(null);
       setMessage("已退出账号。本地首页数据不会被删除。");
+      trackProductEvent("auth.signed_out", {
+        result: "success"
+      });
     } catch (authError) {
       setError(getErrorMessage(authError, "账号服务暂时不可用。"));
     } finally {

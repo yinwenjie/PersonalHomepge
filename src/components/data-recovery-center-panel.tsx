@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StatusMessage } from "@/components/status-message";
 import type { HomeSpace } from "@/domain/account";
 import {
@@ -8,6 +8,7 @@ import {
   type HomeSite,
   type HomeWidget
 } from "@/domain/home-document";
+import { bucketCount } from "@/domain/product-analytics";
 import type { LocalePreference } from "@/domain/ui-preferences";
 import { getWidgetDefinition } from "@/domain/widget-registry";
 import { useUiPreferences } from "@/hooks/use-ui-preferences";
@@ -20,6 +21,7 @@ import {
   LocalHomeSnapshotRepository,
   type LocalHomeSnapshot
 } from "@/infrastructure/local-home-snapshot-repository";
+import { trackProductEvent } from "@/infrastructure/product-analytics-repository";
 
 interface DataRecoveryCenterPanelProps {
   currentHomeSpace?: HomeSpace | null;
@@ -47,6 +49,7 @@ export function DataRecoveryCenterPanel({
   const [error, setError] = useState("");
   const [cloudLoading, setCloudLoading] = useState(false);
   const [previewSnapshot, setPreviewSnapshot] = useState<SnapshotPreviewState | null>(null);
+  const recoveryOpenedTrackedRef = useRef(false);
   const currentHomeSpaceId = currentHomeSpace?.id ?? "";
   const canUseCloudSnapshots = Boolean(currentHomeSpace?.accessMode === "account-managed");
   const refreshCloudSnapshots = useCallback(async (homeSpaceId = currentHomeSpace?.id ?? "", options: { silent?: boolean } = {}) => {
@@ -87,10 +90,17 @@ export function DataRecoveryCenterPanel({
     }
 
     refreshSnapshots();
+    if (!recoveryOpenedTrackedRef.current) {
+      recoveryOpenedTrackedRef.current = true;
+      trackProductEvent("recovery.center_opened", {
+        cloudHistoryAvailable: canUseCloudSnapshots,
+        hasSyncBinding
+      });
+    }
     window.addEventListener(LOCAL_HOME_SNAPSHOTS_UPDATED_EVENT, refreshSnapshots);
 
     return () => window.removeEventListener(LOCAL_HOME_SNAPSHOTS_UPDATED_EVENT, refreshSnapshots);
-  }, [storageReady]);
+  }, [canUseCloudSnapshots, hasSyncBinding, storageReady]);
 
   useEffect(() => {
     const homeSpaceId = currentHomeSpace?.id;
@@ -142,6 +152,7 @@ export function DataRecoveryCenterPanel({
     setMessage(hasSyncBinding
       ? "已恢复本地历史版本；自动同步已暂停，请手动选择上传或拉取。"
       : "已恢复本地历史版本。");
+    trackProductEvent("recovery.local_restored", toSnapshotAnalyticsProperties(snapshot));
     setPreviewSnapshot(null);
     setSnapshots(loadSnapshots());
   }
@@ -168,6 +179,7 @@ export function DataRecoveryCenterPanel({
       setError("");
     }
 
+    trackProductEvent("recovery.cloud_restored", toSnapshotAnalyticsProperties(snapshot));
     setPreviewSnapshot(null);
     setSnapshots(loadSnapshots());
   }
@@ -207,9 +219,12 @@ export function DataRecoveryCenterPanel({
               <article className="local-snapshot-card" key={snapshot.id}>
                 <SnapshotCardCopy locale={preferences.locale} snapshot={snapshot} />
                 <div className="settings-actions local-snapshot-actions">
-                  <button className="utility-button" type="button" onClick={() => setPreviewSnapshot({ kind: "local", snapshot })}>
-                    预览
-                  </button>
+                    <button className="utility-button" type="button" onClick={() => {
+                      trackProductEvent("recovery.local_previewed", toSnapshotAnalyticsProperties(snapshot));
+                      setPreviewSnapshot({ kind: "local", snapshot });
+                    }}>
+                      预览
+                    </button>
                   <button className="danger-button" type="button" onClick={() => restoreSnapshot(snapshot)} disabled={!storageReady}>
                     恢复
                   </button>
@@ -236,7 +251,10 @@ export function DataRecoveryCenterPanel({
                 <article className="local-snapshot-card" key={snapshot.id}>
                   <SnapshotCardCopy locale={preferences.locale} snapshot={snapshot} />
                   <div className="settings-actions local-snapshot-actions">
-                    <button className="utility-button" type="button" onClick={() => setPreviewSnapshot({ kind: "cloud", snapshot })}>
+                    <button className="utility-button" type="button" onClick={() => {
+                      trackProductEvent("recovery.cloud_previewed", toSnapshotAnalyticsProperties(snapshot));
+                      setPreviewSnapshot({ kind: "cloud", snapshot });
+                    }}>
                       预览
                     </button>
                     <button className="danger-button" type="button" onClick={() => void restoreCloudSnapshot(snapshot)} disabled={!storageReady}>
@@ -485,4 +503,17 @@ function formatDateTime(value: string, locale: LocalePreference): string {
     hour: "2-digit",
     minute: "2-digit"
   }).format(date);
+}
+
+function toSnapshotAnalyticsProperties(snapshot: PreviewableSnapshot) {
+  return {
+    groupCountBucket: bucketCount(snapshot.summary.groupCount),
+    hasBanner: snapshot.summary.hasBanner,
+    hasBackground: snapshot.summary.hasBackground,
+    siteCountBucket: bucketCount(snapshot.summary.siteCount),
+    source: snapshot.source,
+    syncStatus: snapshot.summary.syncStatus,
+    themePresetId: snapshot.summary.themePresetId,
+    widgetCountBucket: bucketCount(snapshot.summary.widgetCount)
+  };
 }

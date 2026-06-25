@@ -17,6 +17,7 @@ import { StatusMessage } from "@/components/status-message";
 import { useUiPreferences } from "@/hooks/use-ui-preferences";
 import { recordLocalAuditEvent } from "@/infrastructure/local-audit-log-repository";
 import type { LocalHomeSnapshotSource } from "@/infrastructure/local-home-snapshot-repository";
+import { trackProductEvent } from "@/infrastructure/product-analytics-repository";
 import { isSupabaseConfigured, SUPABASE_CONFIGURATION_MESSAGE } from "@/infrastructure/supabase-client";
 import { runWithSyncLock, type SyncCoordinatorOperation } from "@/infrastructure/sync-coordinator";
 import { LocalSyncBindingRepository } from "@/infrastructure/sync-binding-repository";
@@ -312,6 +313,10 @@ export function SyncPanel({
           spaceId: activeBinding.spaceId,
           type: "sync.conflict"
         });
+        trackProductEvent("sync.conflict_detected", {
+          source: options.source,
+          syncStatus: "conflict"
+        });
         return;
       }
 
@@ -346,6 +351,14 @@ export function SyncPanel({
           },
           spaceId: activeBinding.spaceId,
           type: "sync.pull_applied"
+        });
+      }
+      trackProductEvent("sync.pull_applied", {
+        source: options.source
+      });
+      if (options.source === "resolve") {
+        trackProductEvent("sync.resolved_cloud", {
+          source: "conflict"
         });
       }
     }, {
@@ -472,6 +485,10 @@ export function SyncPanel({
           spaceId: activeBinding.spaceId,
           type: "sync.force_push"
         });
+        trackProductEvent(options.source === "resolve" ? "sync.resolved_local" : "sync.push_applied", {
+          force: true,
+          source: options.source
+        });
         return;
       }
 
@@ -494,6 +511,10 @@ export function SyncPanel({
           },
           spaceId: activeBinding.spaceId,
           type: "sync.push_conflict"
+        });
+        trackProductEvent("sync.conflict_detected", {
+          source: options.source,
+          syncStatus: "conflict"
         });
         return;
       }
@@ -518,6 +539,10 @@ export function SyncPanel({
           },
           spaceId: activeBinding.spaceId,
           type: "sync.push"
+        });
+        trackProductEvent("sync.push_applied", {
+          force: false,
+          source: options.source
         });
       }
     }, {
@@ -627,6 +652,9 @@ export function SyncPanel({
           spaceId: activeBinding.spaceId,
           type: "sync.auto_push_skipped_system_document"
         });
+        trackProductEvent("sync.auto_push_skipped_system_document", {
+          documentClass: classification.documentClass
+        });
       }, 0);
 
       return () => window.clearTimeout(pauseTimerId);
@@ -714,6 +742,9 @@ export function SyncPanel({
       setSyncCode(formatSyncCode(nextBinding));
       setSyncMetaFromBinding(nextBinding, "synced", "同步码已创建");
       setMessage("同步码已创建，请保存到安全位置。");
+      trackProductEvent("sync.code_created", {
+        source: "sync-panel"
+      });
       recordLocalAuditEvent({
         documentId: documentRef.current.documentId,
         message: "已为当前首页创建同步码。",
@@ -756,6 +787,9 @@ export function SyncPanel({
         syncMeta: toSyncMeta(nextBinding, "synced")
       }, "已绑定同步码并拉取云端首页");
       setMessage("已绑定同步码。");
+      trackProductEvent("sync.code_bound", {
+        source: isAdvanced ? "advanced" : "primary"
+      });
       recordLocalAuditEvent({
         documentId: pulled.document.documentId,
         message: "已绑定同步码并拉取云端首页。",

@@ -16,6 +16,7 @@ import type {
   HomeThemeAssetSlot
 } from "@/domain/home-document";
 import { HomeAssetStorageRepository } from "@/infrastructure/home-asset-storage-repository";
+import { trackProductEvent } from "@/infrastructure/product-analytics-repository";
 
 const THEME_IMAGE_SLOTS = ["banner", "background"] as const satisfies HomeThemeAssetSlot[];
 
@@ -133,6 +134,10 @@ export function ThemeImagePanel({
         [urlKey]: asset?.source === "external" ? asset.url : null
       }
     }, commitMessage);
+    trackProductEvent("theme_image.changed", {
+      assetSlot: slot,
+      assetSource: asset?.source ?? "none"
+    });
   }
 
   function commitMaskOpacity(slot: HomeThemeAssetSlot, value: number) {

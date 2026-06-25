@@ -20,7 +20,7 @@
 
 ### Current Status And Next Plan
 
-截至当前实现，Phase 1.1 到 Phase 1.6.8 已完成，Phase 1.7.0 组件框架与 Widget Registry、Phase 1.7.1 Todo List v1、Phase 1.7.2 日历/万年历 v1、Phase 1.7.3 组件布局与编辑体验、Phase 1.7.4 组件默认配置已接入，Phase 1.8.0 主题风格切换、Phase 1.8.1 Banner/背景图片 v1 和 Phase 1.8.2 个性化细节收口已接入。Phase 1.9.0 到 Phase 1.9.4 页面布局与 UI/UX 优化已接入，Phase 1.9.5 收藏/标签导入需求设计、Phase 1.9.6 大批量导入体验设计和 Phase 1.9.7 导入 MVP 已完成。Phase 1.10 正式推出前基础收口已完成低风险 MVP：数据包恢复、本地审计日志、本机状态和同步请求多标签协调已接入；账号删除、只读分享链接和密码保护空间保留为高风险候选设计。Phase 1.11.0 数据保全基线与文档分类、Phase 1.11.1 本地历史版本 v1、Phase 1.11.2 数据恢复中心 v1、Phase 1.11.3 危险写入保护、Phase 1.11.4 同步误覆盖防护、Phase 1.11.5 云端历史版本 v1、Phase 1.11.6 账号托管可恢复模型收口、Phase 1.11.7 P0 回归测试与事故演练已完成。原计划中的 Supabase 后台管理 dashboard 延期到 Phase 1.14，在商业化正式域名上线后再做；下一步主线进入 Phase 1.12 组件设计和优化，随后 Phase 1.13 再处理主域名准备。
+截至当前实现，Phase 1.1 到 Phase 1.6.8 已完成，Phase 1.7.0 组件框架与 Widget Registry、Phase 1.7.1 Todo List v1、Phase 1.7.2 日历/万年历 v1、Phase 1.7.3 组件布局与编辑体验、Phase 1.7.4 组件默认配置已接入，Phase 1.8.0 主题风格切换、Phase 1.8.1 Banner/背景图片 v1 和 Phase 1.8.2 个性化细节收口已接入。Phase 1.9.0 到 Phase 1.9.4 页面布局与 UI/UX 优化已接入，Phase 1.9.5 收藏/标签导入需求设计、Phase 1.9.6 大批量导入体验设计和 Phase 1.9.7 导入 MVP 已完成。Phase 1.10 正式推出前基础收口已完成低风险 MVP：数据包恢复、本地审计日志、本机状态和同步请求多标签协调已接入；账号删除、只读分享链接和密码保护空间保留为高风险候选设计。Phase 1.11.0 数据保全基线与文档分类、Phase 1.11.1 本地历史版本 v1、Phase 1.11.2 数据恢复中心 v1、Phase 1.11.3 危险写入保护、Phase 1.11.4 同步误覆盖防护、Phase 1.11.5 云端历史版本 v1、Phase 1.11.6 账号托管可恢复模型收口、Phase 1.11.7 P0 回归测试与事故演练、Phase 1.11.8 基础埋点已完成。错误监控提前进入 Phase 1.11.9；原计划中的 Supabase 后台管理 dashboard 延期到 Phase 1.14，在商业化正式域名上线后再做；下一步主线进入 Phase 1.11.9 错误监控。
 
 | 阶段 | 当前状态 | 已落地能力 | 后续动作 |
 |---|---|---|---|
@@ -34,8 +34,8 @@
 | Phase 1.8：主题与普通个性化 | 已完成 | Phase 1.8.0 主题风格切换已接入：6 个空间级主题 preset、CSS token、设置页主题面板和模板 accent preset 推断；Phase 1.8.1 Banner/背景图片 v1 已接入：Storage 上传、外链图片、signed URL 渲染和设置页图片面板；Phase 1.8.2 个性化细节收口已接入：token 统一、响应式优化、主题桥接防闪和背景图可读性收口 | 进入 Phase 1.9 |
 | Phase 1.9：页面布局/UI 优化与浏览器导入需求集 | 已完成 MVP | Phase 1.9.0-1.9.4 已接入：设置页信息架构收口、首页空间创建弹窗化、Banner/背景面板布局优化、首页网站收集区编辑入口优化和 UI/UX 可访问性收口；Phase 1.9.5 已完成收藏/标签导入需求设计；Phase 1.9.6 已完成大批量导入体验设计；Phase 1.9.7 已接入书签 HTML 和 URL 列表导入 MVP | 浏览器扩展导入留后续评估 |
 | Phase 1.10：正式推出前基础收口 | MVP 已完成 | 数据包恢复、本地审计日志、本机状态、同步请求多标签协调已接入；账号删除、只读分享链接、密码保护空间已形成候选设计 | 高风险候选是否进入实现需单独评估 |
-| Phase 1.11：数据保全与恢复体系 | 已完成 | Phase 1.11.0-1.11.7 已接入：系统态/有效用户首页分类、设置页数据分类展示、`homepage:document-protection:v1`、`homepage:local-snapshots:v1`、关键覆盖入口保存快照、数据恢复中心列表/预览/恢复、危险写入前强制保护、系统态自动上传阻断、云端覆盖前本地快照、账号托管空间云端历史版本、账号托管/普通同步码/高隐私模式边界收口，以及 P0 回归测试与事故演练指南 | 进入 Phase 1.12；后台 dashboard 延期到 Phase 1.14 |
-| Phase 1.12：组件设计和优化 | 待启动 | 尚未实现 | 组件体验复盘、组件配置体验、组件视觉密度、移动端表现、模板组件组合和后续组件候选设计 |
+| Phase 1.11：数据保全与发布观测体系 | 进行中 | Phase 1.11.0-1.11.8 已接入：系统态/有效用户首页分类、本地/云端历史、数据恢复中心、危险写入保护、同步误覆盖防护、账号托管恢复边界、P0 回归演练指南和隐私优先基础埋点 | 下一步进入 Phase 1.11.9 错误监控；后台 dashboard 延期到 Phase 1.14 |
+| Phase 1.12：组件设计和优化 | 后移 | 尚未实现 | 组件体验复盘、组件配置体验、组件视觉密度、移动端表现、模板组件组合和后续组件候选设计 |
 | Phase 1.13：主域名准备 | 延期 | 尚未实现 | 自购主域名、`basePath`、Auth redirect、静态资源路径和缓存隔离回归 |
 | Phase 1.14：后台管理 dashboard | 延期 | 尚未实现 | 商业化正式域名上线后，再实现受控后台入口、管理员身份、管理员审计和账号托管云端历史后台预览 |
 | Phase 2：AI 能力、高级定制化与商业化 | 远期 | 尚未实现 | AI 能力待定需求、WebGL 动态/交互背景、付费高级组件、Stripe、VIP、自定义域名、公开主页、团队协作 |
@@ -71,13 +71,15 @@
 | Phase 1.11.5 | 已完成 | 云端历史版本 v1 | 已为账号托管空间接入 `home_space_snapshots`、`home_space_audit_events`、账号托管专用 RPC、云端快照摘要、完整预览数据、恢复到本机和关键操作记录；普通同步码空间继续保持密文同步边界 | XL | High |
 | Phase 1.11.6 | 已完成 | 账号托管可恢复模型收口 | 已统一账号托管可信恢复、云端历史明文记录、普通同步码密文边界和高隐私模式候选说明；新增 `015_account_managed_recovery_model_verify.sql` 只读验证脚本；数据包诊断明确不导出 secret、session 或云端历史 `document_json` | L | High |
 | Phase 1.11.7 | 已完成 | P0 回归测试与演练 | 已新增 `docs/guides/DataPreservationP0RegressionDrill.md`，覆盖首页清空、恢复默认、模板、导入、数据包恢复、空间切换、同步冲突和多设备覆盖；形成事故恢复演练清单、发布阻断条件和记录模板 | M-L | High |
-| Phase 1.12 | 待启动 | 组件设计和优化 | 复盘 Todo/月历/组件管理体验，优化组件视觉密度、配置入口、移动端布局和模板组件组合，并规划后续组件候选 | M-L | Medium |
+| Phase 1.11.8 | 已完成 | 基础埋点 | 已建立隐私优先的产品事件字典、匿名安装 ID、设置页关闭入口、Supabase first-party 受控 RPC/表、关键流程埋点和 `ProductAnalyticsUsageGuide.md`；只观测功能漏斗和留存，不采集首页内容 | M | Medium-High |
+| Phase 1.11.9 | 新增 | 错误监控 | 接入前端异常、资源加载失败和关键异步失败监控；定义脱敏、采样、release 标识和 sourcemap 策略 | M | Medium |
+| Phase 1.12 | 后移 | 组件设计和优化 | 复盘 Todo/月历/组件管理体验，优化组件视觉密度、配置入口、移动端布局和模板组件组合，并规划后续组件候选 | M-L | Medium |
 | Phase 1.13 | 延期 | 主域名准备 | 域名购买决策完成后，在正式推出前处理自购主域名、`basePath`、Auth redirect 和缓存隔离回归 | M | High |
 | Phase 1.14 | 延期 | Supabase 后台管理 dashboard | 商业化正式域名上线后，设计 `admin_users`、`admin_audit_events` 和受控后台入口；可审计非离线加密数据、历史快照和操作记录；管理员访问必须留痕 | XL | High |
 
 #### Next Implementation Focus
 
-Phase 1.6.8 的模板库 v1 已完成。浏览器收藏/标签导入从 Phase 1.6.9 移出，保留在 Phase 1.9B 独立需求集中重新设计；原 Phase 1.9 正式推出前收口整体后移到 Phase 1.10，但主域名准备进一步延期到 Phase 1.13。Phase 1.7.0 已完成组件框架与 Widget Registry，Phase 1.7.1 已完成 Todo List v1，Phase 1.7.2 已完成日历/万年历 v1，Phase 1.7.3 已完成组件布局与编辑体验，Phase 1.7.4 已完成组件默认配置。Phase 1.8.0 已完成主题风格切换，Phase 1.8.1 已完成 Banner/背景图片 v1，Phase 1.8.2 已完成个性化细节收口。Phase 1.9A 已完成前端页面布局和 UI/UX 优化，Phase 1.9.5 已完成收藏/标签导入需求设计，Phase 1.9.6 已完成大批量导入体验设计，Phase 1.9.7 已完成导入 MVP。Phase 1.10 已完成正式推出前基础收口 MVP。Phase 1.11.0-1.11.7 已完成本地数据保全基线、恢复中心、危险写入保护、同步误覆盖防护、账号托管云端历史版本 v1、账号托管可恢复模型收口和 P0 回归演练指南。后续节奏调整为：Phase 1.12 做组件设计和优化，Phase 1.13 做主域名准备，后台管理 dashboard 推迟到 Phase 1.14。
+Phase 1.6.8 的模板库 v1 已完成。浏览器收藏/标签导入从 Phase 1.6.9 移出，保留在 Phase 1.9B 独立需求集中重新设计；原 Phase 1.9 正式推出前收口整体后移到 Phase 1.10，但主域名准备进一步延期到 Phase 1.13。Phase 1.7.0 已完成组件框架与 Widget Registry，Phase 1.7.1 已完成 Todo List v1，Phase 1.7.2 已完成日历/万年历 v1，Phase 1.7.3 已完成组件布局与编辑体验，Phase 1.7.4 已完成组件默认配置。Phase 1.8.0 已完成主题风格切换，Phase 1.8.1 已完成 Banner/背景图片 v1，Phase 1.8.2 已完成个性化细节收口。Phase 1.9A 已完成前端页面布局和 UI/UX 优化，Phase 1.9.5 已完成收藏/标签导入需求设计，Phase 1.9.6 已完成大批量导入体验设计，Phase 1.9.7 已完成导入 MVP。Phase 1.10 已完成正式推出前基础收口 MVP。Phase 1.11.0-1.11.8 已完成本地数据保全基线、恢复中心、危险写入保护、同步误覆盖防护、账号托管云端历史版本 v1、账号托管可恢复模型收口、P0 回归演练指南和基础埋点。错误监控从未排期候选提前到 Phase 1.11.9；后续节奏调整为：先补齐错误监控，再进入 Phase 1.12 组件设计和优化、Phase 1.13 主域名准备，后台管理 dashboard 推迟到 Phase 1.14。
 
 - 已落地：`空白首页`、`极简起步`、`通用效率`、`工作办公`、`开发者工作台`、`学习研究` 六个静态模板。
 - 已落地：模板生成普通 `HomeDocumentV2`，每次应用生成新的 document/group/site id，不新增 Supabase 表。
@@ -166,13 +168,12 @@ Phase 1.9B 已知边界：
 
 | 优先级 | 阶段 | 任务 | 主要用户价值 | 后端/数据改动 | 架构影响 | 复杂度 | 风险 | 关键风险点 |
 |---|---|---|---|---|---|---|---|---|
+| P1 | Phase 1.11.9 | 错误监控 | 正式发布后能定位前端异常、资源加载失败和关键异步失败 | 可接入 Sentry 或替代方案；需配置 release、采样、脱敏和 sourcemap 策略 | 需要错误边界、全局异常捕获、promise rejection 捕获、环境隔离和 PII 过滤 | M | Medium | GitHub Pages 静态部署下要避免泄露 sourcemap、环境变量和用户隐私 |
 | P0 延期 | Phase 1.14 | 后台管理 dashboard | 商业化正式域名上线后，补齐受控后台 dashboard、管理员审计和后台排障能力 | 拟新增 `admin_users`、`admin_audit_events`；服务端或 Edge Function 持有 service role；账号托管/同步码/高隐私边界已在 Phase 1.11.6 收口 | 后台 dashboard 只通过服务端受控接口访问，不能进入 GitHub Pages 静态前端 | XL | High | 后台管理能力不能放 service role 到 GitHub Pages 前端；管理员查看用户首页内容必须留痕 |
 | P1 | Phase 1.12 | 组件设计和优化 | 让已有组件更适合日常使用，并为下一批组件建立设计标准 | 无新增后端优先；如需账号级组件偏好再单独评估 | 复盘 Todo、月历、组件管理、模板默认组件和移动端布局，明确组件配置入口、视觉密度、空状态、错误态、拖拽/排序体验和后续组件候选 | M-L | Medium | 不能在优化阶段引入过早的自由布局或复杂组件市场；需继续控制 `HomeDocumentV2.widgets` schema 兼容 |
 | P3 | 未排期 | 账号删除与治理实现 | 正式推出前补齐基础数据治理 | 需要删除策略、级联规则和确认流程；Phase 1.10 已完成候选设计 | 需要账号数据生命周期设计 | L | High | 账号托管凭证、home_spaces、sync_spaces 是否删除需严格定义 |
 | P3 | 未排期 | 只读分享链接实现 | 为正式推出后的传播做安全设计 | 可能新增 share token/visibility 表或字段；Phase 1.10 已完成候选设计 | 需要只读渲染路由，隔离编辑和同步权限 | L | High | 不能泄露编辑权或同步 secret；缓存和撤销策略复杂 |
 | P3 | 未排期 | 密码保护空间实现 | 明确高隐私空间的加密模型 | 可能新增 `password-protected` 凭证模式和 KDF 参数；Phase 1.10 已完成候选设计 | 加密模型升级，账号托管和密码保护并存 | XL | High | 密码丢失不可恢复、密钥派生、空白设备体验和 UX 复杂 |
-| P3 | 未排期 | 基础埋点 | 了解关键漏斗和留存，辅助正式推出后迭代 | 需评估隐私友好的 analytics provider 或自建事件表 | 需要定义事件字典、匿名标识、退出机制和数据保留策略 | M | Medium-High | 不能采集敏感 URL、同步码、首页内容或账号 secret |
-| P3 | 未排期 | 错误监控 | 正式发布后能定位前端异常 | 可接入 Sentry 或替代方案；需配置 release 和 sourcemap 策略 | 需要错误边界、采样率、PII 过滤和环境隔离 | M | Medium | GitHub Pages 静态部署下要避免泄露 sourcemap 和用户隐私 |
 | P2 | Phase 1.13 | 主域名准备 | 正式推出前统一品牌入口和 Auth 回调 | Supabase Auth `Site URL`、Redirect URLs 需要同步配置 | `basePath`、assetPrefix、localStorage 域隔离都要回归 | M | High | 登录回调、静态资源路径、旧本地缓存不可直接迁移 |
 | P4 | Phase 2 | AI 能力、高级定制化与付费平台 | AI 辅助首页整理、搜索、清理、总结和工作流能力；同时支持 WebGL 动态/交互背景、付费高级组件、VIP、自定义域名 | 可能需要 AI provider、usage quota、entitlements、billing tables、domain binding、可能的高级资源存储 | 从个人工具升级为 AI 增强的主页工作台和平台型产品 | XL | High | AI 数据隐私、成本控制、额度限制、提示注入、计费、权限、域名验证、证书、WebGL 性能和运维复杂度显著上升 |
 
@@ -334,8 +335,8 @@ Phase 1.9B 已知边界：
   - 已完成设备状态 v1，帮助用户理解当前浏览器/设备的同步状态、首页空间、文档 revision 和最后在线时间。
   - 已完成同步请求多标签协调，同一浏览器多个标签页不会同时对同一同步空间执行 check/pull/push/revoke。
   - 账号删除与治理、只读分享链接和密码保护空间已进入高风险候选设计，不在本阶段直接实现。
-  - 基础埋点和 Sentry 错误监控未进入本次低成本 MVP，后续按正式发布需要单独评估。
-- Phase 1.11 数据保全与恢复体系：
+  - 基础埋点已在 Phase 1.11.8 完成；错误监控已从未排期候选提前到 Phase 1.11.9，在正式发布前补齐最小异常观测能力。
+- Phase 1.11 数据保全与发布观测体系：
   - 产品优先级调整为：P0 用户数据保全和防丢失；P1 隐私和防泄露；P2 UI/组件/体验打磨。
   - 设置页新增一级“数据恢复中心”，排在“账号偏好”之后、“高级操作”之前；不把恢复中心藏在高级操作里。
   - 重新定义首页文档类型：默认页、空白页、未编辑模板页不视为有效用户空间修改，不保存本地快照、不保存云端快照、不参与同步；用户正常编辑首页和用户编辑后的模板页合并为“有效用户首页”。
@@ -358,9 +359,11 @@ Phase 1.11 子阶段任务：
 | Phase 1.11.5 | 云端历史版本 v1 | 已实现 `home_space_snapshots`、`home_space_audit_events`、账号托管专用上传 RPC、账号托管空间云端快照、云端完整预览、恢复到本机和审计事件 | XL | High |
 | Phase 1.11.6 | 账号托管可恢复模型收口 | 已统一账号托管可信恢复、云端历史明文记录、普通同步码密文边界和高隐私模式候选；新增 `015_account_managed_recovery_model_verify.sql` 只读验证脚本 | L | High |
 | Phase 1.11.7 | P0 回归测试与事故演练 | 已新增 `docs/guides/DataPreservationP0RegressionDrill.md`，覆盖 25 个 P0 场景、事故处理流程、发布阻断条件和演练记录模板 | M-L | High |
+| Phase 1.11.8 | 基础埋点 | 已新增 `product_analytics_events`、`record_product_event(...)`、前端 analytics facade、设置页关闭入口、关键流程埋点和 `ProductAnalyticsUsageGuide.md` | M | Medium-High |
+| Phase 1.11.9 | 错误监控 | 待实现；接入前端异常、资源加载失败和关键异步失败监控，并定义脱敏、采样、release 标识和 sourcemap 策略 | M | Medium |
 | Phase 1.14 | Supabase 后台管理 dashboard | 商业化正式域名上线后再做；`admin_users`、`admin_audit_events`、受控后台入口、非离线加密数据审计、管理员访问留痕 | XL | High |
 
-推荐实施顺序：Phase 1.11.0-1.11.7 已完成，已先阻断用户端误覆盖、补齐账号托管云端历史、收口账号托管恢复模型，并固化 P0 回归测试与事故演练。后台管理 dashboard 延期到 Phase 1.14。
+推荐实施顺序：Phase 1.11.0-1.11.8 已完成，已先阻断用户端误覆盖、补齐账号托管云端历史、收口账号托管恢复模型、固化 P0 回归测试与事故演练，并补齐基础产品埋点。接下来优先做 Phase 1.11.9 错误监控，让正式发布前具备最小异常观测能力；后台管理 dashboard 延期到 Phase 1.14。
 
 - Phase 1.12 组件设计和优化：
   - 复盘 Todo List、月历/万年历和组件管理模式的日常使用体验。
@@ -445,6 +448,7 @@ Phase 1.11 子阶段任务：
   - `homepage:sync-lock:v1:{spaceId}`：同一浏览器多标签同步协调锁，带 TTL，避免同一同步空间并发 check/pull/push/revoke。
   - `homepage:local-snapshots:v1`：Phase 1.11 已新增的本地历史快照仓储，只保存有效用户首页的完整 `HomeDocumentV2` 历史版本。
   - `homepage:document-protection:v1`：Phase 1.11 已新增的文档分类和保护状态缓存，用于区分默认页、空白页、未编辑模板页和有效用户首页。
+  - `homepage:analytics:v1`：Phase 1.11.8 新增的本机埋点偏好和匿名安装标识缓存；不得包含账号 id、邮箱、同步码、secret 或首页内容。
 - 云端最小表：
   - `sync_spaces`: 匿名同步码空间，保存密文首页文档、revision、token hash。
   - `profiles`: 用户基础资料，绑定 Supabase Auth 用户。
@@ -453,6 +457,7 @@ Phase 1.11 子阶段任务：
   - `homepage_documents`: 后续可选表；如果未来不再用同步码密文空间承载账号首页，可迁移为账号首页明文或密文文档表。
   - `home_space_snapshots`: Phase 1.11.5 已新增，v1 只保存账号托管空间的有效用户首页云端历史版本，包含明文 `document_json`、摘要、内容指纹、来源、设备和操作 id；普通同步码空间继续只使用既有密文同步，不保存可预览明文云端历史。
   - `home_space_audit_events`: Phase 1.11.5 已新增，v1 记录账号托管空间创建、迁移、普通上传、强制覆盖、基线快照和云端历史恢复到本机等关键事件，包含前后 revision、文档类型、摘要和关联快照；管理员查看类审计延期到 Phase 1.14 后台 dashboard。
+  - `product_analytics_events`: Phase 1.11.8 新增表；保存白名单产品事件和脱敏属性，只允许通过 `record_product_event(...)` 受控上报，不向普通客户端开放 select。
   - `admin_users`: Phase 1.14 计划新增，定义后台管理 dashboard 的管理员名单或角色来源。
   - `admin_audit_events`: Phase 1.14 计划新增，记录管理员查看用户数据、预览快照、执行恢复辅助等后台行为。
 - 服务端接口：
@@ -496,6 +501,8 @@ Phase 1.11 子阶段任务：
 - Phase 1.11 完成数据保全与恢复体系设计和实现后，默认页、空白页和未编辑模板页不会作为有效用户修改保存、同步或生成快照；有效用户首页在危险写入前有本地或云端可恢复版本。
 - 数据恢复中心作为设置页一级栏目出现，位置在账号偏好之后、高级操作之前；每个本地版本和云端版本都能生成完整预览并支持用户确认恢复。
 - 受账号管理同步的首页空间具备云端历史快照和服务端审计；普通同步码空间继续保留密文边界，后台默认只能审计元数据。
+- Phase 1.11.8 基础埋点只采集白名单产品事件和脱敏属性，不采集网站 URL、搜索词、首页内容、同步码或账号托管 secret；上报失败不影响主流程。
+- Phase 1.11.9 错误监控只采集脱敏后的前端异常和 release 信息，不泄露 sourcemap、环境变量、首页内容或用户 secret。
 - 用户创建同步码后，在另一台设备输入同步码能恢复同一首页。
 - 同步码模式下，一台设备编辑后，另一台设备刷新或重新聚焦后能看到更新。
 - 登录用户可将当前同步码首页空间认领到账号。

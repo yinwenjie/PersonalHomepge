@@ -35,6 +35,7 @@ import { getWidgetDefinition, WIDGET_DEFINITIONS } from "@/domain/widget-registr
 import { CalendarMonthWidget } from "@/components/widgets/calendar-month-widget";
 import { TodoListWidget } from "@/components/widgets/todo-list-widget";
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
+import { trackProductEvent } from "@/infrastructure/product-analytics-repository";
 
 interface WidgetPanelProps {
   documentValue: HomeDocumentV2;
@@ -99,6 +100,9 @@ export function WidgetPanel({ documentValue, updatedLabel, onCommitDocument }: W
     const nextWidget = createHomeWidget(type, { order: widgets.length + 1 });
 
     commitWidgets([...widgets, nextWidget], "组件已添加");
+    trackProductEvent("widget.added", {
+      widgetType: type
+    });
     setPickerOpen(false);
   }
 

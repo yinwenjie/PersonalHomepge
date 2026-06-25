@@ -7,6 +7,7 @@ import {
   buildSearchUrl,
   searchEngineLabel
 } from "@/domain/ui-preferences";
+import { summarizeDocumentForAnalytics } from "@/domain/product-analytics";
 import type { HomeDocumentV2 } from "@/domain/home-document";
 import {
   isUngroupedGroup,
@@ -27,6 +28,7 @@ import { useHomeDocumentEditor } from "@/hooks/use-home-document-editor";
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
 import { useUiPreferences } from "@/hooks/use-ui-preferences";
 import type { LocalHomeSnapshotSource } from "@/infrastructure/local-home-snapshot-repository";
+import { trackProductEvent } from "@/infrastructure/product-analytics-repository";
 
 const ONBOARDING_STORAGE_KEY = "homepage:onboarding:v1";
 
@@ -60,6 +62,7 @@ export function HomeDashboard() {
   const [todayLabel, setTodayLabel] = useState("");
   const [showWelcome, setShowWelcome] = useState(false);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const homeViewedTrackedRef = useRef(false);
   const locale = preferences.locale;
   const searchEngine = preferences.defaultSearchEngine;
   const searchEngineName = searchEngineLabel(searchEngine);
@@ -101,6 +104,20 @@ export function HomeDashboard() {
     return () => window.clearTimeout(timerId);
   }, [hasStoredDocument, storageReady]);
 
+  useEffect(() => {
+    if (!storageReady || homeViewedTrackedRef.current) {
+      return;
+    }
+
+    homeViewedTrackedRef.current = true;
+    trackProductEvent("home.viewed", {
+      ...summarizeDocumentForAnalytics(homeDocument),
+      hasStoredDocument,
+      hasSyncBinding: homeDocument.syncMeta.mode === "sync-code",
+      signedIn: Boolean(user)
+    });
+  }, [hasStoredDocument, homeDocument, storageReady, user]);
+
   const filteredGroups = useMemo(() => {
     const keyword = normalizeSearchText(activeQuery);
     return sortByOrder(homeDocument.groups).map((group) => {
@@ -141,6 +158,10 @@ export function HomeDashboard() {
     }
 
     replaceHomeDocument(createHomeDocumentFromTemplate(template.id), `已使用${template.name}`);
+    trackProductEvent("template.applied", {
+      source: "welcome",
+      templateId: template.id
+    });
     completeOnboarding();
     if (template.id === "blank") {
       router.push("/edit");
@@ -160,6 +181,9 @@ export function HomeDashboard() {
     }
 
     window.open(buildSearchUrl(searchEngine, keyword), "_blank", "noopener,noreferrer");
+    trackProductEvent("search.submitted", {
+      searchEngine
+    });
   }
 
   return (

@@ -13,6 +13,7 @@ import {
 import { StatusMessage } from "@/components/status-message";
 import { useUiPreferences } from "@/hooks/use-ui-preferences";
 import type { AccountDataState } from "@/hooks/use-account-data";
+import { trackProductEvent } from "@/infrastructure/product-analytics-repository";
 
 interface AccountPreferencesPanelProps {
   accountData: AccountDataState;
@@ -121,12 +122,18 @@ function PreferencesEditor({
       const updated = await accountData.updatePreferences(normalized);
       if (updated) {
         uiPreferences.applyAccountPreferences(updated);
+        trackProductEvent("account.preferences_updated", {
+          result: "account"
+        });
       }
       return;
     }
 
     uiPreferences.updateLocalPreferences(normalized);
     setLocalMessage("本地偏好已保存。");
+    trackProductEvent("account.preferences_updated", {
+      result: "local"
+    });
   }
 
   return (

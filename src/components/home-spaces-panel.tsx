@@ -15,6 +15,7 @@ import {
 import { parseSyncCode, type StoredSyncBinding } from "@/domain/sync-code";
 import type { AccountDataState } from "@/hooks/use-account-data";
 import type { LocalHomeSnapshotSource } from "@/infrastructure/local-home-snapshot-repository";
+import { trackProductEvent } from "@/infrastructure/product-analytics-repository";
 
 interface HomeSpacesPanelProps {
   accountData: AccountDataState;
@@ -124,6 +125,9 @@ export function HomeSpacesPanel({
   async function handleClaim(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     await accountData.claimHomeSpace(currentBinding?.spaceId ?? "", claimSpaceName);
+    trackProductEvent("home_space.claimed", {
+      accessMode: currentBinding?.accessMode ?? "sync-code"
+    });
   }
 
   async function handleCreateManaged(event: FormEvent<HTMLFormElement>) {
@@ -135,6 +139,9 @@ export function HomeSpacesPanel({
     const binding = await accountData.createAccountManagedHomeSpace(currentCreateName.trim() || DEFAULT_MANAGED_SPACE_NAME, documentValue);
     if (binding) {
       onManagedHomeSpaceCreated(binding, documentValue);
+      trackProductEvent("home_space.account_managed_created", {
+        source: "current"
+      });
       setCreateDialog(null);
       setCurrentCreateName(DEFAULT_MANAGED_SPACE_NAME);
     }
@@ -159,6 +166,10 @@ export function HomeSpacesPanel({
       const binding = await accountData.createAccountManagedHomeSpace(spaceName, templateDocument);
       if (binding) {
         onManagedHomeSpaceCreated(binding, templateDocument);
+        trackProductEvent("home_space.account_managed_template_created", {
+          source: "template",
+          templateId: selectedTemplate.id
+        });
         setCreateDialog(null);
         setTemplateSpaceName("");
       }
@@ -202,6 +213,9 @@ export function HomeSpacesPanel({
     try {
       const activated = await onActivateHomeSpace(homeSpace, normalizedCode);
       if (activated) {
+        trackProductEvent("home_space.sync_code_activated", {
+          accessMode: homeSpace.accessMode
+        });
         setActivationCode("");
         setActiveSpaceId(null);
       }
@@ -228,7 +242,12 @@ export function HomeSpacesPanel({
 
     setManagedRestoreSpaceId(homeSpace.id);
     try {
-      await onRestoreManagedHomeSpace(homeSpace);
+      const restored = await onRestoreManagedHomeSpace(homeSpace);
+      if (restored) {
+        trackProductEvent("home_space.account_managed_restored", {
+          accessMode: homeSpace.accessMode
+        });
+      }
     } finally {
       setManagedRestoreSpaceId(null);
     }
@@ -249,7 +268,12 @@ export function HomeSpacesPanel({
 
     setManagedMigrationSpaceId(homeSpace.id);
     try {
-      await onMigrateSyncCodeHomeSpace(homeSpace);
+      const migrated = await onMigrateSyncCodeHomeSpace(homeSpace);
+      if (migrated) {
+        trackProductEvent("home_space.sync_code_migrated", {
+          accessMode: "account-managed"
+        });
+      }
     } finally {
       setManagedMigrationSpaceId(null);
     }
@@ -307,6 +331,11 @@ export function HomeSpacesPanel({
       if (removed && editingSpaceId === homeSpace.id) {
         setEditingSpaceId(null);
         setEditingSpaceName("");
+      }
+      if (removed) {
+        trackProductEvent("home_space.removed", {
+          accessMode: homeSpace.accessMode
+        });
       }
     } finally {
       setRemovingSpaceId(null);

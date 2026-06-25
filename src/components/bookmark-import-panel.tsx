@@ -27,10 +27,12 @@ import {
   sortByOrder,
   UNGROUPED_GROUP_ID
 } from "@/domain/home-document";
+import { bucketCount } from "@/domain/product-analytics";
 import type { HomeDocumentV2, HomeGroup } from "@/domain/home-document";
 import { parseUrlList } from "@/domain/url-list-import";
 import { BookmarkImportStorageRepository } from "@/infrastructure/bookmark-import-storage";
 import type { LocalHomeSnapshotSource } from "@/infrastructure/local-home-snapshot-repository";
+import { trackProductEvent } from "@/infrastructure/product-analytics-repository";
 
 interface BookmarkImportPanelProps {
   documentValue: HomeDocumentV2;
@@ -114,6 +116,9 @@ export function BookmarkImportPanel({
     setDialogOpen(true);
     setMessage("请选择书签 HTML 文件，或粘贴一组 URL。");
     setMessageTone("neutral");
+    trackProductEvent("bookmark_import.opened", {
+      source: "settings"
+    });
   }
 
   function continueSavedDraft() {
@@ -201,6 +206,11 @@ export function BookmarkImportPanel({
     }
 
     onCommitDocument(result.document, `已导入 ${result.addedSiteCount} 个网站`);
+    trackProductEvent("bookmark_import.completed", {
+      groupCountBucket: bucketCount(result.addedGroupIds.length),
+      siteCountBucket: bucketCount(result.addedSiteCount),
+      sourceKind: draft.sourceKind
+    });
     getStorageRepository()?.clearDraft();
     setDraft(null);
     setDialogOpen(false);
@@ -355,9 +365,18 @@ function BookmarkImportDialog({
       resetPreviewFilters();
       setDialogMessage(`已解析 ${nextDraft.stats.totalItems} 条书签。`);
       setDialogTone("success");
+      trackProductEvent("bookmark_import.parsed", {
+        groupCountBucket: bucketCount(nextDraft.stats.candidateGroups),
+        siteCountBucket: bucketCount(nextDraft.stats.validItems),
+        sourceKind: "bookmark-html"
+      });
     } catch (error) {
       setDialogMessage(error instanceof Error ? error.message : "书签 HTML 解析失败。");
       setDialogTone("danger");
+      trackProductEvent("bookmark_import.failed", {
+        reasonCode: getImportFailureReason(error),
+        sourceKind: "bookmark-html"
+      });
     } finally {
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
@@ -388,9 +407,18 @@ function BookmarkImportDialog({
       resetPreviewFilters();
       setDialogMessage(`已解析 ${nextDraft.stats.totalItems} 条 URL。`);
       setDialogTone("success");
+      trackProductEvent("bookmark_import.parsed", {
+        groupCountBucket: bucketCount(nextDraft.stats.candidateGroups),
+        siteCountBucket: bucketCount(nextDraft.stats.validItems),
+        sourceKind: "url-list"
+      });
     } catch (error) {
       setDialogMessage(error instanceof Error ? error.message : "URL 列表解析失败。");
       setDialogTone("danger");
+      trackProductEvent("bookmark_import.failed", {
+        reasonCode: getImportFailureReason(error),
+        sourceKind: "url-list"
+      });
     }
   }
 
@@ -943,4 +971,20 @@ function draftRequired(draft: BookmarkImportDraft | null): BookmarkImportDraft {
   }
 
   return draft;
+}
+
+function getImportFailureReason(error: unknown): string {
+  if (!(error instanceof Error)) {
+    return "unknown";
+  }
+
+  if (/10MB|5000/.test(error.message)) {
+    return "too-large";
+  }
+
+  if (/没有/.test(error.message)) {
+    return "empty";
+  }
+
+  return "parse-failed";
 }

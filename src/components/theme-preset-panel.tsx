@@ -9,6 +9,7 @@ import {
   normalizeHomeThemePresetId,
   type HomeThemePreset
 } from "@/domain/theme-preset";
+import { trackProductEvent } from "@/infrastructure/product-analytics-repository";
 
 interface ThemePresetPanelProps {
   documentValue: HomeDocumentV2;
@@ -38,6 +39,10 @@ export function ThemePresetPanel({
         accent: preset.accent
       }
     }, `已切换为${preset.name}`);
+    trackProductEvent("theme.changed", {
+      source: "settings",
+      themePresetId: preset.id
+    });
   }
 
   return (

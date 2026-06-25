@@ -14,6 +14,7 @@ import {
   createDocumentProtectionState,
   type HomeDocumentClass
 } from "@/domain/home-document-protection";
+import { summarizeDocumentForAnalytics } from "@/domain/product-analytics";
 import { LocalHomeRepository } from "@/infrastructure/home-repository";
 import type { CloudHomeSnapshot } from "@/infrastructure/cloud-home-snapshot-repository";
 import { recordLocalAuditEvent } from "@/infrastructure/local-audit-log-repository";
@@ -23,6 +24,7 @@ import {
   type LocalHomeSnapshot,
   type LocalHomeSnapshotSource
 } from "@/infrastructure/local-home-snapshot-repository";
+import { trackProductEvent } from "@/infrastructure/product-analytics-repository";
 
 interface ResetDefaultOptions {
   confirmMessage?: string;
@@ -249,6 +251,7 @@ export function useHomeDocumentController() {
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
+    trackProductEvent("document.json_exported", summarizeDocumentForAnalytics(homeDocument));
   }, [homeDocument]);
 
   const importJson = useCallback(async (file: File | undefined) => {
@@ -270,6 +273,7 @@ export function useHomeDocumentController() {
       }
 
       commitHomeDocument(imported, "已导入");
+      trackProductEvent("document.json_imported", summarizeDocumentForAnalytics(imported));
       recordLocalAuditEvent({
         documentId: imported.documentId,
         message: "已通过 JSON 导入覆盖本地首页。",
@@ -281,6 +285,9 @@ export function useHomeDocumentController() {
         type: "document.json_import"
       });
     } catch {
+      trackProductEvent("document.json_import_failed", {
+        reasonCode: "invalid-json"
+      });
       window.alert("导入失败：JSON 格式不正确。");
     }
   }, [commitHomeDocument, protectBeforeDangerousOverwrite]);
@@ -344,6 +351,9 @@ export function useHomeDocumentController() {
     setHomeDocument(defaultDocument);
     setHasStoredDocument(Boolean(options.syncMeta));
     setSaveStatus(options.successMessage ?? "已清空内容并恢复默认，重置前页面已备份");
+    trackProductEvent("document.reset_default", {
+      hasSyncBinding: Boolean(options.syncMeta)
+    });
     recordLocalAuditEvent({
       documentId: currentDocument.documentId,
       level: "warning",
@@ -375,6 +385,7 @@ export function useHomeDocumentController() {
     }
 
     commitHomeDocument(backup, "已恢复上一次重置前页面");
+    trackProductEvent("document.reset_backup_restored", summarizeDocumentForAnalytics(backup));
     recordLocalAuditEvent({
       documentId: backup.documentId,
       message: "已恢复上一次重置前页面。",

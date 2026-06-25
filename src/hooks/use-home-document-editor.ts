@@ -15,6 +15,7 @@ import {
   renumberSites,
   sortByOrder
 } from "@/domain/home-document";
+import { trackProductEvent } from "@/infrastructure/product-analytics-repository";
 
 export type EditorState =
   | { kind: "group"; mode: "add" }
@@ -181,6 +182,9 @@ export function useHomeDocumentEditor({ homeDocument, commitHomeDocument }: UseH
       sites: []
     });
     commitHomeDocument({ ...homeDocument, groups: renumberGroups(groups) }, "分组已保存");
+    trackProductEvent("group.added", {
+      source: "editor"
+    });
   }
 
   function updateGroup(groupId: string, title: string, keywords: string) {
@@ -206,6 +210,9 @@ export function useHomeDocumentEditor({ homeDocument, commitHomeDocument }: UseH
     });
 
     commitHomeDocument({ ...homeDocument, groups: renumberGroups(groups) }, "网站已保存");
+    trackProductEvent("site.added", {
+      source: "editor"
+    });
   }
 
   function updateSite(groupId: string, siteId: string, values: Pick<HomeSite, "name" | "url" | "keywords" | "mark">) {

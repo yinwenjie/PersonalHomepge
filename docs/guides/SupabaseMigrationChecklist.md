@@ -80,15 +80,22 @@
     - 新增账号托管专用 v2 创建/迁移 RPC，以及普通上传/强制覆盖 RPC；普通同步码 RPC 保持兼容。
     - 每个账号托管首页空间最多保留最近 50 个云端快照。
 
+14. `supabase/migrations/014_product_analytics_events.sql`
+    - 新增隐私优先产品埋点表 `product_analytics_events`。
+    - 新增受控上报 RPC `record_product_event(...)`，允许 `anon` 和 `authenticated` 调用。
+    - 普通前端角色没有直接表级读写权限；事件名、匿名 ID、属性白名单、payload 大小和禁采字段均由 RPC/约束校验。
+    - 新增 `delete_product_analytics_events_older_than(...)` 清理函数，不授予前端角色。
+
 ## 执行规则
 
-- 新 Supabase project：按 `001 -> 002 -> 003 -> 004 -> 005 -> 006 -> 007 -> 008 -> 009 -> 010 -> 011 -> 012 -> 013` 顺序执行。
-- 已经执行过 `001`、`002`、`003`、`004`、`005` 的项目：先执行 `006`，再执行 `007`、`008`、`009`、`010`、`011`、`012` 和 `013`。
-- 已经执行过 `006`、`007` 但未执行 `008` 的项目：先执行 `008`，再执行 `009`、`010`、`011`、`012` 和 `013`。
-- 已经执行过 `006`、`007`、`008` 的项目：先执行 `009`，再执行 `010`、`011`、`012` 和 `013`。
-- 已经执行过 `009` 的项目：先补执行 `010`、`011`、`012` 和 `013`。
-- 已经执行过 `010` 的项目：先补执行 `011`，再执行 `012` 和 `013`。
-- 已经执行过 `012` 的项目：补执行 `013`。
+- 新 Supabase project：按 `001 -> 002 -> 003 -> 004 -> 005 -> 006 -> 007 -> 008 -> 009 -> 010 -> 011 -> 012 -> 013 -> 014` 顺序执行。
+- 已经执行过 `001`、`002`、`003`、`004`、`005` 的项目：先执行 `006`，再执行 `007`、`008`、`009`、`010`、`011`、`012`、`013` 和 `014`。
+- 已经执行过 `006`、`007` 但未执行 `008` 的项目：先执行 `008`，再执行 `009`、`010`、`011`、`012`、`013` 和 `014`。
+- 已经执行过 `006`、`007`、`008` 的项目：先执行 `009`，再执行 `010`、`011`、`012`、`013` 和 `014`。
+- 已经执行过 `009` 的项目：先补执行 `010`、`011`、`012`、`013` 和 `014`。
+- 已经执行过 `010` 的项目：先补执行 `011`，再执行 `012`、`013` 和 `014`。
+- 已经执行过 `012` 的项目：补执行 `013` 和 `014`。
+- 已经执行过 `013` 的项目：补执行 `014`。
 - 已经手动创建 `home-assets` bucket 的项目：仍需执行 `012`，因为上传所需的 RLS policy 不会由 Dashboard 创建 bucket 自动生成。
 - 执行前确认目标 project 是线上使用的 Supabase project。
 - 执行 `003` 后可以在 SQL Editor 中检查 revision 函数是否存在：
@@ -161,6 +168,8 @@ where table_schema = 'public'
 - `013_cloud_home_snapshots.sql` 是 Phase 1.11.5 账号托管云端历史版本所需迁移。执行前端代码但未执行该脚本时，账号托管上传和数据恢复中心云端历史读取会失败。
 - `013_cloud_home_snapshots.sql` 只为 `account-managed` 空间保存明文 `document_json` 云端历史；普通 `sync-code` 空间继续使用既有密文同步模型，不保存可预览明文历史。
 - Phase 1.11.6 不新增 migration。账号托管空间的 v1 定位是账号可信托管、可恢复、可审计；当前仍通过本人 RLS 读取 `home_space_credentials` 完成空白设备恢复，不代表前端完全不接触 managed secret。可执行 `supabase/checks/015_account_managed_recovery_model_verify.sql` 复核当前权限边界。
+- `014_product_analytics_events.sql` 是 Phase 1.11.8 基础埋点所需迁移。未执行时，前端埋点会上报失败并静默降级，不影响首页、导入、同步或恢复主流程。
+- `014_product_analytics_events.sql` 不保存邮箱、用户 ID、URL、搜索词、首页内容、同步码、账号托管 secret 或云端历史 `document_json`；普通客户端只能调用 `record_product_event(...)`，不能直接查询埋点表。
 - 新设备登录后看到账号空间列表，不代表已经拥有该空间的同步凭证；只有 `account-managed` 空间可以通过账号托管凭证直接恢复，普通 `sync-code` 空间仍需输入完整同步码。
 
 ## 辅助检查脚本
@@ -178,3 +187,4 @@ where table_schema = 'public'
 - `supabase/checks/013_home_assets_storage_verify.sql`：验证 Phase 1.8.1 `home-assets` bucket 参数、Storage object policies 和 RLS 状态。
 - `supabase/checks/014_cloud_home_snapshots_verify.sql`：验证 Phase 1.11.5 云端历史表、审计表、RLS、权限、账号托管 RPC、旧同步码 RPC 兼容和快照约束。
 - `supabase/checks/015_account_managed_recovery_model_verify.sql`：验证 Phase 1.11.6 账号托管可恢复模型的当前 v1 权限边界，包括 `home_space_credentials`、云端历史表、审计表的 RLS、anon/PUBLIC 权限、账号托管 RPC 权限和旧同步码 RPC 兼容。
+- `supabase/checks/016_product_analytics_events_verify.sql`：验证 Phase 1.11.8 基础埋点表、RLS、前端表权限、受控 RPC、敏感字段缺失和属性白名单/禁采字段约束。

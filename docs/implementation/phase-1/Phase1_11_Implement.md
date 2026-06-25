@@ -257,8 +257,50 @@ Phase 1.11 将“用户数据保全、防止数据丢失”提升为 P0。所有
 - Phase 1.11 的用户侧数据保全闭环已形成：分类、保护、恢复、同步防误覆盖、账号托管云端历史、边界文案和 P0 演练指南均已落地。
 - 后台管理 dashboard 已延期到 Phase 1.14，Phase 1.11 后续不再扩展服务端管理员能力。
 
+### Phase 1.11.8：基础埋点
+
+基础埋点从未排期候选提前到 Phase 1.11.8，并采用 first-party Supabase 上报通道。目标是在正式发布前补齐最小产品观测能力，辅助判断新用户激活、模板/导入/同步/恢复等关键流程是否顺畅。
+
+已新增：
+
+- `src/domain/product-analytics.ts`
+- `src/infrastructure/product-analytics-repository.ts`
+- `src/components/product-analytics-settings-panel.tsx`
+- `supabase/migrations/014_product_analytics_events.sql`
+- `supabase/checks/016_product_analytics_events_verify.sql`
+- `docs/guides/ProductAnalyticsUsageGuide.md`
+
+实现内容：
+
+- 新增统一 `trackProductEvent(...)` facade，业务组件不直接依赖 Supabase 表结构。
+- 建立白名单事件字典、白名单属性、schema version、属性清洗和禁采字段列表。
+- 新增 `homepage:analytics:v1`，保存本机匿名安装 ID 和“允许匿名基础埋点”开关；不保存账号 ID、邮箱、同步码、secret 或首页内容。
+- 设置页高级操作新增“产品改进”开关，用户可关闭匿名基础埋点。
+- 开发环境默认不上报生产埋点；`NEXT_PUBLIC_PRODUCT_ANALYTICS_DEBUG=true` 时只做 debug/测试上报。
+- 新增 `product_analytics_events` 表和 `record_product_event(...)` RPC。普通前端角色没有直接表级读写权限，只能通过 RPC 受控写入。
+- RPC 和表约束校验事件名、匿名 ID、session ID、payload 大小、属性白名单和禁采字段。
+- 关键流程已接入埋点：主页/设置页打开、搜索、模板应用、分组/网站新增、组件新增、主题切换、Banner/背景变更、账号登录、首页空间创建/恢复/迁移、同步码创建/绑定、同步冲突、导入、数据包、数据恢复中心预览/恢复。
+
+隐私边界：
+
+- 不采集网站 URL、网站名称、搜索词、分组名称、Todo 内容、组件具体配置、图片 URL、同步码、access token、encryption key、账号托管恢复凭证、完整 `HomeDocumentV2` 或云端历史 `document_json`。
+- 埋点只保存数量级、枚举值和结果状态，例如 `siteCountBucket`、`groupCountBucket`、`widgetCountBucket`、`templateId`、`accessMode`、`syncStatus`、`result`、`reasonCode`。
+- 上报失败静默降级，不影响首页加载、编辑、同步、导入或恢复。
+
+### Phase 1.11.9：错误监控排期
+
+错误监控从未排期候选提前到 Phase 1.11.9。该阶段只做排期占位，具体方案后续单独评估。
+
+初步边界：
+
+- 采集前端异常、资源加载失败、unhandled promise rejection 和关键异步流程失败。
+- 必须做 PII 和 secret 过滤。
+- 需要 release 标识、采样策略、环境隔离和 sourcemap 上传/隐藏策略。
+- 不能泄露首页内容、同步码、账号托管 secret、Supabase session 或环境变量。
+
 ## 尚未落地
 
+- Phase 1.11.9 错误监控尚未实现；已从未排期候选提前为正式子阶段。
 - Phase 1.11.5 v1 暂不为普通同步码空间保存可预览云端历史；同步码空间继续只保存密文、revision 和元数据。
 - Phase 1.11.6 仍保留当前账号托管凭证恢复链路；“前端完全不接触 managed secret”的服务端托管模型需后续单独设计。
 - Supabase 后台管理 dashboard 已延期到 Phase 1.14，在商业化正式域名上线后再做；设计方案已保存到 `docs/backlog/AdminDashboardBacklog.md`。
@@ -284,3 +326,6 @@ Phase 1.11 将“用户数据保全、防止数据丢失”提升为 P0。所有
 - 设置页和用户指南已统一账号托管、普通同步码和高隐私模式边界。
 - 数据包导出不包含完整同步码、账号托管恢复凭证、登录 session 或云端历史 `document_json`。
 - Phase 1.11.7 已形成 P0 回归矩阵、事故演练流程、发布阻断条件和演练记录模板。
+- Phase 1.11.8 已新增基础埋点 facade、本机匿名 ID、关闭开关、Supabase 受控上报 RPC、事件/属性白名单和使用指南。
+- `product_analytics_events` 只保存白名单事件和脱敏属性；普通前端角色无直接表访问权限，需执行 `016_product_analytics_events_verify.sql` 复核线上 Supabase 权限。
+- 已验证自动检查：`npm run typecheck`、`npm run lint`、`npm run build`、`git diff --check`。

@@ -1,7 +1,7 @@
 "use client";
 
 import type { ChangeEvent } from "react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AccountPanel } from "@/components/account-panel";
 import { AccountPreferencesPanel } from "@/components/account-preferences-panel";
@@ -11,6 +11,7 @@ import { DeviceStatusPanel } from "@/components/device-status-panel";
 import { HomeSpacesPanel } from "@/components/home-spaces-panel";
 import { HomeThemeStyleBridge } from "@/components/home-theme-style-bridge";
 import { LocalAuditLogPanel } from "@/components/local-audit-log-panel";
+import { ProductAnalyticsSettingsPanel } from "@/components/product-analytics-settings-panel";
 import { StatusMessage } from "@/components/status-message";
 import { SyncPanel } from "@/components/sync-panel";
 import { ThemeImagePanel } from "@/components/theme-image-panel";
@@ -27,6 +28,8 @@ import { LocalAuditLogRepository, recordLocalAuditEvent } from "@/infrastructure
 import type { CloudHomeSnapshot } from "@/infrastructure/cloud-home-snapshot-repository";
 import { LocalDeviceRepository } from "@/infrastructure/local-device-repository";
 import type { LocalHomeSnapshotSource } from "@/infrastructure/local-home-snapshot-repository";
+import { summarizeDocumentForAnalytics } from "@/domain/product-analytics";
+import { trackProductEvent } from "@/infrastructure/product-analytics-repository";
 import { LocalSyncBindingRepository } from "@/infrastructure/sync-binding-repository";
 import { SyncCodeRepository } from "@/infrastructure/sync-code-repository";
 
@@ -67,12 +70,27 @@ export function SettingsDashboard() {
   } = useHomeDocumentController();
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const dataPackageImportInputRef = useRef<HTMLInputElement | null>(null);
+  const settingsOpenedTrackedRef = useRef(false);
+  const signedIn = Boolean(auth.user);
   const handleBeforeOverwrite = useCallback((source: LocalHomeSnapshotSource) => {
     return protectBeforeDangerousOverwrite(source).canContinue;
   }, [protectBeforeDangerousOverwrite]);
   const handleBeforeCloudOverwrite = useCallback((documentValue: HomeDocumentV2, source: LocalHomeSnapshotSource) => {
     return protectDocumentBeforeDangerousOverwrite(documentValue, source).canContinue;
   }, [protectDocumentBeforeDangerousOverwrite]);
+
+  useEffect(() => {
+    if (!storageReady || settingsOpenedTrackedRef.current) {
+      return;
+    }
+
+    settingsOpenedTrackedRef.current = true;
+    trackProductEvent("settings.opened", {
+      ...summarizeDocumentForAnalytics(homeDocument),
+      hasSyncBinding: Boolean(currentBinding),
+      signedIn
+    });
+  }, [currentBinding, homeDocument, signedIn, storageReady]);
 
   async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     try {
@@ -128,6 +146,11 @@ export function SettingsDashboard() {
 
       downloadJsonFile(exportValue, "homepage-data-export");
       setAdvancedActionMessage("数据包已导出，不包含完整同步码、账号托管恢复凭证、登录 session 或云端历史 document_json。");
+      trackProductEvent("data_package.exported", {
+        ...summarizeDocumentForAnalytics(homeDocument),
+        hasSyncBinding: Boolean(currentBinding),
+        signedIn
+      });
       recordLocalAuditEvent({
         documentId: homeDocument.documentId,
         message: "已导出首页数据包。",
@@ -161,10 +184,22 @@ export function SettingsDashboard() {
         fileName: file.name
       });
       setAdvancedActionMessage("数据包已读取，请确认恢复内容。");
+      trackProductEvent("data_package.restore_previewed", {
+        groupCountBucket: summarizeCount(restore.preview.groupCount),
+        hasBanner: restore.preview.hasBanner,
+        hasBackground: restore.preview.hasBackground,
+        siteCountBucket: summarizeCount(restore.preview.siteCount),
+        source: restore.preview.source,
+        widgetCountBucket: summarizeCount(restore.preview.widgetCount)
+      });
     } catch (error) {
       console.error(error);
       const message = error instanceof Error ? error.message : "数据包读取失败。";
       setAdvancedActionError(message);
+      trackProductEvent("data_package.restore_failed", {
+        reasonCode: "preview-failed",
+        source: "data-package"
+      });
       recordLocalAuditEvent({
         documentId: homeDocument.documentId,
         level: "warning",
@@ -211,6 +246,13 @@ export function SettingsDashboard() {
       },
       spaceId: currentBinding?.spaceId ?? null,
       type: "data_package.restore"
+    });
+    trackProductEvent("data_package.restored", {
+      groupCountBucket: summarizeCount(dataPackageRestore.preview.groupCount),
+      hasSyncBinding: Boolean(currentBinding),
+      siteCountBucket: summarizeCount(dataPackageRestore.preview.siteCount),
+      source: dataPackageRestore.preview.source,
+      widgetCountBucket: summarizeCount(dataPackageRestore.preview.widgetCount)
     });
 
     setAdvancedActionMessage(currentBinding ? "数据包已恢复；当前同步空间已暂停自动同步，请手动选择上传或拉取。" : "数据包已恢复到当前浏览器。");
@@ -293,7 +335,6 @@ export function SettingsDashboard() {
     setSyncPanelKey((value) => value + 1);
   }
 
-  const signedIn = Boolean(auth.user);
   const currentAccountHomeSpace = currentBinding
     ? accountData.homeSpaces.find((homeSpace) => homeSpace.syncSpaceId === currentBinding.spaceId) ?? null
     : null;
@@ -509,6 +550,8 @@ export function SettingsDashboard() {
             </div>
 
             <LocalAuditLogPanel />
+
+            <ProductAnalyticsSettingsPanel />
           </div>
         </section>
       </div>
@@ -633,6 +676,34 @@ function formatRestoreDate(value: string | null): string {
     hour: "2-digit",
     minute: "2-digit"
   }).format(date);
+}
+
+function summarizeCount(value: number): string {
+  if (value <= 0) {
+    return "0";
+  }
+
+  if (value === 1) {
+    return "1";
+  }
+
+  if (value <= 5) {
+    return "2-5";
+  }
+
+  if (value <= 20) {
+    return "6-20";
+  }
+
+  if (value <= 100) {
+    return "21-100";
+  }
+
+  if (value <= 500) {
+    return "101-500";
+  }
+
+  return "501+";
 }
 
 function getResetDefaultTitle(storageReady: boolean, isDefaultDocument: boolean, hasSyncBinding: boolean): string {
