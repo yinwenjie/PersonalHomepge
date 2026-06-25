@@ -236,12 +236,32 @@ Phase 1.11 将“用户数据保全、防止数据丢失”提升为 P0。所有
 - `docs/backlog/DataPreservationBacklog.md`
 - `docs/backlog/AccountManagedSyncBacklog.md`
 
+### Phase 1.11.7：P0 回归测试与事故演练
+
+本阶段不新增业务代码或 Supabase migration。目标是把 Phase 1.11 已落地的本地快照、云端历史、危险写入保护、同步误覆盖防护和账号托管恢复模型，沉淀为可重复执行的 P0 回归矩阵和事故演练流程。
+
+已新增：
+
+- `docs/guides/DataPreservationP0RegressionDrill.md`
+
+指南覆盖：
+
+- 发布前自动检查：`npm run typecheck`、`npm run lint`、`npm run build`、`git diff --check`，以及涉及 Supabase 时的 `014` / `015` 验证脚本。
+- 25 个 P0 回归场景，覆盖默认页、空白页、未编辑模板、编辑后模板、恢复默认、模板覆盖、JSON 导入、数据包恢复、书签/URL 导入、本地历史恢复、同步码绑定、云端拉取、本地覆盖云端、系统态自动上传阻断、同步冲突、账号托管云端历史、普通同步码隐私边界、数据包导出脱敏、多标签协调和多设备误覆盖。
+- 标准事故演练流程：冻结现场、记录上下文、判断恢复来源、恢复到本机、决定是否覆盖云端和复盘。
+- 发布阻断条件：有效用户首页覆盖前没有快照、系统态自动覆盖云端、本地覆盖云端前未保护当前云端版本、恢复后静默上传、普通同步码出现明文云端历史、数据包泄露 secret 或 Supabase RLS 隔离失败等。
+- 演练记录模板，便于每次发布或事故后沉淀执行结果。
+
+阶段结论：
+
+- Phase 1.11 的用户侧数据保全闭环已形成：分类、保护、恢复、同步防误覆盖、账号托管云端历史、边界文案和 P0 演练指南均已落地。
+- 后台管理 dashboard 已延期到 Phase 1.14，Phase 1.11 后续不再扩展服务端管理员能力。
+
 ## 尚未落地
 
-- Phase 1.11.7 P0 回归测试与事故演练。
 - Phase 1.11.5 v1 暂不为普通同步码空间保存可预览云端历史；同步码空间继续只保存密文、revision 和元数据。
 - Phase 1.11.6 仍保留当前账号托管凭证恢复链路；“前端完全不接触 managed secret”的服务端托管模型需后续单独设计。
-- 原 Phase 1.11.7 Supabase 后台管理 dashboard 已延期到 Phase 1.14，在商业化正式域名上线后再做；设计方案已保存到 `docs/backlog/AdminDashboardBacklog.md`。
+- Supabase 后台管理 dashboard 已延期到 Phase 1.14，在商业化正式域名上线后再做；设计方案已保存到 `docs/backlog/AdminDashboardBacklog.md`。
 
 ## 验证记录
 
@@ -263,3 +283,4 @@ Phase 1.11 将“用户数据保全、防止数据丢失”提升为 P0。所有
 - 普通同步码空间不显示云端历史版本，不保存明文 `document_json`。
 - 设置页和用户指南已统一账号托管、普通同步码和高隐私模式边界。
 - 数据包导出不包含完整同步码、账号托管恢复凭证、登录 session 或云端历史 `document_json`。
+- Phase 1.11.7 已形成 P0 回归矩阵、事故演练流程、发布阻断条件和演练记录模板。
