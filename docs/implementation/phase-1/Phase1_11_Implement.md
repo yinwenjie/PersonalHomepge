@@ -238,9 +238,10 @@ Phase 1.11 将“用户数据保全、防止数据丢失”提升为 P0。所有
 
 ## 尚未落地
 
-- Phase 1.11.7 Supabase 后台 dashboard 和 Phase 1.11.8 P0 回归演练。
+- Phase 1.11.7 P0 回归测试与事故演练。
 - Phase 1.11.5 v1 暂不为普通同步码空间保存可预览云端历史；同步码空间继续只保存密文、revision 和元数据。
 - Phase 1.11.6 仍保留当前账号托管凭证恢复链路；“前端完全不接触 managed secret”的服务端托管模型需后续单独设计。
+- 原 Phase 1.11.7 Supabase 后台管理 dashboard 已延期到 Phase 1.14，在商业化正式域名上线后再做；设计方案已保存到 `docs/backlog/AdminDashboardBacklog.md`。
 
 ## 验证记录
 
