@@ -14,6 +14,7 @@ import {
 } from "@/domain/home-template";
 import { parseSyncCode, type StoredSyncBinding } from "@/domain/sync-code";
 import type { AccountDataState } from "@/hooks/use-account-data";
+import { captureClientError } from "@/infrastructure/error-monitoring-repository";
 import type { LocalHomeSnapshotSource } from "@/infrastructure/local-home-snapshot-repository";
 import { trackProductEvent } from "@/infrastructure/product-analytics-repository";
 
@@ -220,6 +221,15 @@ export function HomeSpacesPanel({
         setActiveSpaceId(null);
       }
     } catch (error) {
+      captureClientError(error, {
+        eventType: "async_operation_failed",
+        operation: "home_space.activate",
+        properties: {
+          accessMode: homeSpace.accessMode,
+          source: "home-spaces-panel"
+        },
+        severity: "error"
+      });
       setActivationError(error instanceof Error ? error.message : "首页空间激活失败。");
     } finally {
       setActivationPending(false);
@@ -248,6 +258,17 @@ export function HomeSpacesPanel({
           accessMode: homeSpace.accessMode
         });
       }
+    } catch (error) {
+      captureClientError(error, {
+        eventType: "async_operation_failed",
+        operation: "home_space.managed_restore",
+        properties: {
+          accessMode: homeSpace.accessMode,
+          source: "home-spaces-panel"
+        },
+        severity: "error"
+      });
+      setActivationError(error instanceof Error ? error.message : "账号托管空间恢复失败。");
     } finally {
       setManagedRestoreSpaceId(null);
     }
@@ -274,6 +295,17 @@ export function HomeSpacesPanel({
           accessMode: "account-managed"
         });
       }
+    } catch (error) {
+      captureClientError(error, {
+        eventType: "async_operation_failed",
+        operation: "home_space.managed_migrate",
+        properties: {
+          accessMode: homeSpace.accessMode,
+          source: "home-spaces-panel"
+        },
+        severity: "error"
+      });
+      setActivationError(error instanceof Error ? error.message : "账号托管迁移失败。");
     } finally {
       setManagedMigrationSpaceId(null);
     }

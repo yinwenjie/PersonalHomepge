@@ -16,6 +16,7 @@ import {
   CloudHomeSnapshotRepository,
   type CloudHomeSnapshot
 } from "@/infrastructure/cloud-home-snapshot-repository";
+import { captureClientError } from "@/infrastructure/error-monitoring-repository";
 import {
   LOCAL_HOME_SNAPSHOTS_UPDATED_EVENT,
   LocalHomeSnapshotRepository,
@@ -71,6 +72,15 @@ export function DataRecoveryCenterPanel({
       }
     } catch (cloudError) {
       console.error(cloudError);
+      captureClientError(cloudError, {
+        eventType: "async_operation_failed",
+        operation: "snapshot.cloud_list",
+        properties: {
+          accessMode: currentHomeSpace?.accessMode ?? "none",
+          source: "data-recovery-center"
+        },
+        severity: "warning"
+      });
       if (!options.silent) {
         setMessage("");
         setError("云端历史版本读取失败。请确认 Supabase 已执行 Phase 1.11.5 migration。");
@@ -78,7 +88,7 @@ export function DataRecoveryCenterPanel({
     } finally {
       setCloudLoading(false);
     }
-  }, [canUseCloudSnapshots, currentHomeSpace?.id]);
+  }, [canUseCloudSnapshots, currentHomeSpace?.accessMode, currentHomeSpace?.id]);
 
   useEffect(() => {
     if (!storageReady) {
@@ -175,6 +185,15 @@ export function DataRecoveryCenterPanel({
       setMessage("已恢复云端历史版本到本机；自动同步已暂停，请手动选择上传或拉取。");
     } catch (auditError) {
       console.warn("Failed to record cloud snapshot restore audit event:", auditError);
+      captureClientError(auditError, {
+        eventType: "async_operation_failed",
+        operation: "snapshot.cloud_restore_audit",
+        properties: {
+          accessMode: currentHomeSpace?.accessMode ?? "none",
+          source: "data-recovery-center"
+        },
+        severity: "warning"
+      });
       setMessage("已恢复云端历史版本到本机；但云端审计记录写入失败。");
       setError("");
     }

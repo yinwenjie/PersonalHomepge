@@ -11,6 +11,7 @@ import {
 } from "@/domain/ui-preferences";
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
 import { AccountRepository } from "@/infrastructure/account-repository";
+import { captureClientError } from "@/infrastructure/error-monitoring-repository";
 import { LocalUiPreferencesRepository } from "@/infrastructure/ui-preferences-repository";
 import { UiPreferencesContext, type UiPreferencesState } from "@/contexts/ui-preferences-context";
 
@@ -97,6 +98,14 @@ export function UiPreferencesProvider({ children }: UiPreferencesProviderProps) 
           return;
         }
 
+        captureClientError(preferencesError, {
+          eventType: "async_operation_failed",
+          operation: "account.preferences_load",
+          properties: {
+            source: "ui-preferences-provider"
+          },
+          severity: "warning"
+        });
         setError(getActionErrorMessage("账号偏好加载失败", preferencesError));
       })
       .finally(() => {

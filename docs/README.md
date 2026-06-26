@@ -22,7 +22,7 @@
 - `implementation/phase-1/Phase1_9_5_BookmarkImportDesign.md`：Phase 1.9.5，收藏/标签导入需求设计；记录普通网页权限边界、书签 HTML/URL 粘贴/浏览器扩展方案对比、导入草稿模型、隐私安全和 MVP 推荐路径。
 - `implementation/phase-1/Phase1_9_6_BulkImportExperienceDesign.md`：Phase 1.9.6，大批量导入体验设计；记录 5 步导入向导、localStorage 草稿与撤销记录、分页预览、分组映射、批量选择、性能边界和 Phase 1.9.7 MVP 范围。
 - `implementation/phase-1/Phase1_10_Implement.md`：Phase 1.10，正式推出前基础收口；记录数据包恢复、本地审计日志、本机状态、同步请求多标签协调，以及账号删除、只读分享链接、密码保护空间的高风险候选设计。
-- `implementation/phase-1/Phase1_11_Implement.md`：Phase 1.11，数据保全与发布观测体系；记录文档分类、本地历史版本、数据恢复中心、危险写入保护、同步误覆盖防护、账号托管云端历史版本、账号托管可恢复模型收口、P0 回归演练和基础埋点。
+- `implementation/phase-1/Phase1_11_Implement.md`：Phase 1.11，数据保全与发布观测体系；记录文档分类、本地历史版本、数据恢复中心、危险写入保护、同步误覆盖防护、账号托管云端历史版本、账号托管可恢复模型收口、P0 回归演练、基础埋点和错误监控。
 
 ## Tech Stack
 
@@ -35,7 +35,7 @@
 - Cloud sync：Supabase JavaScript SDK 调用 Postgres RPC。
 - Asset storage：Supabase Storage private bucket `home-assets` 保存登录用户的 Banner/背景图片。
 - Client-side encryption：普通同步码空间由浏览器 Web Crypto 对首页文档加密后上传；账号托管空间采用账号可信托管模型，可保存有效用户首页的明文云端历史用于恢复和审计。
-- Database：Supabase Postgres，核心表包括 `sync_spaces`、`profiles`、`account_preferences`、`home_spaces`、`home_space_snapshots`、`home_space_audit_events` 和 `product_analytics_events`，配合 RLS、权限收敛和 `security definer` RPC。
+- Database：Supabase Postgres，核心表包括 `sync_spaces`、`profiles`、`account_preferences`、`home_spaces`、`home_space_snapshots`、`home_space_audit_events`、`product_analytics_events` 和 `client_error_events`，配合 RLS、权限收敛和 `security definer` RPC。
 - Deployment：Next.js static export 输出到 `out/`，通过 GitHub Actions 部署到 GitHub Pages。
 - CI checks：`npm run lint`、`npm run typecheck`、`npm run build`。
 
@@ -46,6 +46,7 @@
 - `guides/SupabaseMigrationChecklist.md`：Supabase SQL 手动迁移执行清单。
 - `guides/DataPreservationP0RegressionDrill.md`：Phase 1.11.7 P0 数据保全回归与事故演练指南。
 - `guides/ProductAnalyticsUsageGuide.md`：Phase 1.11.8 基础埋点数据使用指南，说明可分析问题、禁采边界、常用 SQL、解读规则和保留策略。
+- `guides/ErrorMonitoringUsageGuide.md`：Phase 1.11.9 错误监控数据使用指南，说明脱敏错误数据边界、常用 SQL、解读规则和上线检查。
 
 ## Backlog
 

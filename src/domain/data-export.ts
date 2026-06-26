@@ -57,7 +57,7 @@ export interface HomepageDataExportV1 {
   };
   app: {
     documentVersion: HomeDocumentV2["version"];
-    phase: "1.11.6";
+    phase: "1.11.9";
   };
   diagnostics: {
     browserLanguage: string | null;
@@ -95,7 +95,7 @@ export function buildHomepageDataExportV1(input: BuildHomepageDataExportInput): 
     schema: DATA_EXPORT_SCHEMA,
     exportedAt: new Date().toISOString(),
     app: {
-      phase: "1.11.6",
+      phase: "1.11.9",
       documentVersion: input.local.homeDocument.version
     },
     account: {
@@ -125,6 +125,8 @@ export function buildHomepageDataExportV1(input: BuildHomepageDataExportInput): 
       excludedServerData: [
         "home_space_snapshots.document_json",
         "home_space_audit_events",
+        "product_analytics_events",
+        "client_error_events",
         "Supabase auth session"
       ],
       redactedFields: [

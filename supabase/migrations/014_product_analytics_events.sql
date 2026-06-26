@@ -61,7 +61,7 @@ as $$
   );
 $$;
 
-revoke all on function public.product_analytics_event_allowed(text) from public;
+revoke all on function public.product_analytics_event_allowed(text) from public, anon, authenticated;
 
 create or replace function public.product_analytics_json_has_forbidden_key(p_value jsonb)
 returns boolean
@@ -129,7 +129,7 @@ begin
 end;
 $$;
 
-revoke all on function public.product_analytics_json_has_forbidden_key(jsonb) from public;
+revoke all on function public.product_analytics_json_has_forbidden_key(jsonb) from public, anon, authenticated;
 
 create or replace function public.product_analytics_properties_allowed(p_properties jsonb)
 returns boolean
@@ -199,7 +199,7 @@ begin
 end;
 $$;
 
-revoke all on function public.product_analytics_properties_allowed(jsonb) from public;
+revoke all on function public.product_analytics_properties_allowed(jsonb) from public, anon, authenticated;
 
 create table if not exists public.product_analytics_events (
   id uuid primary key default extensions.gen_random_uuid(),
@@ -359,6 +359,6 @@ begin
 end;
 $$;
 
-revoke all on function public.delete_product_analytics_events_older_than(integer) from public;
+revoke all on function public.delete_product_analytics_events_older_than(integer) from public, anon, authenticated;
 
 commit;

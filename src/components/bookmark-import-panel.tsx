@@ -30,6 +30,7 @@ import {
 import { bucketCount } from "@/domain/product-analytics";
 import type { HomeDocumentV2, HomeGroup } from "@/domain/home-document";
 import { parseUrlList } from "@/domain/url-list-import";
+import { captureClientError } from "@/infrastructure/error-monitoring-repository";
 import { BookmarkImportStorageRepository } from "@/infrastructure/bookmark-import-storage";
 import type { LocalHomeSnapshotSource } from "@/infrastructure/local-home-snapshot-repository";
 import { trackProductEvent } from "@/infrastructure/product-analytics-repository";
@@ -151,6 +152,15 @@ export function BookmarkImportPanel({
       refreshSavedState();
     } catch (error) {
       console.warn(error);
+      captureClientError(error, {
+        eventType: "async_operation_failed",
+        operation: "bookmark_import.draft_save",
+        properties: {
+          source: "bookmark-import-panel",
+          sourceKind: nextDraft.sourceKind
+        },
+        severity: "warning"
+      });
       setMessage("导入草稿无法写入 localStorage；刷新页面后草稿可能丢失。");
       setMessageTone("warning");
     }
@@ -202,6 +212,15 @@ export function BookmarkImportPanel({
       refreshSavedState();
     } catch (error) {
       console.warn(error);
+      captureClientError(error, {
+        eventType: "async_operation_failed",
+        operation: "bookmark_import.undo_save",
+        properties: {
+          source: "bookmark-import-panel",
+          sourceKind: draft.sourceKind
+        },
+        severity: "warning"
+      });
       undoSaved = false;
     }
 

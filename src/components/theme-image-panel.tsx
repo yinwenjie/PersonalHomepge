@@ -15,6 +15,7 @@ import type {
   HomeThemeAsset,
   HomeThemeAssetSlot
 } from "@/domain/home-document";
+import { captureClientError } from "@/infrastructure/error-monitoring-repository";
 import { HomeAssetStorageRepository } from "@/infrastructure/home-asset-storage-repository";
 import { trackProductEvent } from "@/infrastructure/product-analytics-repository";
 
@@ -72,6 +73,16 @@ export function ThemeImagePanel({
       setMessage({ text: `${getSlotLabel(slot)} 图片已上传。`, tone: "success" });
     } catch (error) {
       console.error(error);
+      captureClientError(error, {
+        eventType: "async_operation_failed",
+        operation: "storage.asset_upload",
+        properties: {
+          resourceKind: "image",
+          source: "theme-image-panel",
+          storageReady
+        },
+        severity: "error"
+      });
       setMessage({
         text: error instanceof Error ? error.message : `${getSlotLabel(slot)} 图片上传失败。`,
         tone: "danger"
@@ -97,6 +108,16 @@ export function ThemeImagePanel({
         await repositoryRef.current.remove(currentAsset);
       } catch (error) {
         console.warn(error);
+        captureClientError(error, {
+          eventType: "async_operation_failed",
+          operation: "storage.asset_remove",
+          properties: {
+            resourceKind: "image",
+            source: "theme-image-panel",
+            storageReady
+          },
+          severity: "warning"
+        });
       }
     }
   }

@@ -24,6 +24,7 @@ import { parseSyncCode, type StoredSyncBinding } from "@/domain/sync-code";
 import { useAccountData } from "@/hooks/use-account-data";
 import { useHomeDocumentController } from "@/hooks/use-home-document-controller";
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
+import { captureClientError } from "@/infrastructure/error-monitoring-repository";
 import { LocalAuditLogRepository, recordLocalAuditEvent } from "@/infrastructure/local-audit-log-repository";
 import type { CloudHomeSnapshot } from "@/infrastructure/cloud-home-snapshot-repository";
 import { LocalDeviceRepository } from "@/infrastructure/local-device-repository";
@@ -163,6 +164,16 @@ export function SettingsDashboard() {
       });
     } catch (error) {
       console.error(error);
+      captureClientError(error, {
+        eventType: "async_operation_failed",
+        operation: "data_package.export",
+        properties: {
+          hasSyncBinding: Boolean(currentBinding),
+          source: "settings-dashboard",
+          storageReady
+        },
+        severity: "error"
+      });
       setAdvancedActionError(error instanceof Error ? error.message : "数据包导出失败。");
     }
   }
@@ -195,6 +206,16 @@ export function SettingsDashboard() {
     } catch (error) {
       console.error(error);
       const message = error instanceof Error ? error.message : "数据包读取失败。";
+      captureClientError(error, {
+        eventType: "async_operation_failed",
+        operation: "data_package.restore_preview",
+        properties: {
+          reasonCode: "preview-failed",
+          source: "settings-dashboard",
+          storageReady
+        },
+        severity: "warning"
+      });
       setAdvancedActionError(message);
       trackProductEvent("data_package.restore_failed", {
         reasonCode: "preview-failed",

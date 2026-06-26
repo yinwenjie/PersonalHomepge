@@ -15,6 +15,7 @@ import {
   type HomeDocumentClass
 } from "@/domain/home-document-protection";
 import { summarizeDocumentForAnalytics } from "@/domain/product-analytics";
+import { captureClientError } from "@/infrastructure/error-monitoring-repository";
 import { LocalHomeRepository } from "@/infrastructure/home-repository";
 import type { CloudHomeSnapshot } from "@/infrastructure/cloud-home-snapshot-repository";
 import { recordLocalAuditEvent } from "@/infrastructure/local-audit-log-repository";
@@ -145,6 +146,15 @@ export function useHomeDocumentController() {
       };
     } catch (error) {
       console.warn("Failed to save local home snapshot:", error);
+      captureClientError(error, {
+        eventType: "async_operation_failed",
+        operation: "snapshot.local_save",
+        properties: {
+          documentClass: protection.documentClass,
+          source
+        },
+        severity: "error"
+      });
       recordSnapshotFailure(protectedDocument, source, error);
       setSaveStatus("未能保存当前首页，已取消覆盖操作");
       return {
@@ -200,6 +210,15 @@ export function useHomeDocumentController() {
       repository.saveResetBackup(currentDocument);
     } catch (error) {
       console.error(error);
+      captureClientError(error, {
+        eventType: "async_operation_failed",
+        operation: "data_package.restore_backup",
+        properties: {
+          documentClass: classifyHomeDocument(currentDocument).documentClass,
+          source: "home-document-controller"
+        },
+        severity: "error"
+      });
       window.alert("恢复前备份失败，已取消导入。");
       recordLocalAuditEvent({
         documentId: currentDocument.documentId,
@@ -284,7 +303,16 @@ export function useHomeDocumentController() {
         },
         type: "document.json_import"
       });
-    } catch {
+    } catch (error) {
+      captureClientError(error, {
+        eventType: "async_operation_failed",
+        operation: "document.json_import",
+        properties: {
+          reasonCode: "invalid-json",
+          source: "home-document-controller"
+        },
+        severity: "warning"
+      });
       trackProductEvent("document.json_import_failed", {
         reasonCode: "invalid-json"
       });
@@ -323,6 +351,15 @@ export function useHomeDocumentController() {
       });
     } catch (error) {
       console.error(error);
+      captureClientError(error, {
+        eventType: "async_operation_failed",
+        operation: "document.reset_backup_save",
+        properties: {
+          documentClass: classifyHomeDocument(currentDocument).documentClass,
+          source: "home-document-controller"
+        },
+        severity: "error"
+      });
       window.alert("重置前备份失败，已取消恢复默认。");
       recordLocalAuditEvent({
         documentId: currentDocument.documentId,
@@ -441,6 +478,14 @@ export function useHomeDocumentController() {
       return true;
     } catch (error) {
       console.error(error);
+      captureClientError(error, {
+        eventType: "async_operation_failed",
+        operation: "snapshot.local_restore",
+        properties: {
+          source: "home-document-controller"
+        },
+        severity: "error"
+      });
       setSaveStatus("本地历史版本恢复失败");
       recordLocalAuditEvent({
         documentId: currentDocument.documentId,
@@ -507,6 +552,14 @@ export function useHomeDocumentController() {
       return true;
     } catch (error) {
       console.error(error);
+      captureClientError(error, {
+        eventType: "async_operation_failed",
+        operation: "snapshot.cloud_restore",
+        properties: {
+          source: "home-document-controller"
+        },
+        severity: "error"
+      });
       setSaveStatus("云端历史版本恢复失败");
       recordLocalAuditEvent({
         documentId: currentDocument.documentId,

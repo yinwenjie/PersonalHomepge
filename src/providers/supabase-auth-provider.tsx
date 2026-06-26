@@ -10,6 +10,7 @@ import {
   isSupabaseConfigured,
   SUPABASE_CONFIGURATION_MESSAGE
 } from "@/infrastructure/supabase-client";
+import { captureClientError } from "@/infrastructure/error-monitoring-repository";
 import { trackProductEvent } from "@/infrastructure/product-analytics-repository";
 
 interface SupabaseAuthProviderProps {
@@ -60,9 +61,34 @@ export function SupabaseAuthProvider({ children }: SupabaseAuthProviderProps) {
 
         if (sessionError) {
           setError(sessionError.message);
+          captureClientError(sessionError, {
+            eventType: "async_operation_failed",
+            operation: "auth.get_session",
+            properties: {
+              source: "supabase-auth-provider",
+              supabaseConfigured: configured
+            },
+            severity: "warning"
+          });
         }
 
         setSession(data.session);
+        setLoading(false);
+      }).catch((sessionError: unknown) => {
+        if (!mounted) {
+          return;
+        }
+
+        captureClientError(sessionError, {
+          eventType: "async_operation_failed",
+          operation: "auth.get_session",
+          properties: {
+            source: "supabase-auth-provider",
+            supabaseConfigured: configured
+          },
+          severity: "error"
+        });
+        setError(getErrorMessage(sessionError, "账号服务暂时不可用。"));
         setLoading(false);
       });
 
@@ -71,6 +97,15 @@ export function SupabaseAuthProvider({ children }: SupabaseAuthProviderProps) {
         subscriptionData.subscription.unsubscribe();
       };
     } catch (authError) {
+      captureClientError(authError, {
+        eventType: "async_operation_failed",
+        operation: "auth.initialize",
+        properties: {
+          source: "supabase-auth-provider",
+          supabaseConfigured: configured
+        },
+        severity: "error"
+      });
       const message = getErrorMessage(authError, "账号服务暂时不可用。");
       const timerId = window.setTimeout(() => {
         if (!mounted) {
@@ -117,6 +152,16 @@ export function SupabaseAuthProvider({ children }: SupabaseAuthProviderProps) {
 
       if (signInError) {
         setError(signInError.message);
+        captureClientError(signInError, {
+          eventType: "async_operation_failed",
+          operation: "auth.magic_link",
+          properties: {
+            reasonCode: "provider-error",
+            source: "supabase-auth-provider",
+            supabaseConfigured: configured
+          },
+          severity: "warning"
+        });
         trackProductEvent("auth.magic_link_failed", {
           reasonCode: "provider-error"
         });
@@ -129,6 +174,15 @@ export function SupabaseAuthProvider({ children }: SupabaseAuthProviderProps) {
       });
     } catch (authError) {
       setError(getErrorMessage(authError, "账号服务暂时不可用。"));
+      captureClientError(authError, {
+        eventType: "async_operation_failed",
+        operation: "auth.magic_link",
+        properties: {
+          source: "supabase-auth-provider",
+          supabaseConfigured: configured
+        },
+        severity: "error"
+      });
       trackProductEvent("auth.magic_link_failed", {
         reasonCode: "exception"
       });
@@ -155,6 +209,16 @@ export function SupabaseAuthProvider({ children }: SupabaseAuthProviderProps) {
 
       if (signOutError) {
         setError(signOutError.message);
+        captureClientError(signOutError, {
+          eventType: "async_operation_failed",
+          operation: "auth.sign_out",
+          properties: {
+            reasonCode: "provider-error",
+            source: "supabase-auth-provider",
+            supabaseConfigured: configured
+          },
+          severity: "warning"
+        });
         return;
       }
 
@@ -165,6 +229,15 @@ export function SupabaseAuthProvider({ children }: SupabaseAuthProviderProps) {
       });
     } catch (authError) {
       setError(getErrorMessage(authError, "账号服务暂时不可用。"));
+      captureClientError(authError, {
+        eventType: "async_operation_failed",
+        operation: "auth.sign_out",
+        properties: {
+          source: "supabase-auth-provider",
+          supabaseConfigured: configured
+        },
+        severity: "error"
+      });
     } finally {
       setActionPending(false);
     }

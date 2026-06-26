@@ -13,6 +13,7 @@ import { getActionErrorMessage } from "@/domain/errors";
 import type { HomeDocumentV2 } from "@/domain/home-document";
 import type { StoredSyncBinding } from "@/domain/sync-code";
 import { AccountRepository } from "@/infrastructure/account-repository";
+import { captureClientError } from "@/infrastructure/error-monitoring-repository";
 
 export interface AccountDataState {
   profile: AccountProfile | null;
@@ -143,6 +144,7 @@ export function useAccountData(user: User | null): AccountDataState {
         return;
       }
 
+      reportAccountDataError(accountError, "account.load");
       setProfile(null);
       setPreferences(null);
       setHomeSpaces([]);
@@ -185,6 +187,7 @@ export function useAccountData(user: User | null): AccountDataState {
       setHomeSpaces(nextHomeSpaces);
       setClaimMessage(result.status === "created" ? "首页空间已认领。" : "这个首页空间已在账号中。");
     } catch (claimError) {
+      reportAccountDataError(claimError, "account.home_space_claim");
       setClaimError(getActionErrorMessage("首页空间认领失败", claimError));
     } finally {
       setClaiming(false);
@@ -227,6 +230,7 @@ export function useAccountData(user: User | null): AccountDataState {
       setManagedCreateMessage("账号托管空间已创建。");
       return result.binding;
     } catch (createError) {
+      reportAccountDataError(createError, "account.managed_create");
       setManagedCreateError(getActionErrorMessage("账号托管空间创建失败", createError));
       return null;
     } finally {
@@ -268,6 +272,7 @@ export function useAccountData(user: User | null): AccountDataState {
       setManagedRestoreMessage("账号托管空间已恢复到本机。");
       return result;
     } catch (restoreError) {
+      reportAccountDataError(restoreError, "account.managed_restore");
       setManagedRestoreError(getActionErrorMessage("账号托管空间恢复失败", restoreError));
       return null;
     } finally {
@@ -315,6 +320,7 @@ export function useAccountData(user: User | null): AccountDataState {
       setManagedMigrationMessage(result.status === "migrated" ? "同步码空间已迁移为账号托管。" : "该空间已经是账号托管。");
       return result.binding;
     } catch (migrationError) {
+      reportAccountDataError(migrationError, "account.managed_migrate");
       setManagedMigrationError(getActionErrorMessage("账号托管迁移失败", migrationError));
       return null;
     } finally {
@@ -350,6 +356,7 @@ export function useAccountData(user: User | null): AccountDataState {
       setActivationMessage("当前首页空间已更新。");
       return true;
     } catch (activationError) {
+      reportAccountDataError(activationError, "account.home_space_activate");
       setActivationError(getActionErrorMessage("首页空间激活失败", activationError));
       return false;
     } finally {
@@ -395,6 +402,7 @@ export function useAccountData(user: User | null): AccountDataState {
       setHomeSpaceMessage("首页空间已重命名。");
       return true;
     } catch (renameError) {
+      reportAccountDataError(renameError, "account.home_space_rename");
       setHomeSpaceError(getActionErrorMessage("首页空间重命名失败", renameError));
       return false;
     } finally {
@@ -434,6 +442,7 @@ export function useAccountData(user: User | null): AccountDataState {
       setHomeSpaceMessage("默认首页空间已更新。");
       return true;
     } catch (defaultError) {
+      reportAccountDataError(defaultError, "account.home_space_set_default");
       setHomeSpaceError(getActionErrorMessage("默认首页空间更新失败", defaultError));
       return false;
     } finally {
@@ -473,6 +482,7 @@ export function useAccountData(user: User | null): AccountDataState {
       setHomeSpaceMessage("首页空间已从账号移除；底层同步空间未删除、未废弃。");
       return true;
     } catch (removeError) {
+      reportAccountDataError(removeError, "account.home_space_remove");
       setHomeSpaceError(getActionErrorMessage("首页空间移除失败", removeError));
       return false;
     } finally {
@@ -496,6 +506,7 @@ export function useAccountData(user: User | null): AccountDataState {
       setPreferencesMessage("账号偏好已保存。");
       return result;
     } catch (preferencesUpdateError) {
+      reportAccountDataError(preferencesUpdateError, "account.preferences_update");
       setPreferencesError(getActionErrorMessage("账号偏好保存失败", preferencesUpdateError));
       return null;
     } finally {
@@ -558,4 +569,15 @@ export function useAccountData(user: User | null): AccountDataState {
     removeHomeSpaceFromAccount,
     updatePreferences
   };
+}
+
+function reportAccountDataError(error: unknown, operation: string): void {
+  captureClientError(error, {
+    eventType: "async_operation_failed",
+    operation,
+    properties: {
+      source: "use-account-data"
+    },
+    severity: "error"
+  });
 }

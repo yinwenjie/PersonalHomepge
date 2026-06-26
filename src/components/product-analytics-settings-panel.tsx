@@ -3,31 +3,49 @@
 import { useEffect, useState } from "react";
 import { StatusMessage } from "@/components/status-message";
 import {
+  ERROR_MONITORING_UPDATED_EVENT,
+  loadErrorMonitoringPreferences,
+  setErrorMonitoringEnabled
+} from "@/infrastructure/error-monitoring-repository";
+import {
   PRODUCT_ANALYTICS_UPDATED_EVENT,
   loadProductAnalyticsPreferences,
   setProductAnalyticsEnabled
 } from "@/infrastructure/product-analytics-repository";
 
 export function ProductAnalyticsSettingsPanel() {
-  const [enabled, setEnabled] = useState(false);
+  const [analyticsEnabled, setAnalyticsEnabled] = useState(false);
+  const [errorMonitoringEnabled, setErrorMonitoringEnabledState] = useState(false);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     function refresh() {
-      const preferences = loadProductAnalyticsPreferences();
-      setEnabled(preferences.enabled);
+      const analyticsPreferences = loadProductAnalyticsPreferences();
+      const errorMonitoringPreferences = loadErrorMonitoringPreferences();
+      setAnalyticsEnabled(analyticsPreferences.enabled);
+      setErrorMonitoringEnabledState(errorMonitoringPreferences.enabled);
       setReady(true);
     }
 
     refresh();
     window.addEventListener(PRODUCT_ANALYTICS_UPDATED_EVENT, refresh);
+    window.addEventListener(ERROR_MONITORING_UPDATED_EVENT, refresh);
 
-    return () => window.removeEventListener(PRODUCT_ANALYTICS_UPDATED_EVENT, refresh);
+    return () => {
+      window.removeEventListener(PRODUCT_ANALYTICS_UPDATED_EVENT, refresh);
+      window.removeEventListener(ERROR_MONITORING_UPDATED_EVENT, refresh);
+    };
   }, []);
 
-  function handleToggle(nextEnabled: boolean) {
+  function handleAnalyticsToggle(nextEnabled: boolean) {
     const preferences = setProductAnalyticsEnabled(nextEnabled);
-    setEnabled(preferences.enabled);
+    setAnalyticsEnabled(preferences.enabled);
+    setReady(true);
+  }
+
+  function handleErrorMonitoringToggle(nextEnabled: boolean) {
+    const preferences = setErrorMonitoringEnabled(nextEnabled);
+    setErrorMonitoringEnabledState(preferences.enabled);
     setReady(true);
   }
 
@@ -40,14 +58,23 @@ export function ProductAnalyticsSettingsPanel() {
       <label className="analytics-toggle-row">
         <input
           type="checkbox"
-          checked={enabled}
+          checked={analyticsEnabled}
           disabled={!ready}
-          onChange={(event) => handleToggle(event.target.checked)}
+          onChange={(event) => handleAnalyticsToggle(event.target.checked)}
         />
         <span>允许匿名基础埋点</span>
       </label>
+      <label className="analytics-toggle-row">
+        <input
+          type="checkbox"
+          checked={errorMonitoringEnabled}
+          disabled={!ready}
+          onChange={(event) => handleErrorMonitoringToggle(event.target.checked)}
+        />
+        <span>允许匿名错误诊断</span>
+      </label>
       <StatusMessage tone="neutral">
-        只记录白名单功能事件和数量级，不上传网站 URL、搜索词、首页内容、同步码或账号托管凭证。
+        只记录白名单功能事件、脱敏错误类型和数量级，不上传网站 URL、搜索词、首页内容、同步码、账号托管凭证或完整错误对象。
       </StatusMessage>
     </div>
   );

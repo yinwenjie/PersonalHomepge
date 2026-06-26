@@ -15,6 +15,7 @@ import {
 } from "@/domain/sync-code";
 import { StatusMessage } from "@/components/status-message";
 import { useUiPreferences } from "@/hooks/use-ui-preferences";
+import { captureClientError } from "@/infrastructure/error-monitoring-repository";
 import { recordLocalAuditEvent } from "@/infrastructure/local-audit-log-repository";
 import type { LocalHomeSnapshotSource } from "@/infrastructure/local-home-snapshot-repository";
 import { trackProductEvent } from "@/infrastructure/product-analytics-repository";
@@ -201,6 +202,17 @@ export function SyncPanel({
     } catch (actionError) {
       console.error(actionError);
       const activeBinding = bindingRef.current;
+      captureClientError(actionError, {
+        eventType: "async_operation_failed",
+        operation: options.operation ? `sync.${options.operation}` : "sync.action",
+        properties: {
+          accessMode: activeBinding?.accessMode ?? "none",
+          source: "sync-panel",
+          supabaseConfigured: syncServiceConfigured,
+          syncStatus: documentRef.current.syncMeta.status
+        },
+        severity: isLikelyOfflineError(actionError) ? "warning" : "error"
+      });
       setError(getErrorMessage(actionError, "同步操作失败。"));
       if (pausedBinding) {
         setSyncMetaFromBinding(pausedBinding, "paused", "同步已暂停");

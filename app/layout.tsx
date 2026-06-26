@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { SupabaseAuthProvider } from "@/providers/supabase-auth-provider";
-import { UiPreferencesProvider } from "@/providers/ui-preferences-provider";
+import { AppRuntimeShell } from "@/components/app-runtime-shell";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -16,9 +15,7 @@ export default function RootLayout({
   return (
     <html lang="zh-CN">
       <body>
-        <SupabaseAuthProvider>
-          <UiPreferencesProvider>{children}</UiPreferencesProvider>
-        </SupabaseAuthProvider>
+        <AppRuntimeShell>{children}</AppRuntimeShell>
       </body>
     </html>
   );

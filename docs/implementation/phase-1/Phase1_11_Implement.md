@@ -220,7 +220,7 @@ Phase 1.11 将“用户数据保全、防止数据丢失”提升为 P0。所有
 - 设置页账号当前首页、首页空间创建/恢复/迁移/移除确认、离线同步码与恢复、数据恢复中心和数据包导出提示统一使用同一套边界术语。
 - 迁移为账号托管时明确提示账号会保存恢复凭证，账号托管云端历史可用于恢复、完整预览和审计；旧同步码本阶段仍不自动废弃。
 - 账号托管空间不再暗示严格端到端加密；普通同步码空间才强调用户持有完整同步码和云端密文边界。
-- 数据包导出诊断阶段标记更新为 `1.11.6`，并明确不包含 `StoredSyncBinding.accessToken`、`StoredSyncBinding.encryptionKey`、`home_space_credentials.access_token`、`home_space_credentials.encryption_key`、登录 session 或云端历史 `home_space_snapshots.document_json`。
+- 数据包导出诊断阶段标记在本阶段更新为 `1.11.6`，并明确不包含 `StoredSyncBinding.accessToken`、`StoredSyncBinding.encryptionKey`、`home_space_credentials.access_token`、`home_space_credentials.encryption_key`、登录 session 或云端历史 `home_space_snapshots.document_json`；当前实现已随 Phase 1.11.9 继续更新阶段标记，并排除产品埋点和错误监控服务端表。
 - 新增只读 Supabase 检查脚本 `supabase/checks/015_account_managed_recovery_model_verify.sql`，验证账号托管恢复表 RLS、anon/PUBLIC 表权限、authenticated grant、账号托管 v2 RPC 权限、旧同步码 RPC 兼容和可选 A/B RLS 隔离。
 
 关键文件：
@@ -287,20 +287,42 @@ Phase 1.11 将“用户数据保全、防止数据丢失”提升为 P0。所有
 - 埋点只保存数量级、枚举值和结果状态，例如 `siteCountBucket`、`groupCountBucket`、`widgetCountBucket`、`templateId`、`accessMode`、`syncStatus`、`result`、`reasonCode`。
 - 上报失败静默降级，不影响首页加载、编辑、同步、导入或恢复。
 
-### Phase 1.11.9：错误监控排期
+### Phase 1.11.9：错误监控
 
-错误监控从未排期候选提前到 Phase 1.11.9。该阶段只做排期占位，具体方案后续单独评估。
+错误监控从未排期候选提前到 Phase 1.11.9，并采用 first-party Supabase 上报通道。目标是在正式发布前补齐最小异常观测能力，辅助定位页面崩溃、资源加载失败和关键异步流程失败。
 
-初步边界：
+已新增：
 
-- 采集前端异常、资源加载失败、unhandled promise rejection 和关键异步流程失败。
-- 必须做 PII 和 secret 过滤。
-- 需要 release 标识、采样策略、环境隔离和 sourcemap 上传/隐藏策略。
-- 不能泄露首页内容、同步码、账号托管 secret、Supabase session 或环境变量。
+- `src/domain/error-monitoring.ts`
+- `src/infrastructure/error-monitoring-repository.ts`
+- `src/components/error-monitoring-installer.tsx`
+- `src/components/error-monitor-boundary.tsx`
+- `src/components/app-runtime-shell.tsx`
+- `app/error.tsx`
+- `supabase/migrations/015_client_error_events.sql`
+- `supabase/checks/017_client_error_events_verify.sql`
+- `docs/guides/ErrorMonitoringUsageGuide.md`
+
+实现内容：
+
+- 新增统一 `captureClientError(...)` facade，业务组件不直接依赖 Supabase 表结构。
+- 建立白名单错误事件、白名单属性、schema version、脱敏清洗、fingerprint、禁采字段、session 限流和同 fingerprint 短时去重。
+- 新增 `homepage:error-monitoring:v1`，保存本机匿名诊断 ID 和“允许匿名错误诊断”开关；默认遵守浏览器 Do Not Track。
+- 设置页“产品改进”区新增“允许匿名错误诊断”开关，和基础埋点开关相互独立。
+- 新增全局 `window.error`、`unhandledrejection` 和资源加载失败捕获；资源失败只记录资源类型和同源/跨源粗粒度来源，不保存完整 URL。
+- 新增 React Error Boundary 和 `app/error.tsx` 兜底页面，渲染崩溃时提供重新加载/返回首页，并在成功上报时显示短错误编号。
+- 关键异步失败已接入显式上报：Supabase Auth、账号偏好加载、账号首页空间操作、同步操作、数据包导出/恢复预览、本地/云端历史恢复、云端历史列表/审计、图片 Storage 上传/删除、书签导入草稿/撤销记录写入等。
+- 新增 `client_error_events` 表和 `record_client_error_event(...)` RPC。普通前端角色没有直接表级读写权限，只能通过 RPC 受控写入。
+- RPC 和表约束校验事件类型、severity、fingerprint、匿名诊断 ID、session ID、payload 大小、属性白名单和禁采字段。
+
+隐私边界：
+
+- 不采集网站 URL、网站名称、搜索词、分组名称、Todo 内容、组件具体配置、图片 URL、同步码、access token、encryption key、账号托管恢复凭证、完整 `HomeDocumentV2` 或云端历史 `document_json`。
+- 错误 message、stack 和 component stack 都会脱敏并截断；URL、邮箱、Bearer token、长 token-like 字符串和 secret 相关键值会被替换。
+- 上报失败静默降级，不影响首页加载、编辑、同步、导入或恢复。
 
 ## 尚未落地
 
-- Phase 1.11.9 错误监控尚未实现；已从未排期候选提前为正式子阶段。
 - Phase 1.11.5 v1 暂不为普通同步码空间保存可预览云端历史；同步码空间继续只保存密文、revision 和元数据。
 - Phase 1.11.6 仍保留当前账号托管凭证恢复链路；“前端完全不接触 managed secret”的服务端托管模型需后续单独设计。
 - Supabase 后台管理 dashboard 已延期到 Phase 1.14，在商业化正式域名上线后再做；设计方案已保存到 `docs/backlog/AdminDashboardBacklog.md`。
@@ -328,4 +350,6 @@ Phase 1.11 将“用户数据保全、防止数据丢失”提升为 P0。所有
 - Phase 1.11.7 已形成 P0 回归矩阵、事故演练流程、发布阻断条件和演练记录模板。
 - Phase 1.11.8 已新增基础埋点 facade、本机匿名 ID、关闭开关、Supabase 受控上报 RPC、事件/属性白名单和使用指南。
 - `product_analytics_events` 只保存白名单事件和脱敏属性；普通前端角色无直接表访问权限，需执行 `016_product_analytics_events_verify.sql` 复核线上 Supabase 权限。
+- Phase 1.11.9 已新增错误监控 facade、本机匿名诊断 ID、关闭开关、全局异常捕获、错误兜底 UI、Supabase 受控上报 RPC、事件/属性白名单和使用指南。
+- `client_error_events` 只保存脱敏错误信息和白名单属性；普通前端角色无直接表访问权限，需执行 `017_client_error_events_verify.sql` 复核线上 Supabase 权限。
 - 已验证自动检查：`npm run typecheck`、`npm run lint`、`npm run build`、`git diff --check`。

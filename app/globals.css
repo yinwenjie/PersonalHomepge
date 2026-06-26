@@ -2817,6 +2817,55 @@ h1 {
   accent-color: var(--accent);
 }
 
+.runtime-error-screen {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.runtime-error-panel {
+  display: grid;
+  gap: 12px;
+  width: min(100%, 520px);
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.runtime-error-kicker {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 680;
+  text-transform: uppercase;
+}
+
+.runtime-error-panel h1 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.runtime-error-panel p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.runtime-error-id {
+  overflow-wrap: anywhere;
+}
+
+.runtime-error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .preference-row strong {
   overflow: hidden;
   font-size: 13px;
