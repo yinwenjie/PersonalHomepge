@@ -1069,6 +1069,24 @@ h1 {
   .add-group-row {
     grid-template-columns: var(--add-control-size) minmax(0, 1fr);
   }
+
+  .widget-card {
+    padding: 12px;
+  }
+
+  .widget-drag-handle,
+  .widget-card-actions .mini-button {
+    width: 40px;
+    min-height: 40px;
+  }
+
+  .widget-title-input {
+    min-height: 40px;
+  }
+
+  .widget-shell-management-actions {
+    gap: 6px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1405,18 +1423,35 @@ h1 {
 }
 
 .widget-card-copy strong {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
   font-size: 13px;
   font-weight: 680;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .widget-card-copy span {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
   color: var(--muted);
   font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .widget-card-actions {
   display: flex;
   flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.widget-shell-management-actions {
+  display: inline-flex;
   gap: 4px;
 }
 
@@ -1444,6 +1479,7 @@ h1 {
 }
 
 .widget-card-actions .mini-button {
+  flex: 0 0 auto;
   width: 28px;
   min-height: 28px;
   background: var(--glass-bg-soft);

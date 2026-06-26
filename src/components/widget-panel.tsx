@@ -18,22 +18,23 @@ import {
   verticalListSortingStrategy
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { type CSSProperties, type FormEvent, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
   type HomeDocumentV2,
   type HomeWidget,
   type HomeWidgetType,
   isUngroupedGroup,
-  normalizeText,
   renumberWidgets,
   sortByOrder
 } from "@/domain/home-document";
+import { normalizeCalendarConfig } from "@/domain/calendar-widget";
 import { createHomeWidget } from "@/domain/home-widget";
 import { getTodoStats, readTodoItems } from "@/domain/todo-widget";
 import { getWidgetDefinition, WIDGET_DEFINITIONS } from "@/domain/widget-registry";
 import { CalendarMonthWidget } from "@/components/widgets/calendar-month-widget";
 import { TodoListWidget } from "@/components/widgets/todo-list-widget";
+import { WidgetShell } from "@/components/widgets/widget-shell";
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
 import { trackProductEvent } from "@/infrastructure/product-analytics-repository";
 
@@ -324,15 +325,7 @@ function SortableWidgetCard({
   onUpdateWidget
 }: SortableWidgetCardProps) {
   const definition = getWidgetDefinition(widget.type);
-  const [titleDraftState, setTitleDraftState] = useState({
-    sourceTitle: widget.title,
-    value: widget.title,
-    widgetId: widget.id
-  });
   const collapsed = widget.layout.collapsed;
-  const titleDraft = titleDraftState.widgetId === widget.id && titleDraftState.sourceTitle === widget.title
-    ? titleDraftState.value
-    : widget.title;
   const {
     attributes,
     listeners,
@@ -345,123 +338,45 @@ function SortableWidgetCard({
     data: { kind: "widget", widgetId: widget.id },
     disabled: !manageMode || widgetsLength < 2
   });
-  const style: CSSProperties = {
+  const style = {
     transform: CSS.Transform.toString(transform),
     transition
   };
-
-  function commitTitle() {
-    const nextTitle = normalizeText(titleDraft) || definition.defaultTitle;
-    setTitleDraftState({
-      sourceTitle: widget.title,
-      value: nextTitle,
-      widgetId: widget.id
-    });
-    onRenameWidget(widget.id, nextTitle);
-  }
-
-  function handleTitleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    event.currentTarget.querySelector("input")?.blur();
-  }
+  const dragHandle = (
+    <button
+      className="widget-drag-handle"
+      type="button"
+      disabled={widgetsLength < 2}
+      aria-label={`拖动${widget.title}排序`}
+      title="拖动排序"
+      {...attributes}
+      {...listeners}
+    >
+      ↕
+    </button>
+  );
 
   return (
-    <article
-      ref={setNodeRef}
-      className={[
-        "widget-card",
-        manageMode ? "is-managing" : "",
-        collapsed ? "is-collapsed" : "",
-        isDragging ? "is-dragging" : ""
-      ].filter(Boolean).join(" ")}
+    <WidgetShell
+      title={widget.title}
+      defaultTitle={definition.defaultTitle}
+      description={definition.description}
+      manageMode={manageMode}
+      collapsed={collapsed}
+      widgetIndex={widgetIndex}
+      widgetsLength={widgetsLength}
+      collapsedSummary={getWidgetCollapsedSummary(widget)}
+      dragHandle={dragHandle}
+      isDragging={isDragging}
+      articleRef={setNodeRef}
       style={style}
+      onRenameTitle={(title) => onRenameWidget(widget.id, title)}
+      onToggleCollapsed={() => onToggleCollapsed(widget.id)}
+      onMove={(direction) => onMoveWidget(widget.id, direction)}
+      onDelete={() => onDeleteWidget(widget.id)}
     >
-      <div className="widget-card-head">
-        {manageMode ? (
-          <button
-            className="widget-drag-handle"
-            type="button"
-            disabled={widgetsLength < 2}
-            aria-label={`拖动${widget.title}排序`}
-            title="拖动排序"
-            {...attributes}
-            {...listeners}
-          >
-            ↕
-          </button>
-        ) : null}
-        <div className="widget-card-copy">
-          {manageMode ? (
-            <form className="widget-title-form" onSubmit={handleTitleSubmit}>
-              <input
-                className="widget-title-input"
-                value={titleDraft}
-                aria-label={`${widget.title}标题`}
-                onBlur={commitTitle}
-                onChange={(event) => setTitleDraftState({
-                  sourceTitle: widget.title,
-                  value: event.target.value,
-                  widgetId: widget.id
-                })}
-              />
-            </form>
-          ) : (
-            <strong>{widget.title}</strong>
-          )}
-          <span>{definition.description}</span>
-        </div>
-        <div className="widget-card-actions">
-          <button
-            className="mini-button"
-            type="button"
-            aria-expanded={!collapsed}
-            aria-label={collapsed ? `展开${widget.title}` : `折叠${widget.title}`}
-            title={collapsed ? "展开" : "折叠"}
-            onClick={() => onToggleCollapsed(widget.id)}
-          >
-            {collapsed ? "▾" : "▴"}
-          </button>
-          {manageMode ? (
-            <>
-              <button
-                className="mini-button"
-                type="button"
-                disabled={widgetIndex === 0}
-                aria-label={`上移${widget.title}`}
-                title="上移"
-                onClick={() => onMoveWidget(widget.id, -1)}
-              >
-                ↑
-              </button>
-              <button
-                className="mini-button"
-                type="button"
-                disabled={widgetIndex === widgetsLength - 1}
-                aria-label={`下移${widget.title}`}
-                title="下移"
-                onClick={() => onMoveWidget(widget.id, 1)}
-              >
-                ↓
-              </button>
-              <button
-                className="mini-button"
-                type="button"
-                aria-label={`删除${widget.title}`}
-                title="删除"
-                onClick={() => onDeleteWidget(widget.id)}
-              >
-                ×
-              </button>
-            </>
-          ) : null}
-        </div>
-      </div>
-      {collapsed ? (
-        <p className="widget-collapsed-summary">{getWidgetCollapsedSummary(widget)}</p>
-      ) : (
-        <WidgetContent widget={widget} onUpdateWidget={onUpdateWidget} />
-      )}
-    </article>
+      <WidgetContent widget={widget} onUpdateWidget={onUpdateWidget} />
+    </WidgetShell>
   );
 }
 
@@ -494,7 +409,12 @@ function getWidgetCollapsedSummary(widget: HomeWidget): string {
   }
 
   if (widget.type === "calendar.month") {
-    return "月历已折叠，展开查看本月";
+    const config = normalizeCalendarConfig(widget.config);
+    const now = new Date();
+    const monthLabel = `${now.getFullYear()}年${now.getMonth() + 1}月`;
+    const weekStartLabel = config.weekStartsOn === 1 ? "周一开始" : "周日开始";
+
+    return `${monthLabel} · ${weekStartLabel}`;
   }
 
   return "组件已折叠";

@@ -23,6 +23,7 @@
 - `implementation/phase-1/Phase1_9_6_BulkImportExperienceDesign.md`：Phase 1.9.6，大批量导入体验设计；记录 5 步导入向导、localStorage 草稿与撤销记录、分页预览、分组映射、批量选择、性能边界和 Phase 1.9.7 MVP 范围。
 - `implementation/phase-1/Phase1_10_Implement.md`：Phase 1.10，正式推出前基础收口；记录数据包恢复、本地审计日志、本机状态、同步请求多标签协调，以及账号删除、只读分享链接、密码保护空间的高风险候选设计。
 - `implementation/phase-1/Phase1_11_Implement.md`：Phase 1.11，数据保全与发布观测体系；记录文档分类、本地历史版本、数据恢复中心、危险写入保护、同步误覆盖防护、账号托管云端历史版本、账号托管可恢复模型收口、P0 回归演练、基础埋点和错误监控。
+- `implementation/phase-1/Phase1_12_Implement.md`：Phase 1.12，组件设计优化；记录组件体验审计、Widget Shell、Todo/月历体验、配置入口、模板组件组合和后续组件候选设计。
 
 ## Tech Stack
 
@@ -47,6 +48,7 @@
 - `guides/DataPreservationP0RegressionDrill.md`：Phase 1.11.7 P0 数据保全回归与事故演练指南。
 - `guides/ProductAnalyticsUsageGuide.md`：Phase 1.11.8 基础埋点数据使用指南，说明可分析问题、禁采边界、常用 SQL、解读规则和保留策略。
 - `guides/ErrorMonitoringUsageGuide.md`：Phase 1.11.9 错误监控数据使用指南，说明脱敏错误数据边界、常用 SQL、解读规则和上线检查。
+- `guides/WidgetExperienceDesignGuide.md`：Phase 1.12.0 组件体验审计与设计规范，说明 Widget Shell、Todo、月历、配置入口、空状态、错误态、移动端和数据边界。
 
 ## Backlog
 
