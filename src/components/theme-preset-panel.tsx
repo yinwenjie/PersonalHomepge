@@ -13,12 +13,14 @@ import { trackProductEvent } from "@/infrastructure/product-analytics-repository
 
 interface ThemePresetPanelProps {
   documentValue: HomeDocumentV2;
+  embedded?: boolean;
   storageReady: boolean;
   onCommitDocument: (documentValue: HomeDocumentV2, message?: string) => void;
 }
 
 export function ThemePresetPanel({
   documentValue,
+  embedded = false,
   storageReady,
   onCommitDocument
 }: ThemePresetPanelProps) {
@@ -45,13 +47,8 @@ export function ThemePresetPanel({
     });
   }
 
-  return (
-    <section className="settings-panel" aria-label="主题风格">
-      <div className="panel-header">
-        <h2>主题风格</h2>
-        <span>Theme</span>
-      </div>
-
+  const content = (
+    <>
       <div className="theme-preset-grid">
         {HOME_THEME_PRESETS.map((preset) => (
           <ThemePresetButton
@@ -68,6 +65,20 @@ export function ThemePresetPanel({
       <StatusMessage tone="neutral">
         当前主题：{activePreset.name}
       </StatusMessage>
+    </>
+  );
+
+  if (embedded) {
+    return <div className="theme-preset-panel-content">{content}</div>;
+  }
+
+  return (
+    <section className="settings-panel" aria-label="主题风格">
+      <div className="panel-header">
+        <h2>主题风格</h2>
+        <span>Theme</span>
+      </div>
+      {content}
     </section>
   );
 }

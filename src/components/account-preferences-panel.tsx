@@ -18,10 +18,11 @@ import { trackProductEvent } from "@/infrastructure/product-analytics-repository
 interface AccountPreferencesPanelProps {
   accountData: AccountDataState;
   authLoading: boolean;
+  embedded?: boolean;
   signedIn: boolean;
 }
 
-export function AccountPreferencesPanel({ accountData, authLoading, signedIn }: AccountPreferencesPanelProps) {
+export function AccountPreferencesPanel({ accountData, authLoading, embedded = false, signedIn }: AccountPreferencesPanelProps) {
   const uiPreferences = useUiPreferences();
   const accountPreferencesReady = Boolean(signedIn && accountData.preferences && !accountData.error);
   const usesAccountPreferences = accountPreferencesReady;
@@ -48,13 +49,8 @@ export function AccountPreferencesPanel({ accountData, authLoading, signedIn }: 
   }, [accountData.homeSpaces, accountData.preferences?.defaultSpaceId]);
   const formDisabled = authLoading || accountData.loading;
 
-  return (
-    <section className="settings-panel" aria-label="通用设置">
-      <div className="panel-header">
-        <h2>通用设置</h2>
-        <span>{signedIn ? "Account" : "Local"}</span>
-      </div>
-
+  const content = (
+    <>
       {authLoading ? (
         <div className="settings-placeholder">
           <strong>正在读取账号状态</strong>
@@ -80,6 +76,20 @@ export function AccountPreferencesPanel({ accountData, authLoading, signedIn }: 
           />
         </>
       )}
+    </>
+  );
+
+  if (embedded) {
+    return <div className="account-preferences-panel-content">{content}</div>;
+  }
+
+  return (
+    <section className="settings-panel" aria-label="通用设置">
+      <div className="panel-header">
+        <h2>通用设置</h2>
+        <span>{signedIn ? "Account" : "Local"}</span>
+      </div>
+      {content}
     </section>
   );
 }

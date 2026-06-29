@@ -22,6 +22,7 @@ interface HomeSpacesPanelProps {
   accountData: AccountDataState;
   authLoading: boolean;
   signedIn: boolean;
+  embedded?: boolean;
   currentBinding: StoredSyncBinding | null;
   documentValue: HomeDocumentV2;
   storageReady: boolean;
@@ -41,6 +42,7 @@ export function HomeSpacesPanel({
   accountData,
   authLoading,
   signedIn,
+  embedded = false,
   currentBinding,
   documentValue,
   storageReady,
@@ -374,13 +376,8 @@ export function HomeSpacesPanel({
     }
   }
 
-  return (
-    <section className="settings-panel" aria-label="首页空间">
-      <div className="panel-header">
-        <h2>首页空间</h2>
-        <span>{signedIn ? `${accountData.homeSpaces.length} spaces` : "Sign in"}</span>
-      </div>
-
+  const content = (
+    <>
       {authLoading ? (
         <div className="settings-placeholder">
           <strong>正在读取账号状态</strong>
@@ -546,6 +543,20 @@ export function HomeSpacesPanel({
           ) : null}
         </>
       )}
+    </>
+  );
+
+  if (embedded) {
+    return <div className="home-spaces-panel-content">{content}</div>;
+  }
+
+  return (
+    <section className="settings-panel" aria-label="首页空间">
+      <div className="panel-header">
+        <h2>首页空间</h2>
+        <span>{signedIn ? `${accountData.homeSpaces.length} spaces` : "Sign in"}</span>
+      </div>
+      {content}
     </section>
   );
 }

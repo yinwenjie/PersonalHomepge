@@ -12,7 +12,8 @@ import { HomeSpacesPanel } from "@/components/home-spaces-panel";
 import { HomeThemeStyleBridge } from "@/components/home-theme-style-bridge";
 import { LocalAuditLogPanel } from "@/components/local-audit-log-panel";
 import { ProductAnalyticsSettingsPanel } from "@/components/product-analytics-settings-panel";
-import { StatusMessage } from "@/components/status-message";
+import { SettingsSection } from "@/components/settings-section";
+import { StatusMessage, type StatusTone } from "@/components/status-message";
 import { SyncPanel } from "@/components/sync-panel";
 import { ThemeImagePanel } from "@/components/theme-image-panel";
 import { ThemePresetPanel } from "@/components/theme-preset-panel";
@@ -20,10 +21,15 @@ import type { HomeSpace } from "@/domain/account";
 import { buildHomepageDataExportV1, downloadJsonFile } from "@/domain/data-export";
 import { parseHomepageDataRestore, type ParsedHomepageDataRestore } from "@/domain/data-restore";
 import type { HomeDocumentV2, HomeSyncMeta } from "@/domain/home-document";
+import type { SettingsSectionId } from "@/domain/settings-layout";
 import { parseSyncCode, type StoredSyncBinding } from "@/domain/sync-code";
+import { getHomeThemePreset, normalizeHomeThemePresetId } from "@/domain/theme-preset";
+import { searchEngineLabel } from "@/domain/ui-preferences";
 import { useAccountData } from "@/hooks/use-account-data";
 import { useHomeDocumentController } from "@/hooks/use-home-document-controller";
+import { useSettingsLayoutPreferences } from "@/hooks/use-settings-layout-preferences";
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
+import { useUiPreferences } from "@/hooks/use-ui-preferences";
 import { captureClientError } from "@/infrastructure/error-monitoring-repository";
 import { LocalAuditLogRepository, recordLocalAuditEvent } from "@/infrastructure/local-audit-log-repository";
 import type { CloudHomeSnapshot } from "@/infrastructure/cloud-home-snapshot-repository";
@@ -43,11 +49,14 @@ const ACCOUNT_MANAGED_SYNC_STATUS_SLOT_ID = "account-managed-sync-status-slot";
 export function SettingsDashboard() {
   const auth = useSupabaseAuth();
   const accountData = useAccountData(auth.user);
+  const uiPreferences = useUiPreferences();
+  const settingsLayout = useSettingsLayoutPreferences();
   const [currentBinding, setCurrentBinding] = useState<StoredSyncBinding | null>(null);
   const [advancedActionMessage, setAdvancedActionMessage] = useState("");
   const [advancedActionError, setAdvancedActionError] = useState("");
   const [syncPanelKey, setSyncPanelKey] = useState(0);
   const [dataPackageRestore, setDataPackageRestore] = useState<DataPackageRestoreDialogState | null>(null);
+  const [recoverySectionStatus, setRecoverySectionStatus] = useState<{ text: string; tone: StatusTone } | null>(null);
   const {
     homeDocument,
     storageReady,
@@ -360,6 +369,45 @@ export function SettingsDashboard() {
     ? accountData.homeSpaces.find((homeSpace) => homeSpace.syncSpaceId === currentBinding.spaceId) ?? null
     : null;
   const resetDefaultTitle = getResetDefaultTitle(storageReady, isDefaultDocument, Boolean(currentBinding));
+  const activeThemePreset = getHomeThemePreset(normalizeHomeThemePresetId(homeDocument.theme.presetId, homeDocument.theme.accent));
+  const sectionSummaries = {
+    account: getAccountSectionSummary({
+      accountData,
+      authConfigured: auth.configured,
+      authError: auth.error,
+      currentBinding,
+      currentHomeSpace: currentAccountHomeSpace,
+      signedIn,
+      syncStatus: homeDocument.syncMeta.status
+    }),
+    homeSpaces: getHomeSpacesSectionSummary({
+      accountData,
+      currentHomeSpace: currentAccountHomeSpace,
+      signedIn
+    }),
+    themeStyle: {
+      summary: `当前主题：${activeThemePreset.name}`,
+      tone: "neutral" as StatusTone
+    },
+    themeImages: getThemeImagesSectionSummary(homeDocument),
+    accountPreferences: {
+      summary: `${signedIn ? "账号偏好" : "本地偏好"} · ${uiPreferences.preferences.locale} · ${searchEngineLabel(uiPreferences.preferences.defaultSearchEngine)}`,
+      tone: uiPreferences.error ? "warning" as StatusTone : "neutral" as StatusTone
+    },
+    dataRecovery: recoverySectionStatus
+      ? { summary: recoverySectionStatus.text, tone: recoverySectionStatus.tone }
+      : {
+          summary: currentAccountHomeSpace?.accessMode === "account-managed" ? "本地历史 + 账号托管云端历史" : "当前浏览器本地历史",
+          tone: "neutral" as StatusTone
+        },
+    advanced: {
+      summary: advancedActionError || advancedActionMessage || "导入、导出、审计、同步码和本机状态",
+      tone: advancedActionError ? "danger" as StatusTone : advancedActionMessage ? "success" as StatusTone : "neutral" as StatusTone
+    }
+  };
+  const toggleSection = (sectionId: SettingsSectionId) => {
+    settingsLayout.setSectionExpanded(sectionId, !settingsLayout.isSectionExpanded(sectionId));
+  };
   const syncPanel = (
     <SyncPanel
       key={syncPanelKey}
@@ -383,6 +431,7 @@ export function SettingsDashboard() {
     <HomeSpacesPanel
       accountData={accountData}
       authLoading={auth.loading}
+      embedded
       signedIn={signedIn}
       currentBinding={currentBinding}
       documentValue={homeDocument}
@@ -408,87 +457,148 @@ export function SettingsDashboard() {
       </header>
 
       <div className="settings-stack">
-        <AccountPanel
-          accountData={accountData}
-          currentBinding={currentBinding}
-          currentHomeSpace={currentAccountHomeSpace}
-          syncActionSlotId={ACCOUNT_MANAGED_SYNC_STATUS_SLOT_ID}
-          syncStatus={homeDocument.syncMeta.status}
-        />
+        <SettingsSection
+          id="account"
+          title="账号"
+          kicker={signedIn ? "Signed in" : "Magic Link"}
+          summary={sectionSummaries.account.summary}
+          tone={sectionSummaries.account.tone}
+          expanded={settingsLayout.isSectionExpanded("account")}
+          onToggle={() => toggleSection("account")}
+          summarySlot={<div id={ACCOUNT_MANAGED_SYNC_STATUS_SLOT_ID} className="account-sync-action-slot" />}
+        >
+          <AccountPanel
+            accountData={accountData}
+            currentBinding={currentBinding}
+            currentHomeSpace={currentAccountHomeSpace}
+            embedded
+            syncStatus={homeDocument.syncMeta.status}
+          />
+        </SettingsSection>
 
-        {signedIn ? (
-          homeSpacesPanel
-        ) : (
-          <>
-            {syncPanel}
-            {homeSpacesPanel}
-          </>
-        )}
+        <SettingsSection
+          id="home-spaces"
+          title="首页空间"
+          kicker={signedIn ? `${accountData.homeSpaces.length} spaces` : "Sign in"}
+          summary={sectionSummaries.homeSpaces.summary}
+          tone={sectionSummaries.homeSpaces.tone}
+          expanded={settingsLayout.isSectionExpanded("home-spaces")}
+          onToggle={() => toggleSection("home-spaces")}
+        >
+          {homeSpacesPanel}
+        </SettingsSection>
 
-        <ThemePresetPanel
-          documentValue={homeDocument}
-          storageReady={storageReady}
-          onCommitDocument={commitHomeDocument}
-        />
+        <SettingsSection
+          id="theme-style"
+          title="主题风格"
+          kicker="Theme"
+          summary={sectionSummaries.themeStyle.summary}
+          tone={sectionSummaries.themeStyle.tone}
+          expanded={settingsLayout.isSectionExpanded("theme-style")}
+          onToggle={() => toggleSection("theme-style")}
+        >
+          <ThemePresetPanel
+            documentValue={homeDocument}
+            embedded
+            storageReady={storageReady}
+            onCommitDocument={commitHomeDocument}
+          />
+        </SettingsSection>
 
-        <ThemeImagePanel
-          documentValue={homeDocument}
-          storageReady={storageReady}
-          userId={auth.user?.id ?? null}
-          onCommitDocument={commitHomeDocument}
-        />
+        <SettingsSection
+          id="theme-images"
+          title="Banner / 背景"
+          kicker="Images"
+          summary={sectionSummaries.themeImages.summary}
+          tone={sectionSummaries.themeImages.tone}
+          expanded={settingsLayout.isSectionExpanded("theme-images")}
+          onToggle={() => toggleSection("theme-images")}
+        >
+          <ThemeImagePanel
+            documentValue={homeDocument}
+            embedded
+            storageReady={storageReady}
+            userId={auth.user?.id ?? null}
+            onCommitDocument={commitHomeDocument}
+          />
+        </SettingsSection>
 
-        <AccountPreferencesPanel
-          accountData={accountData}
-          authLoading={auth.loading}
-          signedIn={signedIn}
-        />
+        <SettingsSection
+          id="account-preferences"
+          title="通用设置"
+          kicker={signedIn ? "Account" : "Local"}
+          summary={sectionSummaries.accountPreferences.summary}
+          tone={sectionSummaries.accountPreferences.tone}
+          expanded={settingsLayout.isSectionExpanded("account-preferences")}
+          onToggle={() => toggleSection("account-preferences")}
+        >
+          <AccountPreferencesPanel
+            accountData={accountData}
+            authLoading={auth.loading}
+            embedded
+            signedIn={signedIn}
+          />
+        </SettingsSection>
 
-        <DataRecoveryCenterPanel
-          currentHomeSpace={currentAccountHomeSpace}
-          hasSyncBinding={Boolean(currentBinding)}
-          storageReady={storageReady}
-          onRestoreCloudSnapshot={(snapshot: CloudHomeSnapshot) => {
-            const restored = restoreCloudSnapshot(snapshot, {
-              syncMeta: currentBinding ? toSyncMeta(currentBinding, "paused") : localSyncMeta(),
-              successMessage: currentBinding ? "已恢复云端历史版本，自动同步已暂停" : "已恢复云端历史版本"
-            });
+        <SettingsSection
+          id="data-recovery"
+          title="数据恢复中心"
+          kicker="Recovery"
+          summary={sectionSummaries.dataRecovery.summary}
+          tone={sectionSummaries.dataRecovery.tone}
+          expanded={settingsLayout.isSectionExpanded("data-recovery")}
+          onToggle={() => toggleSection("data-recovery")}
+        >
+          <DataRecoveryCenterPanel
+            currentHomeSpace={currentAccountHomeSpace}
+            embedded
+            hasSyncBinding={Boolean(currentBinding)}
+            storageReady={storageReady}
+            onStatusSummaryChange={setRecoverySectionStatus}
+            onRestoreCloudSnapshot={(snapshot: CloudHomeSnapshot) => {
+              const restored = restoreCloudSnapshot(snapshot, {
+                syncMeta: currentBinding ? toSyncMeta(currentBinding, "paused") : localSyncMeta(),
+                successMessage: currentBinding ? "已恢复云端历史版本，自动同步已暂停" : "已恢复云端历史版本"
+              });
 
-            if (restored) {
-              setSyncPanelKey((value) => value + 1);
-            }
+              if (restored) {
+                setSyncPanelKey((value) => value + 1);
+              }
 
-            return restored;
-          }}
-          onRestoreSnapshot={(snapshot) => {
-            const restored = restoreLocalSnapshot(snapshot, {
-              syncMeta: currentBinding ? toSyncMeta(currentBinding, "paused") : localSyncMeta(),
-              successMessage: currentBinding ? "已恢复本地历史版本，自动同步已暂停" : "已恢复本地历史版本"
-            });
+              return restored;
+            }}
+            onRestoreSnapshot={(snapshot) => {
+              const restored = restoreLocalSnapshot(snapshot, {
+                syncMeta: currentBinding ? toSyncMeta(currentBinding, "paused") : localSyncMeta(),
+                successMessage: currentBinding ? "已恢复本地历史版本，自动同步已暂停" : "已恢复本地历史版本"
+              });
 
-            if (restored) {
-              setSyncPanelKey((value) => value + 1);
-            }
+              if (restored) {
+                setSyncPanelKey((value) => value + 1);
+              }
 
-            return restored;
-          }}
-        />
+              return restored;
+            }}
+          />
+        </SettingsSection>
 
-        <section className="settings-panel" aria-label="高级操作">
-          <div className="panel-header">
-            <h2>高级操作</h2>
-            <span>Advanced</span>
-          </div>
+        <SettingsSection
+          id="advanced"
+          title="高级操作"
+          kicker="Advanced"
+          summary={sectionSummaries.advanced.summary}
+          tone={sectionSummaries.advanced.tone}
+          expanded={settingsLayout.isSectionExpanded("advanced")}
+          onToggle={() => toggleSection("advanced")}
+        >
           <div className="advanced-operation-grid">
-            {signedIn ? (
-              <div className="advanced-operation-block">
-                <div className="advanced-operation-head">
-                  <h3>离线同步码与恢复</h3>
-                  <span>Sync</span>
-                </div>
-                {syncPanel}
+            <div className="advanced-operation-block">
+              <div className="advanced-operation-head">
+                <h3>{signedIn ? "离线同步码与恢复" : "同步码"}</h3>
+                <span>Sync</span>
               </div>
-            ) : null}
+              {syncPanel}
+            </div>
 
             <BookmarkImportPanel
               documentValue={homeDocument}
@@ -574,7 +684,7 @@ export function SettingsDashboard() {
 
             <ProductAnalyticsSettingsPanel />
           </div>
-        </section>
+        </SettingsSection>
       </div>
       </main>
 
@@ -628,6 +738,106 @@ function DataRestoreStat({ label, value }: { label: string; value: string }) {
       <strong>{value}</strong>
     </div>
   );
+}
+
+function getAccountSectionSummary({
+  accountData,
+  authConfigured,
+  authError,
+  currentBinding,
+  currentHomeSpace,
+  signedIn,
+  syncStatus
+}: {
+  accountData: ReturnType<typeof useAccountData>;
+  authConfigured: boolean;
+  authError: string;
+  currentBinding: StoredSyncBinding | null;
+  currentHomeSpace: HomeSpace | null;
+  signedIn: boolean;
+  syncStatus: HomeSyncMeta["status"];
+}): { summary: string; tone: StatusTone } {
+  if (!authConfigured) {
+    return { summary: "账号服务未配置，本地首页仍可编辑", tone: "warning" };
+  }
+
+  if (authError || accountData.error) {
+    return { summary: authError || accountData.error, tone: "danger" };
+  }
+
+  if (syncStatus === "conflict") {
+    return { summary: "云端和本地都有修改，需要处理同步冲突", tone: "danger" };
+  }
+
+  if (syncStatus === "paused") {
+    return { summary: "自动同步已暂停，请选择上传、拉取或解除本机", tone: "warning" };
+  }
+
+  if (currentBinding?.accessMode === "account-managed") {
+    return {
+      summary: currentHomeSpace ? `账号托管 · ${currentHomeSpace.name}` : "账号托管空间已绑定",
+      tone: "success"
+    };
+  }
+
+  if (currentBinding?.accessMode === "sync-code") {
+    return {
+      summary: currentHomeSpace ? `普通同步码 · ${currentHomeSpace.name}` : "当前浏览器绑定普通同步码",
+      tone: "info"
+    };
+  }
+
+  return {
+    summary: signedIn ? "已登录 · 当前浏览器未绑定同步空间" : "未登录 · 当前首页只保存在本机",
+    tone: signedIn ? "success" : "neutral"
+  };
+}
+
+function getHomeSpacesSectionSummary({
+  accountData,
+  currentHomeSpace,
+  signedIn
+}: {
+  accountData: ReturnType<typeof useAccountData>;
+  currentHomeSpace: HomeSpace | null;
+  signedIn: boolean;
+}): { summary: string; tone: StatusTone } {
+  if (!signedIn) {
+    return { summary: "登录后可创建、恢复和管理账号首页空间", tone: "neutral" };
+  }
+
+  if (accountData.homeSpaceError || accountData.error) {
+    return { summary: accountData.homeSpaceError || accountData.error, tone: "danger" };
+  }
+
+  if (accountData.loading) {
+    return { summary: "正在读取首页空间", tone: "neutral" };
+  }
+
+  const currentSpaceText = currentHomeSpace ? ` · 当前 ${currentHomeSpace.name}` : "";
+  return {
+    summary: `${accountData.homeSpaces.length} 个空间${currentSpaceText}`,
+    tone: currentHomeSpace ? "success" : "neutral"
+  };
+}
+
+function getThemeImagesSectionSummary(documentValue: HomeDocumentV2): { summary: string; tone: StatusTone } {
+  const hasBanner = Boolean(documentValue.theme.bannerAsset || documentValue.theme.bannerUrl);
+  const hasBackground = Boolean(documentValue.theme.backgroundAsset || documentValue.theme.backgroundUrl);
+
+  if (hasBanner && hasBackground) {
+    return { summary: "已设置 Banner 和背景", tone: "success" };
+  }
+
+  if (hasBanner) {
+    return { summary: "已设置 Banner，背景未设置", tone: "info" };
+  }
+
+  if (hasBackground) {
+    return { summary: "已设置背景，Banner 未设置", tone: "info" };
+  }
+
+  return { summary: "未设置图片", tone: "neutral" };
 }
 
 function toSyncMeta(binding: StoredSyncBinding, status: HomeSyncMeta["status"] = "synced"): HomeSyncMeta {

@@ -13,6 +13,7 @@ interface AccountPanelProps {
   accountData: AccountDataState;
   currentBinding?: StoredSyncBinding | null;
   currentHomeSpace?: HomeSpace | null;
+  embedded?: boolean;
   syncActionSlotId?: string;
   syncStatus?: HomeSyncMeta["status"];
 }
@@ -21,6 +22,7 @@ export function AccountPanel({
   accountData,
   currentBinding = null,
   currentHomeSpace = null,
+  embedded = false,
   syncActionSlotId,
   syncStatus = "local-only"
 }: AccountPanelProps) {
@@ -53,13 +55,8 @@ export function AccountPanel({
     await signInWithMagicLink(email);
   }
 
-  return (
-    <section className="settings-panel account-panel" aria-label="账号登录">
-      <div className="panel-header">
-        <h2>账号</h2>
-        <span>{user ? "Signed in" : "Magic Link"}</span>
-      </div>
-
+  const content = (
+    <>
       {user ? (
         <div className="account-card">
           <span className="avatar account-avatar">{accountInitial}</span>
@@ -107,6 +104,20 @@ export function AccountPanel({
       <StatusMessage role={accountHasError ? "alert" : "status"} tone={accountStatusTone}>
         {error || getAccountStatus(accountData, message, loading)}
       </StatusMessage>
+    </>
+  );
+
+  if (embedded) {
+    return <div className="account-panel">{content}</div>;
+  }
+
+  return (
+    <section className="settings-panel account-panel" aria-label="账号登录">
+      <div className="panel-header">
+        <h2>账号</h2>
+        <span>{user ? "Signed in" : "Magic Link"}</span>
+      </div>
+      {content}
     </section>
   );
 }

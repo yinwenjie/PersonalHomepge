@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { StatusMessage } from "@/components/status-message";
+import { StatusMessage, type StatusTone } from "@/components/status-message";
 import type { HomeSpace } from "@/domain/account";
 import {
   sortByOrder,
@@ -26,8 +26,10 @@ import { trackProductEvent } from "@/infrastructure/product-analytics-repository
 
 interface DataRecoveryCenterPanelProps {
   currentHomeSpace?: HomeSpace | null;
+  embedded?: boolean;
   hasSyncBinding: boolean;
   storageReady: boolean;
+  onStatusSummaryChange?: (summary: { text: string; tone: StatusTone } | null) => void;
   onRestoreCloudSnapshot: (snapshot: CloudHomeSnapshot) => boolean;
   onRestoreSnapshot: (snapshot: LocalHomeSnapshot) => boolean;
 }
@@ -38,8 +40,10 @@ type SnapshotPreviewState =
 
 export function DataRecoveryCenterPanel({
   currentHomeSpace = null,
+  embedded = false,
   hasSyncBinding,
   storageReady,
+  onStatusSummaryChange,
   onRestoreCloudSnapshot,
   onRestoreSnapshot
 }: DataRecoveryCenterPanelProps) {
@@ -50,6 +54,8 @@ export function DataRecoveryCenterPanel({
   const [error, setError] = useState("");
   const [cloudLoading, setCloudLoading] = useState(false);
   const [previewSnapshot, setPreviewSnapshot] = useState<SnapshotPreviewState | null>(null);
+  const [selectedLocalSnapshotId, setSelectedLocalSnapshotId] = useState("");
+  const [selectedCloudSnapshotId, setSelectedCloudSnapshotId] = useState("");
   const recoveryOpenedTrackedRef = useRef(false);
   const currentHomeSpaceId = currentHomeSpace?.id ?? "";
   const canUseCloudSnapshots = Boolean(currentHomeSpace?.accessMode === "account-managed");
@@ -125,6 +131,20 @@ export function DataRecoveryCenterPanel({
     return () => window.clearTimeout(timerId);
   }, [canUseCloudSnapshots, currentHomeSpace?.id, refreshCloudSnapshots, storageReady]);
 
+  useEffect(() => {
+    if (error) {
+      onStatusSummaryChange?.({ text: error, tone: "danger" });
+      return;
+    }
+
+    if (message) {
+      onStatusSummaryChange?.({ text: message, tone: "success" });
+      return;
+    }
+
+    onStatusSummaryChange?.(null);
+  }, [error, message, onStatusSummaryChange]);
+
   const visibleSnapshots = useMemo(() => snapshots.slice(0, 30), [snapshots]);
   const visibleCloudSnapshots = useMemo(() => {
     if (!canUseCloudSnapshots || !currentHomeSpaceId) {
@@ -135,6 +155,12 @@ export function DataRecoveryCenterPanel({
       .filter((snapshot) => snapshot.homeSpaceId === currentHomeSpaceId)
       .slice(0, 50);
   }, [canUseCloudSnapshots, cloudSnapshots, currentHomeSpaceId]);
+  const selectedLocalSnapshot = useMemo(() => {
+    return visibleSnapshots.find((snapshot) => snapshot.id === selectedLocalSnapshotId) ?? visibleSnapshots[0] ?? null;
+  }, [selectedLocalSnapshotId, visibleSnapshots]);
+  const selectedCloudSnapshot = useMemo(() => {
+    return visibleCloudSnapshots.find((snapshot) => snapshot.id === selectedCloudSnapshotId) ?? visibleCloudSnapshots[0] ?? null;
+  }, [selectedCloudSnapshotId, visibleCloudSnapshots]);
 
   function refreshSnapshots() {
     setSnapshots(loadSnapshots());
@@ -203,13 +229,8 @@ export function DataRecoveryCenterPanel({
     setSnapshots(loadSnapshots());
   }
 
-  return (
-    <section className="settings-panel data-recovery-center" aria-label="数据恢复中心">
-      <div className="panel-header">
-        <h2>数据恢复中心</h2>
-        <span>Recovery</span>
-      </div>
-
+  const content = (
+    <>
       <div className="settings-actions">
         <button className="utility-button" type="button" onClick={refreshSnapshots} disabled={!storageReady}>
           刷新本地
@@ -232,25 +253,23 @@ export function DataRecoveryCenterPanel({
           <h3>本地历史版本</h3>
           <span>当前浏览器</span>
         </div>
-        {visibleSnapshots.length > 0 ? (
-          <div className="local-snapshot-list">
-            {visibleSnapshots.map((snapshot) => (
-              <article className="local-snapshot-card" key={snapshot.id}>
-                <SnapshotCardCopy locale={preferences.locale} snapshot={snapshot} />
-                <div className="settings-actions local-snapshot-actions">
-                    <button className="utility-button" type="button" onClick={() => {
-                      trackProductEvent("recovery.local_previewed", toSnapshotAnalyticsProperties(snapshot));
-                      setPreviewSnapshot({ kind: "local", snapshot });
-                    }}>
-                      预览
-                    </button>
-                  <button className="danger-button" type="button" onClick={() => restoreSnapshot(snapshot)} disabled={!storageReady}>
-                    恢复
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
+        {selectedLocalSnapshot ? (
+          <SnapshotSelector
+            label="选择本地历史版本"
+            locale={preferences.locale}
+            snapshots={visibleSnapshots}
+            selectedSnapshot={selectedLocalSnapshot}
+            value={selectedLocalSnapshot.id}
+            onChange={setSelectedLocalSnapshotId}
+            onPreview={(snapshot) => {
+              const localSnapshot = snapshot as LocalHomeSnapshot;
+              trackProductEvent("recovery.local_previewed", toSnapshotAnalyticsProperties(snapshot));
+              setPreviewSnapshot({ kind: "local", snapshot: localSnapshot });
+            }}
+            onRestore={(snapshot) => restoreSnapshot(snapshot as LocalHomeSnapshot)}
+            restoreLabel="恢复"
+            storageReady={storageReady}
+          />
         ) : (
           <StatusMessage tone="neutral">
             {storageReady ? "当前浏览器暂无可恢复的本地历史版本。" : "本地存储尚未就绪，请稍后重试。"}
@@ -264,25 +283,23 @@ export function DataRecoveryCenterPanel({
             <h3>云端历史版本</h3>
             <span>{currentHomeSpace?.name ?? "账号托管空间"}</span>
           </div>
-          {visibleCloudSnapshots.length > 0 ? (
-            <div className="local-snapshot-list">
-              {visibleCloudSnapshots.map((snapshot) => (
-                <article className="local-snapshot-card" key={snapshot.id}>
-                  <SnapshotCardCopy locale={preferences.locale} snapshot={snapshot} />
-                  <div className="settings-actions local-snapshot-actions">
-                    <button className="utility-button" type="button" onClick={() => {
-                      trackProductEvent("recovery.cloud_previewed", toSnapshotAnalyticsProperties(snapshot));
-                      setPreviewSnapshot({ kind: "cloud", snapshot });
-                    }}>
-                      预览
-                    </button>
-                    <button className="danger-button" type="button" onClick={() => void restoreCloudSnapshot(snapshot)} disabled={!storageReady}>
-                      恢复到本机
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
+          {selectedCloudSnapshot ? (
+            <SnapshotSelector
+              label="选择云端历史版本"
+              locale={preferences.locale}
+              snapshots={visibleCloudSnapshots}
+              selectedSnapshot={selectedCloudSnapshot}
+              value={selectedCloudSnapshot.id}
+              onChange={setSelectedCloudSnapshotId}
+              onPreview={(snapshot) => {
+                const cloudSnapshot = snapshot as CloudHomeSnapshot;
+                trackProductEvent("recovery.cloud_previewed", toSnapshotAnalyticsProperties(snapshot));
+                setPreviewSnapshot({ kind: "cloud", snapshot: cloudSnapshot });
+              }}
+              onRestore={(snapshot) => void restoreCloudSnapshot(snapshot as CloudHomeSnapshot)}
+              restoreLabel="恢复到本机"
+              storageReady={storageReady}
+            />
           ) : (
             <StatusMessage tone="neutral">
               {cloudLoading ? "正在读取云端历史版本。" : "当前账号托管空间暂无云端历史版本；下一次成功上传有效用户首页后会自动生成。系统默认页、空白页和未编辑模板页不会进入云端历史。"}
@@ -307,11 +324,76 @@ export function DataRecoveryCenterPanel({
           }}
         />
       ) : null}
+    </>
+  );
+
+  if (embedded) {
+    return <div className="data-recovery-center">{content}</div>;
+  }
+
+  return (
+    <section className="settings-panel data-recovery-center" aria-label="数据恢复中心">
+      <div className="panel-header">
+        <h2>数据恢复中心</h2>
+        <span>Recovery</span>
+      </div>
+      {content}
     </section>
   );
 }
 
 type PreviewableSnapshot = LocalHomeSnapshot | CloudHomeSnapshot;
+
+function SnapshotSelector({
+  label,
+  locale,
+  onChange,
+  onPreview,
+  onRestore,
+  restoreLabel,
+  selectedSnapshot,
+  snapshots,
+  storageReady,
+  value
+}: {
+  label: string;
+  locale: LocalePreference;
+  onChange: (snapshotId: string) => void;
+  onPreview: (snapshot: PreviewableSnapshot) => void;
+  onRestore: (snapshot: PreviewableSnapshot) => void;
+  restoreLabel: string;
+  selectedSnapshot: PreviewableSnapshot;
+  snapshots: PreviewableSnapshot[];
+  storageReady: boolean;
+  value: string;
+}) {
+  return (
+    <div className="snapshot-selector">
+      <label className="field">
+        <span>{label}</span>
+        <select value={value} onChange={(event) => onChange(event.target.value)}>
+          {snapshots.map((snapshot) => (
+            <option key={snapshot.id} value={snapshot.id}>
+              {formatSnapshotOption(snapshot, locale)}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <article className="local-snapshot-card snapshot-selector-card">
+        <SnapshotCardCopy locale={locale} snapshot={selectedSnapshot} />
+        <div className="settings-actions local-snapshot-actions">
+          <button className="utility-button" type="button" onClick={() => onPreview(selectedSnapshot)}>
+            预览
+          </button>
+          <button className="danger-button" type="button" onClick={() => onRestore(selectedSnapshot)} disabled={!storageReady}>
+            {restoreLabel}
+          </button>
+        </div>
+      </article>
+    </div>
+  );
+}
 
 function SnapshotCardCopy({
   locale,
@@ -491,6 +573,10 @@ function getDateTime(value: string): number {
 
 function formatSnapshotVersion(snapshot: PreviewableSnapshot): string {
   return `版本 ${snapshot.revision}`;
+}
+
+function formatSnapshotOption(snapshot: PreviewableSnapshot, locale: LocalePreference): string {
+  return `${formatSnapshotVersion(snapshot)} · ${formatDateTime(snapshot.createdAt, locale)} · ${snapshot.summary.siteCount} 网站`;
 }
 
 function formatSnapshotAssets(hasBanner: boolean, hasBackground: boolean): string {

@@ -2426,6 +2426,125 @@ h1 {
   box-shadow: var(--shadow);
 }
 
+.settings-section {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--glass-bg);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.settings-section-warning {
+  border-color: color-mix(in srgb, var(--warning) 36%, var(--line));
+}
+
+.settings-section-danger {
+  border-color: color-mix(in srgb, var(--danger) 42%, var(--line));
+}
+
+.settings-section-success {
+  border-color: color-mix(in srgb, var(--success) 28%, var(--line));
+}
+
+.settings-section-info {
+  border-color: color-mix(in srgb, var(--accent) 26%, var(--line));
+}
+
+.settings-section-head {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: var(--panel-padding);
+}
+
+.settings-section-toggle {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings-section-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 6px;
+}
+
+.settings-section-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.settings-section-kicker {
+  color: var(--quiet);
+  font-size: 12px;
+  font-weight: 620;
+}
+
+.settings-section-copy strong {
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 720;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-section-summary {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-section-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.settings-section-summary-slot {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.settings-section-summary-slot:empty {
+  display: none;
+}
+
+.settings-section-body {
+  display: grid;
+  gap: var(--stack-gap);
+  min-width: 0;
+  padding: 0 var(--panel-padding) var(--panel-padding);
+}
+
+.settings-section-body[hidden] {
+  display: none;
+}
+
 .settings-actions {
   display: flex;
   flex-wrap: wrap;
@@ -2726,6 +2845,16 @@ h1 {
   display: grid;
   gap: 8px;
   min-width: 0;
+}
+
+.snapshot-selector {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.snapshot-selector-card {
+  margin: 0;
 }
 
 .local-snapshot-card {
@@ -4113,8 +4242,13 @@ h1 {
   .sync-code-grid,
   .sync-conflict,
   .sync-paused,
+  .settings-section-toggle,
   .settings-status-summary {
     grid-template-columns: 1fr;
+  }
+
+  .settings-section-action {
+    justify-self: start;
   }
 
   .edit-page-header,

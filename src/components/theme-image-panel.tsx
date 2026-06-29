@@ -23,6 +23,7 @@ const THEME_IMAGE_SLOTS = ["banner", "background"] as const satisfies HomeThemeA
 
 interface ThemeImagePanelProps {
   documentValue: HomeDocumentV2;
+  embedded?: boolean;
   storageReady: boolean;
   userId: string | null;
   onCommitDocument: (documentValue: HomeDocumentV2, message?: string) => void;
@@ -35,6 +36,7 @@ interface ThemeImagePanelMessage {
 
 export function ThemeImagePanel({
   documentValue,
+  embedded = false,
   storageReady,
   userId,
   onCommitDocument
@@ -184,13 +186,8 @@ export function ThemeImagePanel({
     }
   }
 
-  return (
-    <section className="settings-panel" aria-label="Banner 和背景图片">
-      <div className="panel-header">
-        <h2>Banner / 背景</h2>
-        <span>Images</span>
-      </div>
-
+  const content = (
+    <>
       <div className="theme-image-grid">
         {THEME_IMAGE_SLOTS.map((slot) => {
           const asset = getThemeAsset(documentValue.theme, slot);
@@ -289,6 +286,20 @@ export function ThemeImagePanel({
       <StatusMessage role={message.tone === "danger" ? "alert" : "status"} tone={message.tone}>
         {message.text}
       </StatusMessage>
+    </>
+  );
+
+  if (embedded) {
+    return <div className="theme-image-panel-content">{content}</div>;
+  }
+
+  return (
+    <section className="settings-panel" aria-label="Banner 和背景图片">
+      <div className="panel-header">
+        <h2>Banner / 背景</h2>
+        <span>Images</span>
+      </div>
+      {content}
     </section>
   );
 }
