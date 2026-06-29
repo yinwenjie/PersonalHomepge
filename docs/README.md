@@ -56,8 +56,8 @@
 - `backlog/SyncAutoRequestOptimization.md`：同步请求优化备忘。
 - `backlog/AccountHomeSyncBacklog.md`：账号系统、首页空间、同步码管理和未来会员权益 backlog。
 - `backlog/AccountManagedSyncBacklog.md`：账号托管同步、空白设备恢复、同步码认领/迁移和未来密码保护空间 backlog。
-- `backlog/AdminDashboardBacklog.md`：后台管理 dashboard 候选，记录 Phase 1.14 之后的受控后台入口、管理员审计、权限边界和延期原因。
+- `backlog/AdminDashboardBacklog.md`：后台管理 dashboard 候选，记录 Phase 1.17 之后的受控后台入口、管理员审计、权限边界和延期原因。
 - `backlog/EncryptedFileCacheBacklog.md`：轻量级端到端加密文件缓存组件候选，记录 Supabase Storage、密钥模型、数据表和风险边界。
-- `backlog/DataPreservationBacklog.md`：Phase 1.11 数据保全与恢复体系 backlog，记录本地/云端快照、数据恢复中心、危险写入保护、同步误覆盖防护，以及后台 dashboard 延期到 Phase 1.14 的边界。
+- `backlog/DataPreservationBacklog.md`：Phase 1.11 数据保全与恢复体系 backlog，记录本地/云端快照、数据恢复中心、危险写入保护、同步误覆盖防护，以及后台 dashboard 延期到 Phase 1.17 的边界。
 - `backlog/WidgetCandidatesBacklog.md`：Phase 1.12.6 后续组件候选设计，评估 Notes、倒计时、世界时钟、RSS、天气、GitHub 等候选的价值、数据边界、后端需求和实现优先级。
 - `backlog/CodeOptimizationBacklog.md`：代码 review 发现的优化点，含 useSupabaseAuth 多订阅、SyncPanel 架构、round-trip 验证冗余等。
