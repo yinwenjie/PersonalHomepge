@@ -2571,8 +2571,15 @@ h1 {
   font-size: 13px;
 }
 
-.account-panel {
-  gap: 12px;
+.account-panel,
+.home-spaces-panel-content,
+.theme-preset-panel-content,
+.theme-image-panel-content,
+.account-preferences-panel-content,
+.data-recovery-center {
+  display: grid;
+  gap: var(--stack-gap);
+  min-width: 0;
 }
 
 .auth-form {
