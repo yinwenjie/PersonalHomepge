@@ -8,6 +8,10 @@ export interface WidgetDefinition {
   defaultTitle: string;
   description: string;
   allowMultiple: boolean;
+  settings?: {
+    title: string;
+    description: string;
+  };
   defaultConfig: () => Record<string, unknown>;
   normalizeConfig: (input: unknown) => Record<string, unknown>;
 }
@@ -19,6 +23,10 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
     defaultTitle: "Todo",
     description: "轻量任务清单",
     allowMultiple: true,
+    settings: {
+      title: "Todo 设置",
+      description: "名称和任务状态"
+    },
     defaultConfig: () => ({ items: [] }),
     normalizeConfig: normalizeTodoConfig
   },
@@ -28,6 +36,10 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
     defaultTitle: "月历",
     description: "当前月份概览",
     allowMultiple: false,
+    settings: {
+      title: "月历设置",
+      description: "名称和周起始"
+    },
     defaultConfig: () => ({ weekStartsOn: 1 }),
     normalizeConfig: normalizeCalendarConfig
   }

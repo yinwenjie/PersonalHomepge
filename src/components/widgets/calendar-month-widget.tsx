@@ -8,16 +8,14 @@ import {
   getMonthLabel,
   isSameMonth,
   normalizeCalendarConfig,
-  startOfMonth,
-  type WeekStart
+  startOfMonth
 } from "@/domain/calendar-widget";
 
 interface CalendarMonthWidgetProps {
   widget: HomeWidget;
-  onUpdate: (widget: HomeWidget, message: string) => void;
 }
 
-export function CalendarMonthWidget({ widget, onUpdate }: CalendarMonthWidgetProps) {
+export function CalendarMonthWidget({ widget }: CalendarMonthWidgetProps) {
   const config = useMemo(() => normalizeCalendarConfig(widget.config), [widget.config]);
   const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(new Date()));
   const today = new Date();
@@ -27,20 +25,6 @@ export function CalendarMonthWidget({ widget, onUpdate }: CalendarMonthWidgetPro
   const previousMonthLabel = getMonthLabel(addMonths(visibleMonth, -1));
   const nextMonthLabel = getMonthLabel(addMonths(visibleMonth, 1));
   const todayLabel = `${today.getMonth() + 1}月${today.getDate()}日`;
-
-  function updateWeekStart(weekStartsOn: WeekStart) {
-    if (weekStartsOn === config.weekStartsOn) {
-      return;
-    }
-
-    onUpdate({
-      ...widget,
-      config: {
-        ...widget.config,
-        weekStartsOn
-      }
-    }, "月历设置已更新");
-  }
 
   return (
     <div className="calendar-widget">
@@ -79,25 +63,9 @@ export function CalendarMonthWidget({ widget, onUpdate }: CalendarMonthWidgetPro
         >
           回今天
         </button>
-        <div className="calendar-week-start-control">
-          <span>周起始</span>
-          <div className="calendar-week-start" role="group" aria-label="周起始">
-            <button
-              type="button"
-              aria-pressed={config.weekStartsOn === 1}
-              onClick={() => updateWeekStart(1)}
-            >
-              周一
-            </button>
-            <button
-              type="button"
-              aria-pressed={config.weekStartsOn === 0}
-              onClick={() => updateWeekStart(0)}
-            >
-              周日
-            </button>
-          </div>
-        </div>
+        <span className="calendar-config-summary">
+          {config.weekStartsOn === 1 ? "周一开始" : "周日开始"}
+        </span>
       </div>
 
       <div className="calendar-grid" aria-label={`${calendar.label}月历`}>

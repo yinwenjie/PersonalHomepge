@@ -18,6 +18,7 @@ interface WidgetShellProps {
   articleRef?: (node: HTMLElement | null) => void;
   style?: CSSProperties;
   onRenameTitle: (title: string) => void;
+  onOpenSettings: () => void;
   onToggleCollapsed: () => void;
   onMove: (direction: -1 | 1) => void;
   onDelete: () => void;
@@ -38,6 +39,7 @@ export function WidgetShell({
   articleRef,
   style,
   onRenameTitle,
+  onOpenSettings,
   onToggleCollapsed,
   onMove,
   onDelete
@@ -96,6 +98,17 @@ export function WidgetShell({
           <span title={description}>{description}</span>
         </div>
         <div className="widget-card-actions">
+          {!manageMode ? (
+            <button
+              className="mini-button widget-shell-settings-action"
+              type="button"
+              aria-label={`配置${title}`}
+              title="设置"
+              onClick={onOpenSettings}
+            >
+              ⚙
+            </button>
+          ) : null}
           <button
             className="mini-button widget-shell-primary-action"
             type="button"

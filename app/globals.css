@@ -1530,6 +1530,10 @@ h1 {
   font-size: 13px;
 }
 
+.widget-shell-settings-action {
+  color: var(--muted);
+}
+
 .widget-title-form {
   min-width: 0;
 }
@@ -1578,6 +1582,138 @@ h1 {
   color: var(--text);
   font-size: 13px;
   font-weight: 640;
+}
+
+.widget-config-dialog {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.widget-config-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.widget-config-field span,
+.widget-config-option-row > span,
+.widget-config-readonly-grid span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.widget-config-field input {
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--glass-bg);
+  color: var(--text);
+  font-size: 14px;
+  letter-spacing: 0;
+  outline: none;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.widget-config-field input:focus {
+  border-color: var(--line-strong);
+  background: var(--surface);
+}
+
+.widget-config-section {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.widget-config-section h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 680;
+}
+
+.widget-config-readonly-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.widget-config-readonly-grid div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--glass-bg-soft);
+}
+
+.widget-config-readonly-grid strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.widget-config-option-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.widget-config-segmented {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  justify-self: end;
+  width: min(180px, 100%);
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--glass-bg-soft);
+}
+
+.widget-config-segmented button {
+  min-height: 32px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 640;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.widget-config-segmented button:hover,
+.widget-config-segmented button:focus-visible,
+.widget-config-segmented button[aria-pressed="true"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+@media (max-width: 520px) {
+  .widget-config-readonly-grid,
+  .widget-config-option-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .widget-config-segmented {
+    justify-self: stretch;
+    width: 100%;
+  }
+}
+
+@media (pointer: coarse) {
+  .widget-config-field input,
+  .widget-config-segmented button {
+    min-height: 44px;
+  }
 }
 
 .todo-widget {
@@ -2009,49 +2145,15 @@ h1 {
   color: var(--quiet);
 }
 
-.calendar-week-start-control {
-  display: inline-flex;
+.calendar-config-summary {
   min-width: 0;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
-}
-
-.calendar-week-start-control > span {
-  flex: 0 0 auto;
-  color: var(--muted);
-  font-size: 11px;
-  white-space: nowrap;
-}
-
-.calendar-week-start {
-  display: inline-grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  flex: 0 1 132px;
-  min-width: 112px;
-  padding: 2px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--glass-bg-soft);
-}
-
-.calendar-week-start button {
-  min-height: 26px;
-  padding: 0;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
+  overflow: hidden;
+  justify-self: end;
   color: var(--muted);
   font-size: 12px;
-  font-weight: 640;
-  transition: background 160ms ease, color 160ms ease;
-}
-
-.calendar-week-start button:hover,
-.calendar-week-start button:focus-visible,
-.calendar-week-start button[aria-pressed="true"] {
-  background: var(--accent-soft);
-  color: var(--accent);
+  font-weight: 620;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .calendar-grid {
@@ -2114,19 +2216,14 @@ h1 {
     width: 100%;
   }
 
-  .calendar-week-start-control {
-    justify-content: space-between;
-  }
-
-  .calendar-week-start {
-    flex-basis: 148px;
+  .calendar-config-summary {
+    justify-self: center;
   }
 }
 
 @media (pointer: coarse) {
   .calendar-nav-button,
-  .calendar-today-button,
-  .calendar-week-start button {
+  .calendar-today-button {
     min-height: 40px;
   }
 }

@@ -34,6 +34,7 @@ import { getTodoStats, readTodoItems } from "@/domain/todo-widget";
 import { getWidgetDefinition, WIDGET_DEFINITIONS } from "@/domain/widget-registry";
 import { CalendarMonthWidget } from "@/components/widgets/calendar-month-widget";
 import { TodoListWidget } from "@/components/widgets/todo-list-widget";
+import { WidgetConfigDialog } from "@/components/widgets/widget-config-dialog";
 import { WidgetShell } from "@/components/widgets/widget-shell";
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
 import { trackProductEvent } from "@/infrastructure/product-analytics-repository";
@@ -51,6 +52,7 @@ interface SortableWidgetCardProps {
   manageMode: boolean;
   onDeleteWidget: (widgetId: string) => void;
   onMoveWidget: (widgetId: string, direction: -1 | 1) => void;
+  onOpenWidgetSettings: (widgetId: string) => void;
   onRenameWidget: (widgetId: string, title: string) => void;
   onToggleCollapsed: (widgetId: string) => void;
   onUpdateWidget: (nextWidget: HomeWidget, message: string) => void;
@@ -62,11 +64,13 @@ export function WidgetPanel({ documentValue, updatedLabel, onCommitDocument }: W
   const [pickerOpen, setPickerOpen] = useState(false);
   const [manageMode, setManageMode] = useState(false);
   const [activeWidgetId, setActiveWidgetId] = useState<string | null>(null);
+  const [configuringWidgetId, setConfiguringWidgetId] = useState<string | null>(null);
   const siteCount = documentValue.groups.reduce((sum, group) => sum + group.sites.length, 0);
   const groupCount = documentValue.groups.filter((group) => !isUngroupedGroup(group)).length;
   const widgets = useMemo(() => sortByOrder(documentValue.widgets), [documentValue.widgets]);
   const widgetTypes = useMemo(() => new Set(widgets.map((widget) => widget.type)), [widgets]);
   const activeWidget = useMemo(() => widgets.find((widget) => widget.id === activeWidgetId) ?? null, [activeWidgetId, widgets]);
+  const configuringWidget = useMemo(() => widgets.find((widget) => widget.id === configuringWidgetId) ?? null, [configuringWidgetId, widgets]);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -88,6 +92,21 @@ export function WidgetPanel({ documentValue, updatedLabel, onCommitDocument }: W
 
   function updateWidget(nextWidget: HomeWidget, message: string) {
     commitWidgets(widgets.map((widget) => widget.id === nextWidget.id ? nextWidget : widget), message);
+  }
+
+  function updateWidgetSettings(nextWidget: HomeWidget) {
+    const currentWidget = widgets.find((widget) => widget.id === nextWidget.id);
+
+    if (currentWidget && hasWidgetSettingsChanged(currentWidget, nextWidget)) {
+      updateWidget(nextWidget, "组件设置已更新");
+    }
+
+    setConfiguringWidgetId(null);
+  }
+
+  function openWidgetSettings(widgetId: string) {
+    setPickerOpen(false);
+    setConfiguringWidgetId(widgetId);
   }
 
   function addWidget(type: HomeWidgetType) {
@@ -113,6 +132,7 @@ export function WidgetPanel({ documentValue, updatedLabel, onCommitDocument }: W
     }
 
     setManageMode((current) => !current);
+    setConfiguringWidgetId(null);
   }
 
   function moveWidget(widgetId: string, direction: -1 | 1) {
@@ -159,6 +179,7 @@ export function WidgetPanel({ documentValue, updatedLabel, onCommitDocument }: W
     }
 
     commitWidgets(widgets.filter((item) => item.id !== widgetId), "组件已删除");
+    setConfiguringWidgetId((current) => current === widgetId ? null : current);
   }
 
   function handleDragStart(event: DragStartEvent) {
@@ -293,6 +314,7 @@ export function WidgetPanel({ documentValue, updatedLabel, onCommitDocument }: W
                   manageMode={manageMode}
                   onDeleteWidget={deleteWidget}
                   onMoveWidget={moveWidget}
+                  onOpenWidgetSettings={openWidgetSettings}
                   onRenameWidget={renameWidget}
                   onToggleCollapsed={toggleWidgetCollapsed}
                   onUpdateWidget={updateWidget}
@@ -308,6 +330,15 @@ export function WidgetPanel({ documentValue, updatedLabel, onCommitDocument }: W
             ) : null}
           </DragOverlay>
         </DndContext>
+
+        {configuringWidget ? (
+          <WidgetConfigDialog
+            key={configuringWidget.id}
+            widget={configuringWidget}
+            onCancel={() => setConfiguringWidgetId(null)}
+            onSave={updateWidgetSettings}
+          />
+        ) : null}
       </section>
     </aside>
   );
@@ -320,6 +351,7 @@ function SortableWidgetCard({
   manageMode,
   onDeleteWidget,
   onMoveWidget,
+  onOpenWidgetSettings,
   onRenameWidget,
   onToggleCollapsed,
   onUpdateWidget
@@ -371,6 +403,7 @@ function SortableWidgetCard({
       articleRef={setNodeRef}
       style={style}
       onRenameTitle={(title) => onRenameWidget(widget.id, title)}
+      onOpenSettings={() => onOpenWidgetSettings(widget.id)}
       onToggleCollapsed={() => onToggleCollapsed(widget.id)}
       onMove={(direction) => onMoveWidget(widget.id, direction)}
       onDelete={() => onDeleteWidget(widget.id)}
@@ -392,10 +425,15 @@ function WidgetContent({
   }
 
   if (widget.type === "calendar.month") {
-    return <CalendarMonthWidget widget={widget} onUpdate={onUpdateWidget} />;
+    return <CalendarMonthWidget widget={widget} />;
   }
 
   return null;
+}
+
+function hasWidgetSettingsChanged(currentWidget: HomeWidget, nextWidget: HomeWidget): boolean {
+  return currentWidget.title !== nextWidget.title
+    || JSON.stringify(currentWidget.config) !== JSON.stringify(nextWidget.config);
 }
 
 function getWidgetCollapsedSummary(widget: HomeWidget): string {
