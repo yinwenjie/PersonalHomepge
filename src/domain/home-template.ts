@@ -95,7 +95,7 @@ export const HOME_TEMPLATES: HomeTemplate[] = [
       }
     ],
     widgets: [
-      widget("calendar.month")
+      widget("calendar.month", "本月概览", { collapsed: true })
     ]
   },
   {
@@ -150,7 +150,7 @@ export const HOME_TEMPLATES: HomeTemplate[] = [
       }
     ],
     widgets: [
-      widget("todo.list"),
+      widget("todo.list", "今日待办"),
       widget("calendar.month")
     ]
   },
@@ -213,7 +213,7 @@ export const HOME_TEMPLATES: HomeTemplate[] = [
     ],
     widgets: [
       widget("todo.list", "工作待办"),
-      widget("calendar.month")
+      widget("calendar.month", "会议与日程")
     ]
   },
   {
@@ -268,7 +268,7 @@ export const HOME_TEMPLATES: HomeTemplate[] = [
     ],
     widgets: [
       widget("todo.list", "开发任务"),
-      widget("calendar.month")
+      widget("calendar.month", "本月节奏")
     ]
   },
   {
@@ -321,7 +321,7 @@ export const HOME_TEMPLATES: HomeTemplate[] = [
     ],
     widgets: [
       widget("todo.list", "学习计划"),
-      widget("calendar.month")
+      widget("calendar.month", "学习日历")
     ]
   }
 ];
@@ -386,6 +386,10 @@ function site(name: string, url: string, keywords: string, mark?: string): HomeT
   return { name, url, keywords, mark };
 }
 
-function widget(type: HomeTemplateWidgetSpec["type"], title?: string): HomeTemplateWidgetSpec {
-  return { type, title };
+function widget(
+  type: HomeTemplateWidgetSpec["type"],
+  title?: string,
+  options: Omit<HomeTemplateWidgetSpec, "type" | "title"> = {}
+): HomeTemplateWidgetSpec {
+  return { type, title, ...options };
 }
