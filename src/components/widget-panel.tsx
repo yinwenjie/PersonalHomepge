@@ -412,9 +412,10 @@ function getWidgetCollapsedSummary(widget: HomeWidget): string {
     const config = normalizeCalendarConfig(widget.config);
     const now = new Date();
     const monthLabel = `${now.getFullYear()}年${now.getMonth() + 1}月`;
+    const todayLabel = `今日 ${now.getDate()}日`;
     const weekStartLabel = config.weekStartsOn === 1 ? "周一开始" : "周日开始";
 
-    return `${monthLabel} · ${weekStartLabel}`;
+    return `${monthLabel} · ${todayLabel} · ${weekStartLabel}`;
   }
 
   return "组件已折叠";

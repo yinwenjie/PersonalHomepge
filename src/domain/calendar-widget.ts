@@ -10,6 +10,7 @@ export interface CalendarDayCell {
   key: string;
   inCurrentMonth: boolean;
   isToday: boolean;
+  isWeekend: boolean;
 }
 
 export interface CalendarMonth {
@@ -45,7 +46,8 @@ export function buildCalendarMonth(anchorDate: Date, weekStartsOn: WeekStart): C
       day: date.getDate(),
       key: toLocalDateKey(date),
       inCurrentMonth: date.getMonth() === month,
-      isToday: isSameLocalDate(date, today)
+      isToday: isSameLocalDate(date, today),
+      isWeekend: date.getDay() === 0 || date.getDay() === 6
     };
   });
 

@@ -131,9 +131,43 @@ Phase 1.12.2 已在现有 `todo.list` 组件上做轻量体验优化。本阶段
 - `src/components/widgets/todo-list-widget.tsx`
 - `app/globals.css`
 
+## Phase 1.12.3：月历体验优化
+
+Phase 1.12.3 已在现有 `calendar.month` 组件上做轻量体验收口。本阶段不新增后端表，不改 `HomeDocumentV2.widgets` schema，不引入日程、农历、节假日或外部日历；月历仍保持公历月视图，周起始继续保存在 `widget.config.weekStartsOn`，当前查看月份只作为本地 UI state。
+
+用户侧变化：
+
+- 月份标题区改为居中标题加今天日期提示，用户在翻到其他月份时仍能看到今天所在日期。
+- 上月/下月按钮改为更稳定的圆形导航按钮，提升窄宽度下的可点性。
+- “回今天”按钮在当前月弱化并禁用，在浏览其他月份时作为明确返回入口。
+- 周起始设置从两个单字按钮调整为 `周一 / 周日` segmented control，状态更清楚。
+- 日期网格保留稳定 7 列结构，周末日期做弱强调，今天继续高亮并带 `aria-current="date"`。
+- 窄屏下控制区自动改为单列，触屏设备下月份导航、回今天和周起始按钮点击区域放大。
+- 月历折叠摘要从当前月和周起始扩展为当前月、今日日期和周起始，例如 `2026年6月 · 今日 29日 · 周一开始`。
+
+系统实现：
+
+- `src/components/widgets/calendar-month-widget.tsx` 重构月历 header、control row 和周起始切换结构。
+- `src/domain/calendar-widget.ts` 为日期单元补充 `isWeekend` 派生字段，用于视觉弱强调，不新增持久状态。
+- `src/components/widget-panel.tsx` 更新月历折叠摘要。
+- `app/globals.css` 新增月历 header、圆形导航按钮、segmented control、窄屏布局和 coarse pointer 点击区规则。
+
+数据与架构边界：
+
+- 周起始配置仍按原方式写入 `HomeDocumentV2.widgets[].config.weekStartsOn`。
+- 翻月、当前月份视图和按钮状态仍是当前组件本地 UI 状态，不进入同步、历史快照或数据包恢复。
+- 本阶段不接入统一组件配置入口；该能力继续进入 Phase 1.12.4。
+
+关键文件：
+
+- `src/components/widgets/calendar-month-widget.tsx`
+- `src/domain/calendar-widget.ts`
+- `src/components/widget-panel.tsx`
+- `app/globals.css`
+
 ## 验收记录
 
-Phase 1.12.0 为文档和设计规范阶段，未改动运行时代码。Phase 1.12.1 和 Phase 1.12.2 已接入运行时代码，但不改首页文档 schema。
+Phase 1.12.0 为文档和设计规范阶段，未改动运行时代码。Phase 1.12.1、Phase 1.12.2 和 Phase 1.12.3 已接入运行时代码，但不改首页文档 schema。
 
 已完成：
 
@@ -143,7 +177,9 @@ Phase 1.12.0 为文档和设计规范阶段，未改动运行时代码。Phase 1
 - 将 Phase 1.12.1 标记为已完成。
 - 完成 Todo List 输入、空状态、筛选、完成项摘要和触屏点击区优化。
 - 将 Phase 1.12.2 标记为已完成。
-- 将下一步主线推进到 Phase 1.12.3 月历体验优化。
+- 完成月历月份切换、回今天、周起始 segmented control、窄屏布局和折叠摘要优化。
+- 将 Phase 1.12.3 标记为已完成。
+- 将下一步主线推进到 Phase 1.12.4 组件配置入口统一。
 - 更新文档索引和 backlog 中的 Phase 1.12 状态。
 
 已验证：

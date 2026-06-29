@@ -1915,73 +1915,143 @@ h1 {
 
 .calendar-widget {
   display: grid;
+  gap: 10px;
+}
+
+.calendar-header {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 32px;
+  align-items: center;
   gap: 8px;
 }
 
-.calendar-toolbar {
+.calendar-month-heading {
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) 28px;
-  align-items: center;
-  gap: 6px;
-}
-
-.calendar-toolbar strong {
   min-width: 0;
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 680;
+  place-items: center;
+  gap: 2px;
   text-align: center;
 }
 
-.calendar-toolbar .mini-button {
-  width: 28px;
-  min-height: 28px;
-  background: var(--glass-bg-soft);
-  font-size: 13px;
+.calendar-month-heading strong {
+  min-width: 0;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 680;
 }
 
-.calendar-controls {
-  display: flex;
-  flex-wrap: wrap;
+.calendar-month-heading span {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendar-nav-button {
+  display: inline-grid;
+  width: 32px;
+  min-height: 32px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--glass-bg-soft);
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.calendar-nav-button:hover,
+.calendar-nav-button:focus-visible {
+  border-color: var(--line-strong);
+  background: var(--accent-soft);
+  color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.calendar-control-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
 }
 
-.calendar-today-button,
-.calendar-week-start button {
-  min-height: 26px;
+.calendar-today-button {
+  min-height: 30px;
+  padding: 2px 10px;
   border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-radius: 999px;
   background: var(--glass-bg-soft);
   color: var(--muted);
   font-size: 12px;
+  font-weight: 640;
   transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
 }
 
-.calendar-today-button {
-  padding: 2px 8px;
+.calendar-today-button:disabled {
+  cursor: default;
+  opacity: 0.72;
 }
 
 .calendar-today-button:hover,
-.calendar-today-button:focus-visible,
-.calendar-week-start button:hover,
-.calendar-week-start button:focus-visible,
-.calendar-week-start button[aria-pressed="true"] {
+.calendar-today-button:focus-visible {
   border-color: var(--line-strong);
   background: var(--accent-soft);
   color: var(--accent);
 }
 
-.calendar-week-start {
+.calendar-today-button.is-current {
+  border-color: transparent;
+  background: transparent;
+  color: var(--quiet);
+}
+
+.calendar-week-start-control {
   display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.calendar-week-start-control > span {
   flex: 0 0 auto;
-  gap: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.calendar-week-start {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  flex: 0 1 132px;
+  min-width: 112px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--glass-bg-soft);
 }
 
 .calendar-week-start button {
-  width: 28px;
+  min-height: 26px;
   padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 640;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.calendar-week-start button:hover,
+.calendar-week-start button:focus-visible,
+.calendar-week-start button[aria-pressed="true"] {
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 .calendar-grid {
@@ -2011,6 +2081,13 @@ h1 {
   background: var(--glass-bg);
   color: var(--text);
   font-variant-numeric: tabular-nums;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+}
+
+.calendar-day.is-weekend:not(.is-muted):not(.is-today) {
+  border-color: transparent;
+  background: var(--glass-bg-soft);
+  color: var(--accent);
 }
 
 .calendar-day.is-muted {
@@ -2024,6 +2101,34 @@ h1 {
   background: var(--accent);
   color: var(--surface);
   font-weight: 740;
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+@media (max-width: 520px) {
+  .calendar-control-row {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .calendar-today-button {
+    width: 100%;
+  }
+
+  .calendar-week-start-control {
+    justify-content: space-between;
+  }
+
+  .calendar-week-start {
+    flex-basis: 148px;
+  }
+}
+
+@media (pointer: coarse) {
+  .calendar-nav-button,
+  .calendar-today-button,
+  .calendar-week-start button {
+    min-height: 40px;
+  }
 }
 
 .widget-empty {
