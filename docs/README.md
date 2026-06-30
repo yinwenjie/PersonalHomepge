@@ -25,6 +25,7 @@
 - `implementation/phase-1/Phase1_11_Implement.md`：Phase 1.11，数据保全与发布观测体系；记录文档分类、本地历史版本、数据恢复中心、危险写入保护、同步误覆盖防护、账号托管云端历史版本、账号托管可恢复模型收口、P0 回归演练、基础埋点和错误监控。
 - `implementation/phase-1/Phase1_12_Implement.md`：Phase 1.12，组件设计优化；记录组件体验审计、Widget Shell、Todo/月历体验、配置入口、模板组件组合和后续组件候选设计。
 - `implementation/phase-1/Phase1_13_Implement.md`：Phase 1.13，产品化体验收口；记录设置页信息架构 v2、折叠设置项、本机展开状态和数据恢复中心历史版本下拉。
+- `implementation/phase-1/Phase1_14_Implement.md`：Phase 1.14，主域名准备；记录 Cloudflare Pages 主站迁移、GitHub Pages legacy 角色、根路径构建、Supabase 回调、安全基线和回滚演练。
 
 ## Tech Stack
 
@@ -38,12 +39,13 @@
 - Asset storage：Supabase Storage private bucket `home-assets` 保存登录用户的 Banner/背景图片。
 - Client-side encryption：普通同步码空间由浏览器 Web Crypto 对首页文档加密后上传；账号托管空间采用账号可信托管模型，可保存有效用户首页的明文云端历史用于恢复和审计。
 - Database：Supabase Postgres，核心表包括 `sync_spaces`、`profiles`、`account_preferences`、`home_spaces`、`home_space_snapshots`、`home_space_audit_events`、`product_analytics_events` 和 `client_error_events`，配合 RLS、权限收敛和 `security definer` RPC。
-- Deployment：Next.js static export 输出到 `out/`，通过 GitHub Actions 部署到 GitHub Pages。
-- CI checks：`npm run lint`、`npm run typecheck`、`npm run build`。
+- Deployment：Next.js static export 输出到 `out/`；当前通过 GitHub Actions 部署到 GitHub Pages，Phase 1.14 迁移到 Cloudflare Pages 主站，GitHub Pages 转为 legacy 入口。
+- CI checks：`npm run lint`、`npm run typecheck`、`npm run build`、`npm run verify:export`。
 
 ## Guides
 
 - `guides/GitHubPagesDeploy.md`：GitHub Pages 部署说明。
+- `guides/MainDomainMigrationRunbook.md`：Phase 1.14.0 主域名迁移方案与回滚预案，说明 Cloudflare Pages 主站、GitHub Pages legacy、用户数据迁移、切流检查和回滚路径。
 - `guides/SyncCodeUserGuide.md`：同步码使用指南。
 - `guides/SupabaseMigrationChecklist.md`：Supabase SQL 手动迁移执行清单。
 - `guides/DataPreservationP0RegressionDrill.md`：Phase 1.11.7 P0 数据保全回归与事故演练指南。
@@ -56,8 +58,8 @@
 - `backlog/SyncAutoRequestOptimization.md`：同步请求优化备忘。
 - `backlog/AccountHomeSyncBacklog.md`：账号系统、首页空间、同步码管理和未来会员权益 backlog。
 - `backlog/AccountManagedSyncBacklog.md`：账号托管同步、空白设备恢复、同步码认领/迁移和未来密码保护空间 backlog。
-- `backlog/AdminDashboardBacklog.md`：后台管理 dashboard 候选，记录 Phase 1.17 之后的受控后台入口、管理员审计、权限边界和延期原因。
+- `backlog/AdminDashboardBacklog.md`：后台管理 dashboard 候选，记录 Phase 1.18 之后的受控后台入口、管理员审计、权限边界和延期原因。
 - `backlog/EncryptedFileCacheBacklog.md`：轻量级端到端加密文件缓存组件候选，记录 Supabase Storage、密钥模型、数据表和风险边界。
-- `backlog/DataPreservationBacklog.md`：Phase 1.11 数据保全与恢复体系 backlog，记录本地/云端快照、数据恢复中心、危险写入保护、同步误覆盖防护，以及后台 dashboard 延期到 Phase 1.17 的边界。
+- `backlog/DataPreservationBacklog.md`：Phase 1.11 数据保全与恢复体系 backlog，记录本地/云端快照、数据恢复中心、危险写入保护、同步误覆盖防护，以及后台 dashboard 延期到 Phase 1.18 的边界。
 - `backlog/WidgetCandidatesBacklog.md`：Phase 1.12.6 后续组件候选设计，评估 Notes、倒计时、世界时钟、RSS、天气、GitHub 等候选的价值、数据边界、后端需求和实现优先级。
 - `backlog/CodeOptimizationBacklog.md`：代码 review 发现的优化点，含 useSupabaseAuth 多订阅、SyncPanel 架构、round-trip 验证冗余等。

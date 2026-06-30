@@ -2,7 +2,7 @@
 
 ## Summary
 
-Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持续扩展的个人首页产品。当前 Phase 1.1-1.12 已完成本地编辑、同步码、账号托管、模板、主题、组件、导入、数据保全、观测和组件体验优化。下一阶段不再继续零散堆功能，而是进入产品化体验收口：设置页可扩展、首页标题、搜索引擎识别、主题风格 v2 和主域名准备；多语言支持独立为主域名准备之后的本地化阶段。
+Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持续扩展的个人首页产品。当前 Phase 1.1-1.13 已完成本地编辑、同步码、账号托管、模板、主题、组件、导入、数据保全、观测、组件体验优化和产品化体验收口。Phase 1.14 已启动主域名准备，Phase 1.14.0 已完成迁移方案与回滚预案，Phase 1.14.1 已完成根路径构建与部署目标配置，后续继续处理 Supabase 回调、Cloudflare Pages 主站部署、安全基线、GitHub Pages 旧站角色、闭源开发评估和回滚演练；多语言支持顺延为 Phase 1.15。
 
 当前产品原则：
 
@@ -16,7 +16,7 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 - 默认页、空白页和未编辑模板页不视为有效用户首页；用户编辑后的模板页与正常编辑首页合并为有效用户首页。
 - 账号托管空间是“账号可信托管、可恢复、可审计”模式；普通同步码空间继续保持用户持有完整同步码、云端默认只保存密文的边界。
 - 后续设置项增加前，必须先建立可扩展设置页结构，避免设置页继续平铺膨胀。
-- 页面标题、搜索引擎 logo 和主题风格 v2 都属于正式主域名前的产品化体验收口；多语言支持作为独立 Phase 1.14，放在主域名准备之后集中实现，避免在域名和部署路径变化前扩大回归面。
+- 页面标题、搜索引擎 logo 和主题风格 v2 都属于正式主域名前的产品化体验收口；主域名准备独立为 Phase 1.14；多语言支持顺延为 Phase 1.15，避免在域名和部署路径变化前扩大文案和布局回归面。
 - 纯前端轻量组件优先复用现有 Widget Shell、统一配置入口、快照和同步能力；需要服务端、API key、OAuth、Storage 或大体积缓存的功能暂不直接实现。
 - 只读分享、后台 dashboard 以及 RSS/天气/GitHub 等联网能力都依赖更明确的只读渲染层、受控服务端入口、权限/额度和审计底座。
 - Phase 1 之外的长期计划统一沉淀到根目录 `memory.md`，不再混写在 Phase 1 路线中。
@@ -35,8 +35,10 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 - Phase 1.13.0 已完成：设置页信息架构 v2，一级设置项默认收起，展开状态仅保存在当前浏览器，数据恢复中心历史版本改为下拉选择。
 - Phase 1.13.1 已完成：产品身份收口，可编辑首页标题、浏览器标题和搜索引擎 logo 已落地。
 - Phase 1.13.2 已完成：主题风格 v2，主题从配色 preset 扩展为 appearance preset，并加入 Millennium 门户目录风格。
+- Phase 1.14.0 已完成：主域名迁移方案与回滚预案，明确 Cloudflare Pages 主站、GitHub Pages legacy、localStorage 跨域迁移和回滚路径。
+- Phase 1.14.1 已完成：根路径构建与部署目标配置，`NEXT_PUBLIC_BASE_PATH` 规范化、静态导出验证脚本和 GitHub Pages workflow 校验已落地。
 
-下一步进入 Phase 1.13.3：主域名准备。
+下一步进入 Phase 1.14.2：Supabase Auth、Storage 与回调 URL 迁移。
 
 ## Phase Plan
 
@@ -48,17 +50,18 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 | Phase 1.4：展示页与设置页优化 | 已完成 | 首页轻量展示、设置页、首页直编、恢复默认前备份 | 后续确认弹窗统一进入体验优化 |
 | Phase 1.5：账号登录与首页空间管理 | 已完成 | Magic Link、Resend SMTP、账号资料、偏好骨架、同步码认领、空间切换 | 只做账号安全和回归维护 |
 | Phase 1.6：账号托管同步与 Beta 打磨 | 已完成 | 账号托管空间、空白设备恢复、同步码迁移、空间 CRUD、全局偏好、数据导出、模板库 | 只做兼容维护 |
-| Phase 1.7：组件开发 | 已完成 | Widget Registry、Todo List、月历、组件布局、模板默认组件 | 新组件进入 Phase 1.15 后续候选 |
+| Phase 1.7：组件开发 | 已完成 | Widget Registry、Todo List、月历、组件布局、模板默认组件 | 新组件进入 Phase 1.16 后续候选 |
 | Phase 1.8：主题与普通个性化 | 已完成 | 主题 v1、Banner/背景图片、遮罩强度、个性化细节收口 | 主题风格 v2 进入 Phase 1.13.2 |
 | Phase 1.9：页面布局/UI 优化与浏览器导入需求集 | 已完成 MVP | 设置页信息架构 v1、首页空间弹窗化、Banner/背景布局、网站编辑入口、书签 HTML/URL 导入 MVP | 浏览器扩展导入留 Phase 1 候选，不直接排入近期 |
 | Phase 1.10：正式推出前基础收口 | MVP 已完成 | 数据包恢复、本地审计、本机状态、同步请求多标签协调；账号删除/分享/高隐私形成候选设计 | 账号删除需重新基于数据生命周期设计 |
 | Phase 1.11：数据保全与发布观测体系 | 已完成 | 文档分类、本地/云端历史、恢复中心、危险写入保护、同步误覆盖防护、账号托管恢复边界、P0 演练、基础埋点、错误监控 | 继续作为所有后续功能的 P0 约束 |
-| Phase 1.12：组件设计优化子阶段 | 已完成 | 组件体验规范、Widget Shell、Todo/月历优化、配置入口、模板组件组合、候选组件 backlog | 纯前端新组件留 Phase 1.15 |
-| Phase 1.13：产品化体验收口与主域名准备 | 进行中 | 已完成设置页信息架构 v2、产品身份收口和主题风格 v2；后续进入正式主域名准备 | 下一步进入 Phase 1.13.3 主域名准备 |
-| Phase 1.14：多语言支持 v1 | 候选 | 语言模式、账号/本地偏好、静态 dictionary、日期时间/月历 locale formatter、主路径 UI 本地化 | 放在主域名准备之后独立实现 |
-| Phase 1.15：低成本组件扩展 | 候选 | Notes、Countdown、World Clock | 仅实现纯前端、低数据体积组件 |
-| Phase 1.16：只读渲染与分享链接 v1 | 候选 | 只读首页 renderer、只读分享链接、撤销机制 | 依赖主域名和只读渲染层设计 |
-| Phase 1.17：受控服务端与后台 dashboard v1 | 候选 | Edge Function/受控后端、管理员身份、管理员审计、只读后台 | 仅在主域名稳定后评估，v1 必须只读 |
+| Phase 1.12：组件设计优化子阶段 | 已完成 | 组件体验规范、Widget Shell、Todo/月历优化、配置入口、模板组件组合、候选组件 backlog | 纯前端新组件留 Phase 1.16 |
+| Phase 1.13：产品化体验收口 | 已完成 | 设置页信息架构 v2、产品身份收口、主题风格 v2 | 主域名准备独立到 Phase 1.14 |
+| Phase 1.14：主域名准备 | 进行中 | Cloudflare Pages 主站迁移、根路径构建、Supabase 回调、Cloudflare 安全基线、GitHub Pages 旧站角色、闭源开发评估和回滚演练；1.14.0/1.14.1 已完成 | 下一步实现 1.14.2 Supabase Auth、Storage 与回调 URL 迁移 |
+| Phase 1.15：多语言支持 v1 | 候选 | 语言模式、账号/本地偏好、静态 dictionary、日期时间/月历 locale formatter、主路径 UI 本地化 | 放在主域名准备之后独立实现 |
+| Phase 1.16：低成本组件扩展 | 候选 | Notes、Countdown、World Clock | 仅实现纯前端、低数据体积组件 |
+| Phase 1.17：只读渲染与分享链接 v1 | 候选 | 只读首页 renderer、只读分享链接、撤销机制 | 依赖主域名和只读渲染层设计 |
+| Phase 1.18：受控服务端与后台 dashboard v1 | 候选 | Edge Function/受控后端、管理员身份、管理员审计、只读后台 | 仅在主域名稳定后评估，v1 必须只读 |
 
 ## Candidate Feature Evaluation
 
@@ -68,21 +71,21 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 |---|---|---:|---|---:|---|
 | P0 | 设置页信息架构 v2 | High | 设置页抽象、折叠面板、历史版本下拉 | M | 已完成，作为后续设置扩展底座 |
 | P0 | 可编辑页面标题 | High | `HomeDocumentV2`、浏览器标题、模板、快照 | M | 已完成；页面标题与空间管理名称分离 |
-| P0 | 主域名准备 | High | `basePath`、Auth redirect、缓存隔离、部署回归 | M-L | Phase 1.13.3 做，产品化体验收口后再切域名 |
-| P0 | 多语言支持 v1 | High | i18n provider、账号/本地偏好、日期格式、静态 dictionary | L | Phase 1.14 独立做，放在主域名准备之后 |
+| P0 | 主域名准备 | High | `basePath`、Auth redirect、缓存隔离、Cloudflare Pages、旧站迁移提示、安全基线、部署回归 | M-L | Phase 1.14 独立做 |
+| P0 | 多语言支持 v1 | High | i18n provider、账号/本地偏好、日期格式、静态 dictionary | L | Phase 1.15 独立做，放在主域名准备之后 |
 | P1 | 搜索引擎 Logo | Medium | 搜索引擎 registry、图标资源、搜索栏布局 | S | 已完成；随产品身份收口落地 |
 | P1 | 主题风格 v2 | High | 主题 token、appearance preset、旧主题兼容 | L | 已完成；新增 curated appearance preset 和 Millennium 风格 |
-| P1 | Notes 便签组件 | High | Widget config、长度限制、隐私边界 | S-M | Phase 1.15 首选，纯前端低成本 |
-| P1 | Countdown 倒计时 | Medium-High | Widget config、日期/时区处理 | S | Phase 1.15 候选，低成本高感知 |
-| P1 | World Clock 世界时钟 | Medium | Widget config、时区选择 UI | S-M | Phase 1.15 候选，适合开发者/远程办公模板 |
-| P1 | 只读渲染层 | High | 只读首页 renderer、权限边界、公开展示 | L | Phase 1.16 前置底座，先做 renderer 再做链接 |
+| P1 | Notes 便签组件 | High | Widget config、长度限制、隐私边界 | S-M | Phase 1.16 首选，纯前端低成本 |
+| P1 | Countdown 倒计时 | Medium-High | Widget config、日期/时区处理 | S | Phase 1.16 候选，低成本高感知 |
+| P1 | World Clock 世界时钟 | Medium | Widget config、时区选择 UI | S-M | Phase 1.16 候选，适合开发者/远程办公模板 |
+| P1 | 只读渲染层 | High | 只读首页 renderer、权限边界、公开展示 | L | Phase 1.17 前置底座，先做 renderer 再做链接 |
 | P1 | 只读分享链接 | High | share token、只读路由、撤销机制 | L | 依赖主域名和只读渲染层 |
 | P2 | 浏览器扩展导入 | High | 扩展端、权限、导入草稿复用 | L | 用户价值高，但作为独立候选推进 |
 | P2 | RSS 组件 | Medium | 服务端代理、缓存、CORS 处理 | L | 等受控服务端入口后再做 |
 | P2 | Weather 天气 | Medium | API key、缓存、额度、隐私说明 | M-L | 依赖 API 代理和 quota |
 | P2 | GitHub public repo 组件 | Medium | API rate limit、缓存、错误降级 | M | 只考虑 public repo，OAuth 暂缓 |
 | P2 | 账号删除 | Medium-High | 数据生命周期、审计、RLS/RPC | L | 合规重要，但要单独设计和强回归 |
-| P2 | 后台管理 dashboard | High | Edge Function、service role、管理员审计 | XL | Phase 1.17 候选；正式域名稳定后做只读 v1 |
+| P2 | 后台管理 dashboard | High | Edge Function、service role、管理员审计 | XL | Phase 1.18 候选；正式域名稳定后做只读 v1 |
 
 ## Phase 1.13 Breakdown
 
@@ -129,21 +132,126 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 - 更新模板默认风格，但不自动修改用户已有首页。
 - 新增 `docs/design/theme-v2-demo.html` 作为非业务视觉参考。
 
-### Phase 1.13.3：主域名准备
+## Phase 1.14 Breakdown
 
-目标：在产品化体验收口后切换正式主域名，降低后续分享、后台和公开路由返工。
+### Phase 1.14.0：主域名迁移方案与回滚预案
+
+状态：已完成。详见 `docs/guides/MainDomainMigrationRunbook.md`。
+
+目标：确认主域名、canonical host、Cloudflare Pages 作为主站、GitHub Pages 作为旧站兼容/应急入口的整体迁移策略。
 
 主要任务：
 
-- 明确自购主域名和部署路径。
-- 从 `/PersonalHomepge/` 项目路径逐步切换到根路径部署。
-- 更新 `NEXT_PUBLIC_BASE_PATH`、静态资源路径和 Supabase Auth `Site URL` / `Redirect URLs`。
-- 回归 Magic Link、账号恢复、Storage signed URL、GitHub Pages 部署和本地缓存域隔离。
-- 明确旧域名/旧路径数据迁移或提示策略，避免用户以为数据丢失。
+- 确认正式主域名和 `www` 跳转方向，推荐 apex domain 作为 canonical。
+- 明确主站迁移到 Cloudflare Pages，GitHub Pages 保留为旧路径提示和短期回退入口。
+- 明确纯本地用户的数据迁移策略：旧站导出、新站导入；已登录用户通过账号同步恢复。
+- 制定回滚策略：Cloudflare Pages 回滚到上一部署、DNS 切回旧站、旧 GitHub Pages 保留迁移提示。
+- 列出迁移观察窗口和关键监控项：登录、同步、Storage 图片、错误监控、访问量和异常 4xx/5xx。
 
-## Phase 1.14 Breakdown
+实施结果：
 
-### Phase 1.14.0：多语言支持 v1
+- 明确主站迁移到 Cloudflare Pages，GitHub Pages 转为 legacy 迁移提示和短期回退入口。
+- 明确 canonical host 推荐 apex domain，`www` 跳转到 apex。
+- 明确正式主站使用根路径 `/`，旧站继续使用 `/PersonalHomepge/`。
+- 明确 localStorage origin 隔离风险和三类用户迁移路径：账号托管登录恢复、同步码重新绑定、纯本地导出导入。
+- 固化 pre-cutover、Supabase/Auth、Cloudflare Pages、安全基线、切流、观察和回滚 checklist。
+
+### Phase 1.14.1：根路径构建与部署目标配置
+
+状态：已完成。
+
+目标：让同一套代码能支持 GitHub Pages legacy 项目路径和正式主域名根路径，避免静态资源路径错误。
+
+主要任务：
+
+- 调整 `next.config.mjs` 的 `basePath` / `assetPrefix` 策略，正式主域名构建时使用根路径。
+- 保留 GitHub Pages legacy 构建能力，旧站继续使用 `/PersonalHomepge`。
+- 明确 `NEXT_PUBLIC_BASE_PATH`、`NEXT_PUBLIC_SITE_ORIGIN` 等环境变量边界。
+- 本地验证 `npm run build` 产物中 `_next`、静态资源、图片和路由均不带错误前缀。
+
+实施结果：
+
+- `next.config.mjs` 对 `NEXT_PUBLIC_BASE_PATH` 做规范化：空值或 `/` 表示根路径；非空值必须以 `/` 开头；尾部斜杠会被去除；重复斜杠会阻止构建。
+- 保留未显式设置 `NEXT_PUBLIC_BASE_PATH` 时从 `GITHUB_REPOSITORY` 推导 GitHub Pages 项目路径的能力。
+- 新增 `scripts/verify-static-export.mjs` 和 `npm run verify:export`，用于检查 `out/index.html`、`out/_next` 和导出 HTML 中的 `_next` 资源前缀。
+- GitHub Pages workflow 在构建后自动执行静态导出验证，并输出当前 base path。
+- `NEXT_PUBLIC_SITE_ORIGIN` 暂不在本阶段引入；正式站点 origin 和 Auth redirect 统一进入 Phase 1.14.2 处理。
+
+### Phase 1.14.2：Supabase Auth、Storage 与回调 URL 迁移
+
+目标：让登录、账号恢复、Storage 图片、云端历史和观测事件在新主域名下可用。
+
+主要任务：
+
+- Supabase Auth `Site URL` 切换为正式主域名。
+- `Redirect URLs` 同时保留正式主域名、localhost 和旧 GitHub Pages 迁移窗口地址。
+- 回归 Magic Link、登录恢复、账号托管空间恢复、同步码绑定和退出登录。
+- 回归 Supabase Storage signed/public URL 在新域名下的图片展示。
+- 确认埋点和错误监控的来源域名、诊断字段和隐私边界不变。
+
+### Phase 1.14.3：Cloudflare Pages 主站部署
+
+目标：以最低 CI/CD 成本建立正式主站部署链路。
+
+主要任务：
+
+- Cloudflare Pages 绑定当前 GitHub 仓库，生产分支使用 `production`。
+- 构建命令保持轻量：`npm run typecheck && npm run lint && npm run build && npm run verify:export`。
+- 输出目录使用 `out`，Node 版本对齐当前 GitHub Actions。
+- 配置生产环境变量和 preview 环境变量。
+- 使用 Cloudflare Pages preview deployments 做切流前验证。
+
+### Phase 1.14.4：Cloudflare 安全基线
+
+目标：主站上线时同时建立低成本安全防线，减少入侵、勒索软件和 DDoS 风险。
+
+主要任务：
+
+- 开启 Cloudflare 代理、HTTPS、Always Use HTTPS 和 DNSSEC。
+- SSL/TLS 使用 `Full (strict)`；HSTS 先短周期观察，稳定后再考虑长期策略。
+- 启用 Cloudflare DDoS 默认防护和 WAF Free Managed Ruleset。
+- 配置基础 rate limiting，优先保护异常高频访问和未来受控 API 入口。
+- 新增或调整静态安全响应头：`X-Content-Type-Options`、`Referrer-Policy`、`Permissions-Policy`、`X-Frame-Options`；CSP 先保守或 report-only。
+- Cloudflare、GitHub 和 Supabase 管理账号启用 2FA，优先使用硬件密钥；严禁 service role 或第三方 secret 进入前端。
+
+### Phase 1.14.5：GitHub Pages 旧站迁移提示
+
+目标：让旧地址用户知道主站迁移，并避免因为 localStorage origin 变化误以为数据丢失。
+
+主要任务：
+
+- GitHub Pages 旧站保留迁移提示、数据导出入口和新主站入口。
+- 不让旧站长期承载完整主应用，避免账号回调、localStorage 和 SEO 分裂。
+- 保留一段迁移窗口后，将旧站降级为极简跳转页或关闭。
+- 文案明确说明：已登录用户可在新主站登录恢复；纯本地用户需从旧站导出后到新站导入。
+
+### Phase 1.14.6：闭源开发与仓库安全收口
+
+目标：评估并执行仓库闭源后的开发和部署策略，同时保持前端公开产物的安全边界清晰。
+
+主要任务：
+
+- 评估 GitHub 仓库转 private 对协作、Actions、Pages 和 Cloudflare Pages 连接的影响。
+- 明确闭源只能保护源码、历史、规划文档和 migration 脚本，不能保护浏览器可下载的前端 JS/CSS/HTML。
+- GitHub Pages 若继续使用 private repo，需确认账号套餐和 Pages 权限；长期推荐 Cloudflare Pages 作为主站。
+- 整理 repository secrets、Actions variables、Supabase anon key、Cloudflare token 的权限边界。
+- 增加发布前检查：不发布 sourcemap、不提交 `.env`、不暴露 service role、管理员密钥或第三方 API key。
+
+### Phase 1.14.7：正式切流、回归和回滚演练
+
+目标：完成主域名正式上线，并用数据保全 P0 标准验证切流安全。
+
+主要任务：
+
+- 切流前完成根路径构建、Cloudflare Pages preview、Supabase 回调和旧站迁移提示验证。
+- 切流后回归首页加载、Magic Link、账号恢复、同步、Storage 图片、数据恢复中心、埋点、错误监控和本地缓存隔离。
+- 验证旧站导出、新站导入流程。
+- 观察 24-72 小时后再决定是否关闭 GitHub Pages 完整应用。
+- 演练 Cloudflare Pages 回滚和旧站回退路径。
+
+## Phase 1.15 Breakdown
+
+### Phase 1.15.0：多语言支持 v1
 
 目标：主域名路径稳定后，建立完整产品本地化底座，让设置页可切换语言，支持指定语言或跟随系统。
 
@@ -164,7 +272,7 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 
 ### 2. Product Preferences And I18n Foundation
 
-语言模式属于产品偏好，不属于首页空间内容。登录用户保存到账户偏好，未登录用户保存到本地偏好。日期、时间、版本号、日历展示统一走 locale formatter。该底座独立放在 Phase 1.14，避免在主域名迁移前同时扩大文案和布局回归面。
+语言模式属于产品偏好，不属于首页空间内容。登录用户保存到账户偏好，未登录用户保存到本地偏好。日期、时间、版本号、日历展示统一走 locale formatter。该底座独立放在 Phase 1.15，避免在主域名迁移前同时扩大文案和布局回归面。
 
 ### 3. Home Identity Metadata
 
@@ -178,15 +286,19 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 
 主题 v2 不再只管理颜色，而是管理视觉风格。每个 preset 同时定义颜色、字体密度、边框、阴影、组件外壳、搜索栏和背景处理。
 
-### 6. Read-only Rendering Foundation
+### 6. Deployment And Domain Foundation
+
+主域名迁移统一处理根路径构建、Cloudflare Pages、GitHub Pages 旧站角色、Supabase URL 配置和安全基线。后续分享、后台和公开展示都应基于正式主域名，不再依赖 GitHub Pages 项目路径。
+
+### 7. Read-only Rendering Foundation
 
 只读分享和未来公开展示前，先抽象不可编辑 `HomeDocumentV2` renderer。它也可以复用到后台快照预览、模板展示和历史版本预览。
 
-### 7. Controlled Server Foundation
+### 8. Controlled Server Foundation
 
 RSS、天气、GitHub、后台 dashboard、API key、service role、管理员能力都不能直接进入 GitHub Pages 前端。后续统一通过 Supabase Edge Functions 或受控后端处理限流、缓存、审计和权限。
 
-### 8. Permission, Quota And Lifecycle Foundation
+### 9. Permission, Quota And Lifecycle Foundation
 
 账号删除、分享链接撤销、云端历史保留、后台审计、联网组件缓存和未来 Storage 能力都需要统一的数据生命周期和审计策略。
 
@@ -195,11 +307,11 @@ RSS、天气、GitHub、后台 dashboard、API key、service role、管理员能
 1. Phase 1.13.0：设置页信息架构 v2。已完成。
 2. Phase 1.13.1：产品身份收口，可编辑页面标题和搜索引擎 logo。
 3. Phase 1.13.2：主题风格 v2。
-4. Phase 1.13.3：主域名准备。
-5. Phase 1.14：多语言支持 v1。
-6. Phase 1.15：低成本组件扩展，优先 Notes、Countdown、World Clock。
-7. Phase 1.16：只读渲染层与只读分享链接 v1。
-8. Phase 1.17：受控服务端与后台 dashboard v1，只做只读、强审计、最小权限。
+4. Phase 1.14：主域名准备。
+5. Phase 1.15：多语言支持 v1。
+6. Phase 1.16：低成本组件扩展，优先 Notes、Countdown、World Clock。
+7. Phase 1.17：只读渲染层与只读分享链接 v1。
+8. Phase 1.18：受控服务端与后台 dashboard v1，只做只读、强审计、最小权限。
 
 这一路线先解决产品化基础，再扩展低风险组件，最后进入分享和服务端能力。需要 Storage、OAuth、支付或复杂权限的新能力不进入 Phase 1 主线。
 
@@ -248,7 +360,7 @@ type HomeDocumentV2 = {
 - `homepage:document:v2`：当前本地首页文档。
 - `homepage:sync-code:v1`：当前浏览器同步绑定。
 - `homepage:reset-backup:v1`：旧恢复默认备份。
-- `homepage:ui-preferences:v1`：本地 UI 偏好，后续在 Phase 1.14 承载未登录语言模式。
+- `homepage:ui-preferences:v1`：本地 UI 偏好，后续在 Phase 1.15 承载未登录语言模式。
 - `homepage:bookmark-import-draft:v1`：导入草稿。
 - `homepage:bookmark-import-undo:v1`：最近一次导入撤销记录。
 - `homepage:audit-log:v1`：本地操作审计日志。
@@ -260,7 +372,7 @@ type HomeDocumentV2 = {
 
 新增或扩展方向：
 
-- `homepage:ui-preferences:v1` 后续在 Phase 1.14 扩展 `localeMode`。
+- `homepage:ui-preferences:v1` 后续在 Phase 1.15 扩展 `localeMode`。
 - 页面标题和主题 v2 不新增本地 key，直接进入 `HomeDocumentV2`。
 
 ### Supabase Tables And RPC
@@ -286,7 +398,7 @@ type HomeDocumentV2 = {
 - `push_account_managed_sync_space`
 - `force_push_account_managed_sync_space`
 
-Phase 1.13 预计不需要新增 Supabase migration。Phase 1.14 多语言支持需要优先复用 `account_preferences.locale` 保存语言模式；若现有约束无法保存 `system` 或新增语言值，则只做最小约束 migration，不新增账号偏好表。
+Phase 1.14 主域名准备预计不需要新增 Supabase migration，但需要调整 Supabase Auth `Site URL`、`Redirect URLs` 和相关生产环境变量。Phase 1.15 多语言支持需要优先复用 `account_preferences.locale` 保存语言模式；若现有约束无法保存 `system` 或新增语言值，则只做最小约束 migration，不新增账号偏好表。
 
 ## Security And Privacy Requirements
 
@@ -309,7 +421,7 @@ Phase 1.13 预计不需要新增 Supabase migration。Phase 1.14 多语言支持
 - 搜索栏左侧显示当前搜索引擎 logo 或稳定 fallback；切换默认搜索引擎后首页显示同步更新。
 - 主题风格 v2 覆盖界面设计和显示风格，不只是配色；旧主题打开后保持兼容。
 - 主域名切换后，首页加载、Magic Link、账号恢复、Storage 图片、同步和本地缓存隔离均通过回归。
-- Notes、Countdown、World Clock 如进入 Phase 1.15，必须复用 Widget Shell、配置入口、快照和同步体系，不新增后端表。
+- Notes、Countdown、World Clock 如进入 Phase 1.16，必须复用 Widget Shell、配置入口、快照和同步体系，不新增后端表。
 - 只读分享和后台 dashboard 在实现前必须先完成只读渲染层和受控服务端边界评估。
 
 ## Assumptions

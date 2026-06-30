@@ -49,12 +49,26 @@ jobs:
             echo "value=/$REPO_NAME" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Show deployment target
+        shell: bash
+        run: |
+          if [ -z "${{ steps.base_path.outputs.value }}" ]; then
+            echo "Building GitHub Pages site for root base path (/)."
+          else
+            echo "Building GitHub Pages site for base path: ${{ steps.base_path.outputs.value }}"
+          fi
+
       - name: Build static site
         env:
           NEXT_PUBLIC_BASE_PATH: ${{ steps.base_path.outputs.value }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL || 'https://jfmwdbzxypgxthahaylp.supabase.co' }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_jmlhw6DPSgPWSUgNZotByg_tFlpMIrL' }}
         run: npm run build
+
+      - name: Verify static export
+        env:
+          NEXT_PUBLIC_BASE_PATH: ${{ steps.base_path.outputs.value }}
+        run: npm run verify:export
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
