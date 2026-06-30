@@ -5,7 +5,11 @@ import { createPortal } from "react-dom";
 import type { HomeSpace } from "@/domain/account";
 import { getErrorMessage } from "@/domain/errors";
 import { HomeDocumentV2, HomeSyncMeta } from "@/domain/home-document";
-import { classifyHomeDocument, getHomeDocumentClassLabel } from "@/domain/home-document-protection";
+import {
+  classifyHomeDocument,
+  createHomeDocumentContentFingerprint,
+  getHomeDocumentClassLabel
+} from "@/domain/home-document-protection";
 import type { LocalePreference } from "@/domain/ui-preferences";
 import {
   createSyncSecrets,
@@ -290,6 +294,28 @@ export function SyncPanel({
         };
         persistBinding(nextBinding);
         setSyncMetaFromBinding(nextBinding, hasPendingLocalChanges ? "linked" : "synced", hasPendingLocalChanges ? "有本地修改待上传" : "已是最新");
+        if (!hasPendingLocalChanges && hasHomeDocumentContentDrift(localDocument, pulled.document)) {
+          const refreshed = applyCloudDocument(
+            pulled,
+            nextBinding,
+            "已刷新本地首页",
+            "before-cloud-pull"
+          );
+          if (refreshed) {
+            setMessage("已从云端刷新本地首页。");
+            recordLocalAuditEvent({
+              documentId: pulled.document.documentId,
+              message: "云端版本号未变化，但本地内容与云端不一致，已重新应用云端首页。",
+              metadata: {
+                remoteRevision: pulled.revision,
+                source: options.source
+              },
+              spaceId: activeBinding.spaceId,
+              type: "sync.same_revision_cloud_refresh"
+            });
+          }
+          return;
+        }
         if (shouldAuditPullSource(options.source)) {
           setMessage(hasPendingLocalChanges ? "云端无更新，本地修改待上传。" : "云端无更新。");
           recordLocalAuditEvent({
@@ -1380,6 +1406,10 @@ function hasLocalDocumentChanges(documentValue: HomeDocumentV2, binding: StoredS
 
   return documentValue.revision !== binding.lastSyncedDocumentRevision
     || documentValue.updatedAt !== binding.lastSyncedDocumentUpdatedAt;
+}
+
+function hasHomeDocumentContentDrift(localDocument: HomeDocumentV2, cloudDocument: HomeDocumentV2): boolean {
+  return createHomeDocumentContentFingerprint(localDocument) !== createHomeDocumentContentFingerprint(cloudDocument);
 }
 
 function getCancelSyncStatus(documentValue: HomeDocumentV2): HomeSyncMeta["status"] {
