@@ -46,6 +46,8 @@
 
 - `guides/GitHubPagesDeploy.md`：GitHub Pages 部署说明。
 - `guides/MainDomainMigrationRunbook.md`：Phase 1.14.0 主域名迁移方案与回滚预案，说明 Cloudflare Pages 主站、GitHub Pages legacy、用户数据迁移、切流检查和回滚路径。
+- `guides/SupabaseDomainMigrationChecklist.md`：Phase 1.14.2 Supabase Auth、Storage 与回调 URL 迁移准备清单，说明 Redirect URLs、Site URL、Storage 回归、观测边界和回滚记录。
+- `guides/CloudflarePagesDeploy.md`：Phase 1.14.3 Cloudflare Pages 主站部署说明，记录 Pages project、构建配置、环境变量、preview 验证和 Supabase Redirect URLs 回填。
 - `guides/SyncCodeUserGuide.md`：同步码使用指南。
 - `guides/SupabaseMigrationChecklist.md`：Supabase SQL 手动迁移执行清单。
 - `guides/DataPreservationP0RegressionDrill.md`：Phase 1.11.7 P0 数据保全回归与事故演练指南。

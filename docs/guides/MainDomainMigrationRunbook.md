@@ -76,8 +76,8 @@ localStorage 按 origin 隔离。主域名迁移后，旧 GitHub Pages 上的本
 正式切流前必须完成：
 
 - Phase 1.14.1：根路径构建通过，本地和 preview 下 `_next`、图片、路由均不带错误前缀。
-- Phase 1.14.2：Supabase Auth `Site URL`、`Redirect URLs` 和 Storage 回归方案已准备。
-- Phase 1.14.3：Cloudflare Pages preview 部署可访问。
+- Phase 1.14.2：Supabase Auth `Site URL`、`Redirect URLs` 和 Storage 回归方案已准备，详见 `docs/guides/SupabaseDomainMigrationChecklist.md`。
+- Phase 1.14.3：Cloudflare Pages preview 部署可访问，并已完成 preview Auth、账号托管内容拉取和 Storage 图片回归。
 - Phase 1.14.4：Cloudflare 安全基线配置方案已确认。
 - Phase 1.14.5：GitHub Pages legacy 迁移提示和导出路径已准备。
 - `npm run typecheck`、`npm run lint`、`npm run build` 均通过。
@@ -89,15 +89,33 @@ localStorage 按 origin 隔离。主域名迁移后，旧 GitHub Pages 上的本
 
 执行 Supabase 配置变更前记录当前值，便于回滚。
 
+- Phase 1.14.2 只准备配置和回归清单，不立即修改 Supabase Dashboard。
+- Magic Link 继续回到发起登录的当前来源，不强制跳主域名。
 - 记录当前 `Site URL`。
 - 记录当前全部 `Redirect URLs`。
-- 新增正式主域名 redirect。
-- 迁移窗口保留 localhost redirect。
-- 迁移窗口保留旧 GitHub Pages redirect。
+- `Site URL` 计划在正式切流前切换为 `https://<primary-domain>/`。
+- `Redirect URLs` 迁移窗口至少保留：
+  - `http://localhost:3000/`
+  - `http://localhost:3000/edit/`
+  - `https://yinwenjie.github.io/PersonalHomepge/`
+  - `https://yinwenjie.github.io/PersonalHomepge/edit/`
+  - `https://<primary-domain>/`
+  - `https://<primary-domain>/edit/`
+- Phase 1.14.3 已创建 Cloudflare Pages project，并已补充 preview host 的首页和设置页 URL。
 - Magic Link 登录后应回到当前发起登录的 host。
 - 验证账号托管空间恢复不会跳回旧站。
 - 验证登出、重新登录和 session 刷新。
 - 确认 Supabase anon key 仍只作为前端公开 key 使用，service role 不进入前端、GitHub Pages、Cloudflare Pages 环境变量或构建产物。
+
+## Supabase Storage Checklist
+
+- 不新增 Storage migration，继续复用 private bucket `home-assets`。
+- 切流前复查 `supabase/checks/013_home_assets_storage_verify.sql`。
+- 登录用户在新 host 上传 Banner 和背景图片。
+- 刷新页面后 signed URL 能正常显示。
+- 另一个已登录浏览器恢复账号托管空间后，Storage 图片能重新生成 signed URL。
+- 清除图片后页面不再引用旧 Storage path。
+- 上传失败时优先检查 bucket、RLS policy、登录状态、文件大小和图片类型。
 
 ## Cloudflare Pages Checklist
 
@@ -109,8 +127,10 @@ localStorage 按 origin 隔离。主域名迁移后，旧 GitHub Pages 上的本
 - Node 版本与当前 GitHub Actions 对齐。
 - 配置 `NEXT_PUBLIC_SUPABASE_URL`、`NEXT_PUBLIC_SUPABASE_ANON_KEY` 等公开前端变量。
 - 主域名构建不设置 GitHub Pages legacy base path。
+- 显式配置 `NEXT_PUBLIC_BASE_PATH=/`，避免误用 GitHub Pages legacy 路径。
 - 主域名 preview 构建后执行 `npm run verify:export`，确认 `_next` 资源以 `/_next/` 开头。
 - Preview deployment 完整回归后再绑定 production custom domain。
+- 详细步骤见 `docs/guides/CloudflarePagesDeploy.md`。
 
 ## 安全基线 Checklist
 

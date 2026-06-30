@@ -2,7 +2,7 @@
 
 ## Summary
 
-Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持续扩展的个人首页产品。当前 Phase 1.1-1.13 已完成本地编辑、同步码、账号托管、模板、主题、组件、导入、数据保全、观测、组件体验优化和产品化体验收口。Phase 1.14 已启动主域名准备，Phase 1.14.0 已完成迁移方案与回滚预案，Phase 1.14.1 已完成根路径构建与部署目标配置，后续继续处理 Supabase 回调、Cloudflare Pages 主站部署、安全基线、GitHub Pages 旧站角色、闭源开发评估和回滚演练；多语言支持顺延为 Phase 1.15。
+Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持续扩展的个人首页产品。当前 Phase 1.1-1.13 已完成本地编辑、同步码、账号托管、模板、主题、组件、导入、数据保全、观测、组件体验优化和产品化体验收口。Phase 1.14 已启动主域名准备，Phase 1.14.0 已完成迁移方案与回滚预案，Phase 1.14.1 已完成根路径构建与部署目标配置，Phase 1.14.2 已完成 Supabase Auth、Storage 与回调 URL 迁移准备，Phase 1.14.3 已完成 Cloudflare Pages preview 部署和回归；后续继续处理 Cloudflare 安全基线、GitHub Pages 旧站角色、闭源开发评估和回滚演练；多语言支持顺延为 Phase 1.15。
 
 当前产品原则：
 
@@ -37,8 +37,10 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 - Phase 1.13.2 已完成：主题风格 v2，主题从配色 preset 扩展为 appearance preset，并加入 Millennium 门户目录风格。
 - Phase 1.14.0 已完成：主域名迁移方案与回滚预案，明确 Cloudflare Pages 主站、GitHub Pages legacy、localStorage 跨域迁移和回滚路径。
 - Phase 1.14.1 已完成：根路径构建与部署目标配置，`NEXT_PUBLIC_BASE_PATH` 规范化、静态导出验证脚本和 GitHub Pages workflow 校验已落地。
+- Phase 1.14.2 已完成：Supabase Auth、Storage 与回调 URL 迁移准备，明确当前来源回跳、Redirect URLs、Storage 回归和回滚记录。
+- Phase 1.14.3 已完成：Cloudflare Pages preview 已生成并完成回归，Supabase preview Redirect URLs 已添加，首页内容可在 preview 拉取并显示。
 
-下一步进入 Phase 1.14.2：Supabase Auth、Storage 与回调 URL 迁移。
+下一步进入 Phase 1.14.4：Cloudflare 安全基线。
 
 ## Phase Plan
 
@@ -57,7 +59,7 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 | Phase 1.11：数据保全与发布观测体系 | 已完成 | 文档分类、本地/云端历史、恢复中心、危险写入保护、同步误覆盖防护、账号托管恢复边界、P0 演练、基础埋点、错误监控 | 继续作为所有后续功能的 P0 约束 |
 | Phase 1.12：组件设计优化子阶段 | 已完成 | 组件体验规范、Widget Shell、Todo/月历优化、配置入口、模板组件组合、候选组件 backlog | 纯前端新组件留 Phase 1.16 |
 | Phase 1.13：产品化体验收口 | 已完成 | 设置页信息架构 v2、产品身份收口、主题风格 v2 | 主域名准备独立到 Phase 1.14 |
-| Phase 1.14：主域名准备 | 进行中 | Cloudflare Pages 主站迁移、根路径构建、Supabase 回调、Cloudflare 安全基线、GitHub Pages 旧站角色、闭源开发评估和回滚演练；1.14.0/1.14.1 已完成 | 下一步实现 1.14.2 Supabase Auth、Storage 与回调 URL 迁移 |
+| Phase 1.14：主域名准备 | 进行中 | Cloudflare Pages 主站迁移、根路径构建、Supabase 回调、Cloudflare 安全基线、GitHub Pages 旧站角色、闭源开发评估和回滚演练；1.14.0-1.14.3 已完成 | 下一步进入 Cloudflare 安全基线 |
 | Phase 1.15：多语言支持 v1 | 候选 | 语言模式、账号/本地偏好、静态 dictionary、日期时间/月历 locale formatter、主路径 UI 本地化 | 放在主域名准备之后独立实现 |
 | Phase 1.16：低成本组件扩展 | 候选 | Notes、Countdown、World Clock | 仅实现纯前端、低数据体积组件 |
 | Phase 1.17：只读渲染与分享链接 v1 | 候选 | 只读首页 renderer、只读分享链接、撤销机制 | 依赖主域名和只读渲染层设计 |
@@ -179,17 +181,30 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 
 ### Phase 1.14.2：Supabase Auth、Storage 与回调 URL 迁移
 
+状态：已完成配置准备，不执行线上配置变更。
+
 目标：让登录、账号恢复、Storage 图片、云端历史和观测事件在新主域名下可用。
 
 主要任务：
 
-- Supabase Auth `Site URL` 切换为正式主域名。
-- `Redirect URLs` 同时保留正式主域名、localhost 和旧 GitHub Pages 迁移窗口地址。
+- 明确 Supabase Auth `Site URL` 后续切换为正式主域名，本阶段不立即修改 Dashboard。
+- 准备 `Redirect URLs` 清单，迁移窗口同时保留正式主域名、localhost 和旧 GitHub Pages 地址。
 - 回归 Magic Link、登录恢复、账号托管空间恢复、同步码绑定和退出登录。
 - 回归 Supabase Storage signed/public URL 在新域名下的图片展示。
 - 确认埋点和错误监控的来源域名、诊断字段和隐私边界不变。
 
+实施结果：
+
+- Magic Link 回调策略保持当前来源回跳：从哪个 host/path 发起登录，就回到同一 host/path；query 和 hash 会被去掉。
+- 不新增 `/auth/callback`，不强制跳主域名，不引入 `NEXT_PUBLIC_SITE_ORIGIN`。
+- 新增 `docs/guides/SupabaseDomainMigrationChecklist.md`，固化 `Site URL`、`Redirect URLs`、Storage 回归、观测边界和回滚记录模板。
+- 明确迁移窗口至少保留 localhost、GitHub Pages legacy、正式主域名首页和设置页 Redirect URLs；Cloudflare Pages preview URL 在 Phase 1.14.3 创建项目后补充。
+- Storage 不新增 migration，继续复用 private bucket `home-assets`、012 migration 和 013 verify 脚本。
+- 埋点和错误监控不新增 host/origin 字段，不新增 Supabase migration；新旧域名区分先依赖 Cloudflare/GitHub 侧统计和现有 `page_path`。
+
 ### Phase 1.14.3：Cloudflare Pages 主站部署
+
+状态：已完成。
 
 目标：以最低 CI/CD 成本建立正式主站部署链路。
 
@@ -200,6 +215,15 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 - 输出目录使用 `out`，Node 版本对齐当前 GitHub Actions。
 - 配置生产环境变量和 preview 环境变量。
 - 使用 Cloudflare Pages preview deployments 做切流前验证。
+
+操作准备：
+
+- 新增 `docs/guides/CloudflarePagesDeploy.md` 作为 Cloudflare Pages 创建和 preview 回归手册。
+- Cloudflare Pages 构建显式使用根路径：`NEXT_PUBLIC_BASE_PATH=/`。
+- Cloudflare Pages preview URL 已生成：`https://personalhomepge.pages.dev/`。
+- 已将 preview 首页和 `/edit/` URL 回填到 `docs/guides/SupabaseDomainMigrationChecklist.md` 的 Redirect URLs 清单，并已在 Supabase Auth 中添加。
+- Preview 首页和 `/edit/` 均可访问。
+- Magic Link、账号托管首页内容拉取与显示、Storage Banner/背景图片显示已完成手动回归。
 
 ### Phase 1.14.4：Cloudflare 安全基线
 

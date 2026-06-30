@@ -32,8 +32,6 @@ Phase 1.14 聚焦正式主域名上线前后的部署、回调、安全和回滚
 - 不改变当前 GitHub Pages workflow。
 - 不执行 DNS、Cloudflare Pages、Supabase Auth 或 Storage 的线上配置变更。
 
-## 后续任务
-
 ## Phase 1.14.1：根路径构建与部署目标配置
 
 已完成：
@@ -68,15 +66,71 @@ Phase 1.14 聚焦正式主域名上线前后的部署、回调、安全和回滚
 - `docs/guides/GitHubPagesDeploy.md`
 - `docs/guides/MainDomainMigrationRunbook.md`
 
+## Phase 1.14.2：Supabase Auth、Storage 与回调 URL 迁移准备
+
+已完成：
+
+- 保持现有 Magic Link 回调策略：`emailRedirectTo` 继续由当前浏览器地址生成，保留当前 origin/path，并去掉 query/hash。
+- 确认本阶段不新增 `/auth/callback`，不强制跳转正式主域名，不引入 `NEXT_PUBLIC_SITE_ORIGIN`。
+- 新增 `docs/guides/SupabaseDomainMigrationChecklist.md`，记录 Supabase Dashboard 配置准备项、Redirect URLs、Storage 回归、观测边界和回滚记录模板。
+- 明确迁移窗口 Redirect URLs 至少覆盖 localhost、GitHub Pages legacy、正式主域名首页和设置页；Cloudflare Pages preview URL 在 Phase 1.14.3 创建项目后补充。
+- Supabase `Site URL` 本阶段只记录计划切换为正式主域名，不立即执行。
+- Storage 不新增 migration，继续复用 `home-assets` private bucket、012 migration 和 013 verify 脚本。
+- 埋点和错误监控不新增 host/origin 字段，不新增 Supabase migration；新旧域名区分先依赖 Cloudflare/GitHub 侧统计和现有 `page_path`。
+
+数据与架构边界：
+
+- 不新增 Supabase migration。
+- 不修改 `HomeDocumentV2`。
+- 不修改 Supabase Dashboard、DNS、Cloudflare Pages 或 GitHub Pages 线上配置。
+- 不新增前端密钥，不暴露 service role。
+- 不修改当前登录运行时代码。
+
+关键文档：
+
+- `docs/guides/SupabaseDomainMigrationChecklist.md`
+- `docs/guides/MainDomainMigrationRunbook.md`
+- `docs/planning/Phase1Plan.md`
+
+## Phase 1.14.3：Cloudflare Pages 主站部署
+
+已完成：
+
+- 新增 `docs/guides/CloudflarePagesDeploy.md`，记录 Cloudflare Pages project 创建步骤、构建配置、环境变量、preview 验证和 Supabase Redirect URLs 回填。
+- 明确 Cloudflare Pages production branch 使用 `production`。
+- 明确 build command 使用 `npm run typecheck && npm run lint && npm run build && npm run verify:export`。
+- 明确 output directory 使用 `out`，继续保持 Next.js static export。
+- 明确 Cloudflare Pages 构建显式配置 `NEXT_PUBLIC_BASE_PATH=/`，避免误用 GitHub Pages legacy 路径。
+- 明确 `NEXT_PUBLIC_SUPABASE_URL` 和 `NEXT_PUBLIC_SUPABASE_ANON_KEY` 是公开前端变量；不配置 service role 或管理员密钥。
+- 明确本阶段先获得 Cloudflare Pages preview，不绑定正式主域名、不切 DNS、不关闭 GitHub Pages legacy。
+- Cloudflare Pages preview 已生成：`https://personalhomepge.pages.dev/`。
+- 已将 preview 首页和 `/edit/` URL 补入 Supabase Redirect URLs 清单。
+- 已在 Supabase Auth Redirect URLs 中添加 `https://personalhomepge.pages.dev/` 和 `https://personalhomepge.pages.dev/edit/`，但未修改 `Site URL`。
+
+手动回归已完成：
+
+- 打开 `https://personalhomepge.pages.dev/`，确认首页加载和静态资源无 404。
+- 打开 `https://personalhomepge.pages.dev/edit/`，确认设置页加载正常。
+- Magic Link 在 preview 首页和 `/edit/` 发起后可回到发起登录的当前来源。
+- 账号托管首页内容可在 preview 拉取并显示。
+- Storage Banner/背景图片在 preview 下可显示，刷新和跨浏览器恢复流程通过。
+
+数据与架构边界：
+
+- 不新增 Supabase migration。
+- 不修改 `HomeDocumentV2`。
+- 不修改前端运行时代码。
+- 除添加 Cloudflare Pages preview Redirect URLs 外，不修改 Supabase `Site URL`。
+- 不修改 DNS、GitHub Pages 线上角色或正式主域名绑定。
+
 ## 后续任务
 
-下一步进入 Phase 1.14.2：Supabase Auth、Storage 与回调 URL 迁移。
+下一步进入 Phase 1.14.4 Cloudflare 安全基线。
 
-重点是让登录、账号托管恢复、普通同步码绑定、Storage 图片、云端历史和观测事件在新主域名下稳定工作。正式主域名 origin、Supabase Auth `Site URL` 和 `Redirect URLs` 都在该阶段处理。
+重点是在正式主域名绑定前，完成 Cloudflare 代理、HTTPS、基础 WAF、DDoS 防护、响应头和账号安全设置的低成本基线。
 
 Phase 1.14 后续仍需完成：
 
-- Phase 1.14.2：Supabase Auth、Storage 与回调 URL 迁移。
 - Phase 1.14.3：Cloudflare Pages 主站部署。
 - Phase 1.14.4：Cloudflare 安全基线。
 - Phase 1.14.5：GitHub Pages 旧站迁移提示。
