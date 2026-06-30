@@ -17,6 +17,8 @@ export const V1_STORAGE_KEY = "homepage:data:v1";
 export const V2_STORAGE_KEY = "homepage:document:v2";
 export const RESET_BACKUP_STORAGE_KEY = "homepage:reset-backup:v1";
 export const UNGROUPED_GROUP_ID = "group-ungrouped";
+export const DEFAULT_HOME_DOCUMENT_TITLE = "Home";
+export const HOME_DOCUMENT_TITLE_MAX_LENGTH = 80;
 
 export type SyncMode = "local" | "sync-code";
 export type SyncStatus =
@@ -105,6 +107,7 @@ export interface HomeBillingMeta {
 export interface HomeDocumentV2 {
   version: typeof HOME_DOCUMENT_VERSION;
   documentId: string;
+  documentTitle: string;
   updatedAt: string;
   revision: number;
   groups: HomeGroup[];
@@ -146,6 +149,7 @@ const DEFAULT_WIDGET_LAYOUT: HomeWidgetLayout = {
 export const DEFAULT_HOME_DOCUMENT_V2: HomeDocumentV2 = {
   version: HOME_DOCUMENT_VERSION,
   documentId: "local-default",
+  documentTitle: DEFAULT_HOME_DOCUMENT_TITLE,
   updatedAt: "2026-06-03T00:00:00.000Z",
   revision: 0,
   theme: DEFAULT_THEME,
@@ -298,6 +302,11 @@ export function normalizeSearchText(value: unknown): string {
   return normalizeText(value).toLowerCase();
 }
 
+export function normalizeHomeDocumentTitle(value: unknown): string {
+  const title = normalizeText(value).replace(/\s+/g, " ").slice(0, HOME_DOCUMENT_TITLE_MAX_LENGTH);
+  return title || DEFAULT_HOME_DOCUMENT_TITLE;
+}
+
 export function isValidUrl(value: unknown): boolean {
   try {
     const url = new URL(normalizeText(value));
@@ -378,6 +387,7 @@ export function normalizeHomeDocument(input: unknown): HomeDocumentV2 {
   return {
     version: HOME_DOCUMENT_VERSION,
     documentId: normalizeText(input.documentId) || createId("home"),
+    documentTitle: normalizeHomeDocumentTitle(input.documentTitle),
     updatedAt: normalizeText(input.updatedAt) || new Date().toISOString(),
     revision: normalizeRevision(input.revision),
     groups,
@@ -403,6 +413,7 @@ export function migrateV1ToV2(input: unknown): HomeDocumentV2 {
   return normalizeHomeDocument({
     version: HOME_DOCUMENT_VERSION,
     documentId: "local-migrated",
+    documentTitle: normalizeHomeDocumentTitle(input.documentTitle),
     updatedAt: normalizeText(input.updatedAt) || new Date().toISOString(),
     revision: 1,
     groups: input.groups,
@@ -415,6 +426,7 @@ export function migrateV1ToV2(input: unknown): HomeDocumentV2 {
 
 function toHomeDocumentContentSnapshot(documentValue: HomeDocumentV2) {
   return {
+    documentTitle: documentValue.documentTitle,
     groups: documentValue.groups,
     widgets: documentValue.widgets,
     theme: documentValue.theme

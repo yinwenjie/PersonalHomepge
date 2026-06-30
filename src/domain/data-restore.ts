@@ -11,6 +11,7 @@ import {
 export type HomepageDataRestoreSource = "data-package-v1" | "home-document-v2" | "legacy-home-document-v1";
 
 export interface HomepageDataRestorePreview {
+  documentTitle: string;
   exportedAt: string | null;
   groupCount: number;
   hasBackground: boolean;
@@ -119,6 +120,7 @@ function buildRestorePreview(
   exportedAt: string | null
 ): HomepageDataRestorePreview {
   return {
+    documentTitle: documentValue.documentTitle,
     exportedAt,
     groupCount: documentValue.groups.length,
     hasBackground: Boolean(documentValue.theme.backgroundAsset || documentValue.theme.backgroundUrl),

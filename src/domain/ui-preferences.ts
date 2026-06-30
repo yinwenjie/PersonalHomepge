@@ -6,6 +6,13 @@ export type FontFamilyPreference = "system" | "serif" | "mono";
 export type DensityPreference = "comfortable" | "compact";
 export type SearchEnginePreference = "duckduckgo" | "google" | "bing" | "yandex";
 
+export interface SearchEngineDefinition {
+  id: SearchEnginePreference;
+  iconText: string;
+  label: string;
+  searchUrl: (keyword: string) => string;
+}
+
 export interface UiPreferences {
   locale: LocalePreference;
   themePreference: ThemePreference;
@@ -44,12 +51,35 @@ export const DENSITY_OPTIONS: Array<{ value: DensityPreference; label: string }>
   { value: "compact", label: "紧凑" }
 ];
 
-export const SEARCH_ENGINE_OPTIONS: Array<{ value: SearchEnginePreference; label: string }> = [
-  { value: "duckduckgo", label: "DuckDuckGo" },
-  { value: "google", label: "Google" },
-  { value: "bing", label: "Bing" },
-  { value: "yandex", label: "Yandex" }
-];
+export const SEARCH_ENGINE_DEFINITIONS: Record<SearchEnginePreference, SearchEngineDefinition> = {
+  duckduckgo: {
+    id: "duckduckgo",
+    iconText: "D",
+    label: "DuckDuckGo",
+    searchUrl: (keyword) => `https://duckduckgo.com/?q=${encodeURIComponent(keyword)}`
+  },
+  google: {
+    id: "google",
+    iconText: "G",
+    label: "Google",
+    searchUrl: (keyword) => `https://www.google.com/search?q=${encodeURIComponent(keyword)}`
+  },
+  bing: {
+    id: "bing",
+    iconText: "B",
+    label: "Bing",
+    searchUrl: (keyword) => `https://www.bing.com/search?q=${encodeURIComponent(keyword)}`
+  },
+  yandex: {
+    id: "yandex",
+    iconText: "Y",
+    label: "Yandex",
+    searchUrl: (keyword) => `https://yandex.com/search/?text=${encodeURIComponent(keyword)}`
+  }
+};
+
+export const SEARCH_ENGINE_OPTIONS: Array<{ value: SearchEnginePreference; label: string }> = Object.values(SEARCH_ENGINE_DEFINITIONS)
+  .map((definition) => ({ value: definition.id, label: definition.label }));
 
 export function normalizeUiPreferences(input: Partial<Record<keyof UiPreferences, unknown>> | null | undefined): UiPreferences {
   return {
@@ -62,25 +92,15 @@ export function normalizeUiPreferences(input: Partial<Record<keyof UiPreferences
 }
 
 export function searchEngineLabel(searchEngine: SearchEnginePreference): string {
-  return SEARCH_ENGINE_OPTIONS.find((option) => option.value === searchEngine)?.label ?? "DuckDuckGo";
+  return getSearchEngineDefinition(searchEngine).label;
 }
 
 export function buildSearchUrl(searchEngine: SearchEnginePreference, keyword: string): string {
-  const query = encodeURIComponent(keyword);
+  return getSearchEngineDefinition(searchEngine).searchUrl(keyword);
+}
 
-  if (searchEngine === "google") {
-    return `https://www.google.com/search?q=${query}`;
-  }
-
-  if (searchEngine === "bing") {
-    return `https://www.bing.com/search?q=${query}`;
-  }
-
-  if (searchEngine === "yandex") {
-    return `https://yandex.com/search/?text=${query}`;
-  }
-
-  return `https://duckduckgo.com/?q=${query}`;
+export function getSearchEngineDefinition(searchEngine: SearchEnginePreference): SearchEngineDefinition {
+  return SEARCH_ENGINE_DEFINITIONS[searchEngine] ?? SEARCH_ENGINE_DEFINITIONS.duckduckgo;
 }
 
 function normalizeLocale(value: unknown): LocalePreference {

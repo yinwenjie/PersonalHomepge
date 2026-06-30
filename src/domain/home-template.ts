@@ -40,6 +40,7 @@ export interface HomeTemplate {
   name: string;
   shortName: string;
   summary: string;
+  documentTitle: string;
   recommendedSpaceName: string;
   accent: string;
   groups: HomeTemplateGroupSpec[];
@@ -60,6 +61,7 @@ export const HOME_TEMPLATES: HomeTemplate[] = [
     name: "空白首页",
     shortName: "空白",
     summary: "不预设任何网站，只保留一个干净的编辑起点。",
+    documentTitle: "Blank Home",
     recommendedSpaceName: "空白首页",
     accent: "#64748b",
     groups: [],
@@ -70,6 +72,7 @@ export const HOME_TEMPLATES: HomeTemplate[] = [
     name: "极简起步",
     shortName: "极简",
     summary: "少量全球常用入口，适合想快速开始、之后慢慢整理的人。",
+    documentTitle: "Minimal Home",
     recommendedSpaceName: "极简首页",
     accent: "#2563eb",
     groups: [
@@ -103,6 +106,7 @@ export const HOME_TEMPLATES: HomeTemplate[] = [
     name: "通用效率",
     shortName: "效率",
     summary: "覆盖搜索、AI、社交、内容、购物和日常工具的通用起点。",
+    documentTitle: "Productivity Home",
     recommendedSpaceName: "通用效率首页",
     accent: "#0f766e",
     groups: [
@@ -159,6 +163,7 @@ export const HOME_TEMPLATES: HomeTemplate[] = [
     name: "工作办公",
     shortName: "办公",
     summary: "面向日常办公、协作、会议和项目管理的入口集合。",
+    documentTitle: "Work Home",
     recommendedSpaceName: "工作办公首页",
     accent: "#7c3aed",
     groups: [
@@ -221,6 +226,7 @@ export const HOME_TEMPLATES: HomeTemplate[] = [
     name: "开发者工作台",
     shortName: "开发",
     summary: "代码托管、问答学习、包管理、文档和云部署的开发入口。",
+    documentTitle: "Developer Home",
     recommendedSpaceName: "开发者首页",
     accent: "#0891b2",
     groups: [
@@ -276,6 +282,7 @@ export const HOME_TEMPLATES: HomeTemplate[] = [
     name: "学习研究",
     shortName: "学习",
     summary: "面向自学、课程、学术搜索、论文资料和阅读笔记。",
+    documentTitle: "Research Home",
     recommendedSpaceName: "学习研究首页",
     accent: "#ca8a04",
     groups: [
@@ -356,6 +363,7 @@ export function createHomeDocumentFromTemplate(templateId: HomeTemplateId): Home
   return normalizeHomeDocument({
     ...baseDocument,
     documentId: createId("home"),
+    documentTitle: template.documentTitle,
     updatedAt: now,
     revision: 0,
     groups: template.groups.map((group, groupIndex) => ({

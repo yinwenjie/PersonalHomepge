@@ -266,7 +266,8 @@ function isCloudSnapshotSummary(value: unknown): value is CloudHomeSnapshotSumma
   }
 
   const summary = value as Record<string, unknown>;
-  return typeof summary.groupCount === "number"
+  return typeof summary.documentTitle === "string"
+    && typeof summary.groupCount === "number"
     && typeof summary.siteCount === "number"
     && typeof summary.widgetCount === "number"
     && typeof summary.themePresetId === "string"

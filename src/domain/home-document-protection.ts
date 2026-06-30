@@ -1,5 +1,6 @@
 import {
   createDefaultHomeDocument,
+  DEFAULT_HOME_DOCUMENT_TITLE,
   type HomeDocumentV2,
   normalizeHomeDocument,
   sortByOrder
@@ -77,7 +78,9 @@ export function isBlankHomeDocumentContent(documentValue: HomeDocumentV2): boole
 
 export function getUnmodifiedHomeTemplateId(documentValue: HomeDocumentV2): HomeTemplateId | null {
   for (const template of HOME_TEMPLATES) {
-    if (isHomeDocumentContentEquivalent(documentValue, createHomeDocumentFromTemplate(template.id))) {
+    const templateDocument = createHomeDocumentFromTemplate(template.id);
+    if (isHomeDocumentContentEquivalent(documentValue, templateDocument)
+      || isLegacyUntitledTemplateContentEquivalent(documentValue, templateDocument)) {
       return template.id;
     }
   }
@@ -93,6 +96,7 @@ export function createHomeDocumentContentFingerprint(documentValue: HomeDocument
   const normalized = normalizeHomeDocument(documentValue);
 
   return stableStringify({
+    documentTitle: normalized.documentTitle,
     groups: sortByOrder(normalized.groups).map((group) => ({
       keywords: group.keywords,
       sites: sortByOrder(group.sites).map((site) => ({
@@ -142,6 +146,20 @@ function createClassification(
     isUserData,
     sourceTemplateId
   };
+}
+
+function isLegacyUntitledTemplateContentEquivalent(
+  documentValue: HomeDocumentV2,
+  templateDocument: HomeDocumentV2
+): boolean {
+  if (documentValue.documentTitle !== DEFAULT_HOME_DOCUMENT_TITLE) {
+    return false;
+  }
+
+  return isHomeDocumentContentEquivalent({
+    ...documentValue,
+    documentTitle: templateDocument.documentTitle
+  }, templateDocument);
 }
 
 function stableStringify(value: unknown): string {

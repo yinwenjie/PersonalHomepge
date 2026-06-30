@@ -699,6 +699,7 @@ export function SettingsDashboard() {
             </header>
             <div className="settings-dialog-body">
               <div className="data-restore-summary">
+                <DataRestoreStat label="标题" value={dataPackageRestore.preview.documentTitle} />
                 <DataRestoreStat label="来源" value={formatRestoreSource(dataPackageRestore.preview.source)} />
                 <DataRestoreStat label="分组" value={String(dataPackageRestore.preview.groupCount)} />
                 <DataRestoreStat label="网站" value={String(dataPackageRestore.preview.siteCount)} />

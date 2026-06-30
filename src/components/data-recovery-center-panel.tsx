@@ -409,6 +409,7 @@ function SnapshotCardCopy({
         <time>{formatDateTime(snapshot.createdAt, locale)}</time>
       </div>
       <div className="local-snapshot-meta">
+        <span>标题 {snapshot.summary.documentTitle}</span>
         <span>{snapshot.summary.groupCount} 分组</span>
         <span>{snapshot.summary.siteCount} 网站</span>
         <span>{snapshot.summary.widgetCount} 组件</span>
@@ -450,6 +451,7 @@ function SnapshotPreviewDialog({
         </header>
         <div className="settings-dialog-body">
           <div className="data-restore-summary">
+            <DataRecoveryStat label="标题" value={snapshot.summary.documentTitle} />
             <DataRecoveryStat label="分组" value={String(snapshot.summary.groupCount)} />
             <DataRecoveryStat label="网站" value={String(snapshot.summary.siteCount)} />
             <DataRecoveryStat label="组件" value={String(snapshot.summary.widgetCount)} />
@@ -576,7 +578,7 @@ function formatSnapshotVersion(snapshot: PreviewableSnapshot): string {
 }
 
 function formatSnapshotOption(snapshot: PreviewableSnapshot, locale: LocalePreference): string {
-  return `${formatSnapshotVersion(snapshot)} · ${formatDateTime(snapshot.createdAt, locale)} · ${snapshot.summary.siteCount} 网站`;
+  return `${formatSnapshotVersion(snapshot)} · ${snapshot.summary.documentTitle} · ${formatDateTime(snapshot.createdAt, locale)} · ${snapshot.summary.siteCount} 网站`;
 }
 
 function formatSnapshotAssets(hasBanner: boolean, hasBackground: boolean): string {

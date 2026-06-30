@@ -1,16 +1,19 @@
 "use client";
 
-import type { FormEvent } from "react";
+import type { FormEvent, KeyboardEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   buildSearchUrl,
+  getSearchEngineDefinition,
   searchEngineLabel
 } from "@/domain/ui-preferences";
 import { summarizeDocumentForAnalytics } from "@/domain/product-analytics";
 import type { HomeDocumentV2 } from "@/domain/home-document";
 import {
+  HOME_DOCUMENT_TITLE_MAX_LENGTH,
   isUngroupedGroup,
+  normalizeHomeDocumentTitle,
   normalizeSearchText,
   normalizeText,
   sortByOrder
@@ -61,11 +64,19 @@ export function HomeDashboard() {
   const [activeQuery, setActiveQuery] = useState("");
   const [todayLabel, setTodayLabel] = useState("");
   const [showWelcome, setShowWelcome] = useState(false);
+  const [titleEditing, setTitleEditing] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
+  const [titlePendingConfirmation, setTitlePendingConfirmation] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const titleInputRef = useRef<HTMLInputElement | null>(null);
+  const titleConfirmButtonRef = useRef<HTMLButtonElement | null>(null);
+  const titleCommitGuardRef = useRef(false);
   const homeViewedTrackedRef = useRef(false);
   const locale = preferences.locale;
   const searchEngine = preferences.defaultSearchEngine;
   const searchEngineName = searchEngineLabel(searchEngine);
+  const searchEngineDefinition = getSearchEngineDefinition(searchEngine);
+  const documentTitle = homeDocument.documentTitle;
   const hasBannerImage = homeDocument.theme.bannerAsset?.source === "external"
     || (homeDocument.theme.bannerAsset?.source === "storage" && Boolean(user));
 
@@ -80,6 +91,39 @@ export function HomeDashboard() {
 
     return () => window.clearTimeout(timerId);
   }, [locale]);
+
+  useEffect(() => {
+    document.title = documentTitle;
+
+    return () => {
+      document.title = "Home";
+    };
+  }, [documentTitle]);
+
+  useEffect(() => {
+    if (!titleEditing) {
+      return;
+    }
+
+    const timerId = window.setTimeout(() => {
+      titleInputRef.current?.focus();
+      titleInputRef.current?.select();
+    }, 0);
+
+    return () => window.clearTimeout(timerId);
+  }, [titleEditing]);
+
+  useEffect(() => {
+    if (!titlePendingConfirmation) {
+      return;
+    }
+
+    const timerId = window.setTimeout(() => {
+      titleConfirmButtonRef.current?.focus();
+    }, 0);
+
+    return () => window.clearTimeout(timerId);
+  }, [titlePendingConfirmation]);
 
   const updatedLabel = useMemo(() => {
     return new Intl.DateTimeFormat(locale, {
@@ -172,6 +216,105 @@ export function HomeDashboard() {
     completeOnboarding();
   }
 
+  function startTitleEditing() {
+    if (titlePendingConfirmation) {
+      return;
+    }
+
+    titleCommitGuardRef.current = false;
+    setTitleDraft(documentTitle);
+    setTitleEditing(true);
+  }
+
+  function cancelTitleEditing() {
+    setTitleEditing(false);
+    setTitleDraft("");
+  }
+
+  function completeTitleEditing() {
+    if (titleCommitGuardRef.current) {
+      return;
+    }
+
+    titleCommitGuardRef.current = true;
+    const nextTitle = normalizeHomeDocumentTitle(titleDraft);
+    if (!normalizeText(titleDraft)) {
+      window.alert("首页标题不能为空，已保留原标题。");
+      cancelTitleEditing();
+      window.setTimeout(() => {
+        titleCommitGuardRef.current = false;
+      }, 0);
+      return;
+    }
+
+    if (nextTitle === documentTitle) {
+      cancelTitleEditing();
+      window.setTimeout(() => {
+        titleCommitGuardRef.current = false;
+      }, 0);
+      return;
+    }
+
+    setTitleEditing(false);
+    setTitlePendingConfirmation(nextTitle);
+  }
+
+  function handleTitleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    completeTitleEditing();
+  }
+
+  function handleTitleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      cancelTitleEditing();
+      return;
+    }
+
+    if (event.key === "Enter") {
+      event.preventDefault();
+      completeTitleEditing();
+    }
+  }
+
+  function handleTitleDisplayKeyDown(event: KeyboardEvent<HTMLHeadingElement>) {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+
+    event.preventDefault();
+    startTitleEditing();
+  }
+
+  function cancelTitleConfirmation() {
+    setTitlePendingConfirmation(null);
+    setTitleDraft("");
+    titleCommitGuardRef.current = false;
+  }
+
+  function confirmTitleChange() {
+    if (!titlePendingConfirmation) {
+      return;
+    }
+
+    commitHomeDocument({
+      ...homeDocument,
+      documentTitle: titlePendingConfirmation
+    }, "首页标题已更新");
+    setTitlePendingConfirmation(null);
+    setTitleDraft("");
+    titleCommitGuardRef.current = false;
+  }
+
+  function handleTitleConfirmationKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key !== "Escape") {
+      return;
+    }
+
+    event.preventDefault();
+    cancelTitleConfirmation();
+  }
+
   function handleSearchSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const keyword = normalizeText(activeQuery);
@@ -191,9 +334,35 @@ export function HomeDashboard() {
       <HomeThemeStyleBridge theme={homeDocument.theme} />
       <main className="page">
       <header className={`masthead${hasBannerImage ? " masthead-banner" : ""}`}>
-        <div>
+        <div className="home-title-block">
           <p className="eyebrow">{todayLabel || "Home"}</p>
-          <h1>Home</h1>
+          <div className={`home-title-row${titleEditing ? " is-editing" : ""}`}>
+            {titleEditing ? (
+              <form className="home-title-inline-form" onSubmit={handleTitleSubmit}>
+                <input
+                  ref={titleInputRef}
+                  className="home-title-input"
+                  maxLength={HOME_DOCUMENT_TITLE_MAX_LENGTH}
+                  value={titleDraft}
+                  onBlur={completeTitleEditing}
+                  onChange={(event) => setTitleDraft(event.target.value)}
+                  onKeyDown={handleTitleKeyDown}
+                  aria-label="首页标题"
+                />
+              </form>
+            ) : (
+              <h1
+                className="home-title-display"
+                title="单击编辑首页标题"
+                role="button"
+                tabIndex={0}
+                onClick={startTitleEditing}
+                onKeyDown={handleTitleDisplayKeyDown}
+              >
+                {documentTitle}
+              </h1>
+            )}
+          </div>
         </div>
       </header>
 
@@ -222,6 +391,13 @@ export function HomeDashboard() {
 
       <section className="search-panel" aria-label="搜索和过滤">
         <form className="search-box" onSubmit={handleSearchSubmit}>
+          <span
+            className={`search-engine-logo search-engine-logo-${searchEngineDefinition.id}`}
+            aria-hidden="true"
+            title={searchEngineDefinition.label}
+          >
+            {searchEngineDefinition.iconText}
+          </span>
           <input
             ref={searchInputRef}
             className="search-input"
@@ -284,6 +460,35 @@ export function HomeDashboard() {
           onDeleteSite={deleteSite}
         />
       ) : null}
+
+      {titlePendingConfirmation ? (
+        <div
+          className="settings-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="homeTitleConfirmTitle"
+          aria-describedby="homeTitleConfirmDescription"
+          onKeyDown={handleTitleConfirmationKeyDown}
+        >
+          <section className="settings-dialog home-title-confirm-dialog">
+            <header className="settings-dialog-header">
+              <div>
+                <h2 id="homeTitleConfirmTitle">确认修改首页标题</h2>
+                <p id="homeTitleConfirmDescription">修改后会保存到当前首页空间，并参与后续同步和历史版本。</p>
+              </div>
+              <button className="mini-button" type="button" onClick={cancelTitleConfirmation} aria-label="关闭">×</button>
+            </header>
+            <div className="settings-dialog-body">
+              <p className="home-title-confirm-preview">将首页标题改为“{titlePendingConfirmation}”？</p>
+            </div>
+            <footer className="settings-dialog-footer">
+              <button className="utility-button" type="button" onClick={cancelTitleConfirmation}>取消</button>
+              <button ref={titleConfirmButtonRef} className="utility-button" type="button" onClick={confirmTitleChange}>确认</button>
+            </footer>
+          </section>
+        </div>
+      ) : null}
+
       </main>
     </>
   );

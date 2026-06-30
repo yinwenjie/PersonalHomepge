@@ -33,6 +33,7 @@ export type LocalHomeSnapshotSource =
   | "before-template-home-space-switch";
 
 export interface LocalHomeSnapshotSummary {
+  documentTitle: string;
   groupCount: number;
   hasBackground: boolean;
   hasBanner: boolean;
@@ -188,6 +189,7 @@ function normalizeSnapshot(value: unknown): LocalHomeSnapshot | null {
 
 export function summarizeHomeDocument(documentValue: HomeDocumentV2): LocalHomeSnapshotSummary {
   return {
+    documentTitle: documentValue.documentTitle,
     groupCount: documentValue.groups.length,
     hasBackground: Boolean(documentValue.theme.backgroundAsset || documentValue.theme.backgroundUrl),
     hasBanner: Boolean(documentValue.theme.bannerAsset || documentValue.theme.bannerUrl),
@@ -231,7 +233,8 @@ function isSnapshotSummary(value: unknown): value is LocalHomeSnapshotSummary {
     return false;
   }
 
-  return typeof value.groupCount === "number"
+  return typeof value.documentTitle === "string"
+    && typeof value.groupCount === "number"
     && typeof value.siteCount === "number"
     && typeof value.widgetCount === "number"
     && typeof value.themePresetId === "string"
