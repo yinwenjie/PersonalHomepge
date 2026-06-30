@@ -5,8 +5,8 @@ import { StatusMessage } from "@/components/status-message";
 import type { HomeDocumentV2 } from "@/domain/home-document";
 import {
   getHomeThemePreset,
-  HOME_THEME_PRESETS,
   normalizeHomeThemePresetId,
+  VISIBLE_HOME_THEME_PRESETS,
   type HomeThemePreset
 } from "@/domain/theme-preset";
 import { trackProductEvent } from "@/infrastructure/product-analytics-repository";
@@ -26,6 +26,9 @@ export function ThemePresetPanel({
 }: ThemePresetPanelProps) {
   const activePresetId = normalizeHomeThemePresetId(documentValue.theme.presetId, documentValue.theme.accent);
   const activePreset = getHomeThemePreset(activePresetId);
+  const visiblePresets = activePreset.family === "v2"
+    ? VISIBLE_HOME_THEME_PRESETS
+    : [activePreset, ...VISIBLE_HOME_THEME_PRESETS];
   const disabledReason = storageReady ? undefined : "本地存储尚未就绪，请稍后重试。";
 
   function applyPreset(preset: HomeThemePreset) {
@@ -50,7 +53,7 @@ export function ThemePresetPanel({
   const content = (
     <>
       <div className="theme-preset-grid">
-        {HOME_THEME_PRESETS.map((preset) => (
+        {visiblePresets.map((preset) => (
           <ThemePresetButton
             key={preset.id}
             disabled={!storageReady}
@@ -99,7 +102,8 @@ function ThemePresetButton({
   const style = {
     "--theme-preview-bg": preset.preview.bg,
     "--theme-preview-surface": preset.preview.surface,
-    "--theme-preview-accent": preset.preview.accent
+    "--theme-preview-accent": preset.preview.accent,
+    "--theme-preview-radius": preset.preview.radius
   } as CSSProperties;
 
   return (
@@ -120,6 +124,7 @@ function ThemePresetButton({
         <strong>{preset.name}</strong>
         <span>{preset.description}</span>
       </span>
+      <span className="theme-preset-family">{preset.family === "legacy" ? "旧版" : "v2"}</span>
       <span className="theme-preset-state">{selected ? "已使用" : "应用"}</span>
     </button>
   );

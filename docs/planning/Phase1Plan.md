@@ -33,8 +33,10 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 - Phase 1.11 已完成：数据保全基线、本地历史、数据恢复中心、危险写入保护、同步误覆盖防护、云端历史、账号托管恢复模型、P0 演练、基础埋点和错误监控。
 - Phase 1.12 已完成：组件体验审计、Widget Shell 统一、Todo/月历体验优化、组件配置入口统一、模板组件组合优化和后续组件候选设计。
 - Phase 1.13.0 已完成：设置页信息架构 v2，一级设置项默认收起，展开状态仅保存在当前浏览器，数据恢复中心历史版本改为下拉选择。
+- Phase 1.13.1 已完成：产品身份收口，可编辑首页标题、浏览器标题和搜索引擎 logo 已落地。
+- Phase 1.13.2 已完成：主题风格 v2，主题从配色 preset 扩展为 appearance preset，并加入 Millennium 门户目录风格。
 
-下一步进入 Phase 1.13.1：产品身份收口。
+下一步进入 Phase 1.13.3：主域名准备。
 
 ## Phase Plan
 
@@ -52,7 +54,7 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 | Phase 1.10：正式推出前基础收口 | MVP 已完成 | 数据包恢复、本地审计、本机状态、同步请求多标签协调；账号删除/分享/高隐私形成候选设计 | 账号删除需重新基于数据生命周期设计 |
 | Phase 1.11：数据保全与发布观测体系 | 已完成 | 文档分类、本地/云端历史、恢复中心、危险写入保护、同步误覆盖防护、账号托管恢复边界、P0 演练、基础埋点、错误监控 | 继续作为所有后续功能的 P0 约束 |
 | Phase 1.12：组件设计优化子阶段 | 已完成 | 组件体验规范、Widget Shell、Todo/月历优化、配置入口、模板组件组合、候选组件 backlog | 纯前端新组件留 Phase 1.15 |
-| Phase 1.13：产品化体验收口与主域名准备 | 进行中 | Phase 1.13.0 已完成设置页信息架构 v2：一级设置项折叠、header 状态摘要、本机展开状态记忆、恢复中心历史版本下拉；后续包含可编辑页面标题、搜索引擎 logo、主题风格 v2、主域名准备 | 下一步进入 Phase 1.13.1 产品身份收口 |
+| Phase 1.13：产品化体验收口与主域名准备 | 进行中 | 已完成设置页信息架构 v2、产品身份收口和主题风格 v2；后续进入正式主域名准备 | 下一步进入 Phase 1.13.3 主域名准备 |
 | Phase 1.14：多语言支持 v1 | 候选 | 语言模式、账号/本地偏好、静态 dictionary、日期时间/月历 locale formatter、主路径 UI 本地化 | 放在主域名准备之后独立实现 |
 | Phase 1.15：低成本组件扩展 | 候选 | Notes、Countdown、World Clock | 仅实现纯前端、低数据体积组件 |
 | Phase 1.16：只读渲染与分享链接 v1 | 候选 | 只读首页 renderer、只读分享链接、撤销机制 | 依赖主域名和只读渲染层设计 |
@@ -65,11 +67,11 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 | 优先级 | 功能 | 产品收益 | 工程影响 | 难度 | 建议 |
 |---|---|---:|---|---:|---|
 | P0 | 设置页信息架构 v2 | High | 设置页抽象、折叠面板、历史版本下拉 | M | 已完成，作为后续设置扩展底座 |
-| P0 | 可编辑页面标题 | High | `HomeDocumentV2`、浏览器标题、模板、快照 | M | Phase 1.13.1 做；页面标题与空间管理名称分离 |
+| P0 | 可编辑页面标题 | High | `HomeDocumentV2`、浏览器标题、模板、快照 | M | 已完成；页面标题与空间管理名称分离 |
 | P0 | 主域名准备 | High | `basePath`、Auth redirect、缓存隔离、部署回归 | M-L | Phase 1.13.3 做，产品化体验收口后再切域名 |
 | P0 | 多语言支持 v1 | High | i18n provider、账号/本地偏好、日期格式、静态 dictionary | L | Phase 1.14 独立做，放在主域名准备之后 |
-| P1 | 搜索引擎 Logo | Medium | 搜索引擎 registry、图标资源、搜索栏布局 | S | 与页面标题同阶段实现 |
-| P1 | 主题风格 v2 | High | 主题 token、appearance preset、旧主题兼容 | L | Phase 1.13.2 做，不只增加配色 |
+| P1 | 搜索引擎 Logo | Medium | 搜索引擎 registry、图标资源、搜索栏布局 | S | 已完成；随产品身份收口落地 |
+| P1 | 主题风格 v2 | High | 主题 token、appearance preset、旧主题兼容 | L | 已完成；新增 curated appearance preset 和 Millennium 风格 |
 | P1 | Notes 便签组件 | High | Widget config、长度限制、隐私边界 | S-M | Phase 1.15 首选，纯前端低成本 |
 | P1 | Countdown 倒计时 | Medium-High | Widget config、日期/时区处理 | S | Phase 1.15 候选，低成本高感知 |
 | P1 | World Clock 世界时钟 | Medium | Widget config、时区选择 UI | S-M | Phase 1.15 候选，适合开发者/远程办公模板 |
@@ -100,27 +102,32 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 
 ### Phase 1.13.1：产品身份收口
 
+状态：已完成。
+
 目标：补齐产品化基础标识，让首页不再只有浏览器默认标题和隐式搜索引擎状态。
 
-主要任务：
+已完成：
 
 - 在 `HomeDocumentV2` 中增加可编辑页面标题字段。
-- 浏览器 `document.title` 使用页面标题，缺省时回退到当前空间名或默认名称。
+- 浏览器 `document.title` 使用页面标题。
 - 模板可提供默认页面标题；历史快照、数据包导出和云端历史都应包含标题。
 - 扩展 Search Engine Registry，使搜索引擎定义包含 `id`、`label`、`searchUrl` 和 `icon`。
 - 首页搜索栏最左侧显示当前搜索引擎 logo 或稳定 fallback。
 
 ### Phase 1.13.2：主题风格 v2
 
+状态：已完成。
+
 目标：把主题从“配色 preset”升级为“界面设计和显示风格 preset”。
 
-主要任务：
+已完成：
 
 - 新增 appearance preset 概念，覆盖色彩、字体/密度、边框、阴影、搜索栏、Widget Shell、背景处理和按钮视觉强度。
-- 保留旧主题兼容，通过 normalize 把旧 `theme.preset` 映射到新风格。
+- 保留旧主题兼容，旧 `slate`、`mint`、`indigo`、`sunrise` 仍可正常读取；新模板按 accent 映射到 v2 风格。
 - v2 preset 采用 curated 模式，不开放过多自由组合。
-- 候选 preset：Classic、Focus、Dense、Soft、Glass、Editorial、Terminal、Minimal Mono。
+- 已落地 preset：Classic、Focus、Dense、Soft、Glass、Editorial、Terminal、Minimal Mono、Millennium。
 - 更新模板默认风格，但不自动修改用户已有首页。
+- 新增 `docs/design/theme-v2-demo.html` 作为非业务视觉参考。
 
 ### Phase 1.13.3：主域名准备
 

@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { HomeAssetStorageRepository } from "@/infrastructure/home-asset-storage-repository";
 import type { HomeTheme } from "@/domain/home-document";
 import {
+  getHomeThemeAppearanceAttribute,
   getHomeThemeCssVariables,
   type HomeThemeColorScheme
 } from "@/domain/theme-preset";
@@ -28,6 +29,7 @@ export function HomeThemeStyleBridge({ theme }: HomeThemeStyleBridgeProps) {
       const scheme = resolveColorScheme(preferences.themePreference, darkSchemeMedia);
       const variables = getHomeThemeCssVariables(theme, scheme);
 
+      root.dataset.appearancePreset = getHomeThemeAppearanceAttribute(theme);
       for (const [name, value] of Object.entries(variables)) {
         root.style.setProperty(name, value);
       }
