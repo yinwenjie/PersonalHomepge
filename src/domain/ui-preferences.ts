@@ -1,6 +1,19 @@
 export const UI_PREFERENCES_STORAGE_KEY = "homepage:ui-preferences:v1";
 
-export type LocalePreference = "zh-CN" | "en-US";
+export const SUPPORTED_RESOLVED_LOCALES = [
+  "zh-CN",
+  "zh-TW",
+  "en-US",
+  "fr-FR",
+  "es-ES",
+  "ja-JP",
+  "ko-KR",
+  "it-IT"
+] as const;
+
+export type ResolvedLocale = typeof SUPPORTED_RESOLVED_LOCALES[number];
+export type LocalePreference = "system" | ResolvedLocale;
+export const DEFAULT_RESOLVED_LOCALE: ResolvedLocale = "zh-CN";
 export type ThemePreference = "system" | "light" | "dark";
 export type FontFamilyPreference = "system" | "serif" | "mono";
 export type DensityPreference = "comfortable" | "compact";
@@ -22,7 +35,7 @@ export interface UiPreferences {
 }
 
 export const DEFAULT_UI_PREFERENCES: UiPreferences = {
-  locale: "zh-CN",
+  locale: DEFAULT_RESOLVED_LOCALE,
   themePreference: "system",
   fontFamily: "system",
   density: "comfortable",
@@ -30,8 +43,15 @@ export const DEFAULT_UI_PREFERENCES: UiPreferences = {
 };
 
 export const LOCALE_OPTIONS: Array<{ value: LocalePreference; label: string }> = [
+  { value: "system", label: "跟随系统" },
   { value: "zh-CN", label: "简体中文" },
-  { value: "en-US", label: "English" }
+  { value: "zh-TW", label: "繁體中文" },
+  { value: "en-US", label: "English" },
+  { value: "fr-FR", label: "Français" },
+  { value: "es-ES", label: "Español" },
+  { value: "ja-JP", label: "日本語" },
+  { value: "ko-KR", label: "한국어" },
+  { value: "it-IT", label: "Italiano" }
 ];
 
 export const THEME_OPTIONS: Array<{ value: ThemePreference; label: string }> = [
@@ -103,8 +123,31 @@ export function getSearchEngineDefinition(searchEngine: SearchEnginePreference):
   return SEARCH_ENGINE_DEFINITIONS[searchEngine] ?? SEARCH_ENGINE_DEFINITIONS.duckduckgo;
 }
 
+export function localePreferenceLabel(locale: LocalePreference): string {
+  return LOCALE_OPTIONS.find((option) => option.value === locale)?.label ?? locale;
+}
+
+export function resolveLocalePreference(locale: LocalePreference, candidates = getBrowserLocaleCandidates()): ResolvedLocale {
+  if (locale !== "system") {
+    return locale;
+  }
+
+  for (const candidate of candidates) {
+    const matchedLocale = matchSupportedLocale(candidate);
+    if (matchedLocale) {
+      return matchedLocale;
+    }
+  }
+
+  return DEFAULT_RESOLVED_LOCALE;
+}
+
 function normalizeLocale(value: unknown): LocalePreference {
-  return value === "en-US" ? "en-US" : DEFAULT_UI_PREFERENCES.locale;
+  if (typeof value === "string" && (value === "system" || isResolvedLocale(value))) {
+    return value;
+  }
+
+  return DEFAULT_UI_PREFERENCES.locale;
 }
 
 function normalizeThemePreference(value: unknown): ThemePreference {
@@ -133,4 +176,46 @@ function normalizeSearchEngine(value: unknown): SearchEnginePreference {
   }
 
   return DEFAULT_UI_PREFERENCES.defaultSearchEngine;
+}
+
+function isResolvedLocale(value: string): value is ResolvedLocale {
+  return (SUPPORTED_RESOLVED_LOCALES as readonly string[]).includes(value);
+}
+
+function getBrowserLocaleCandidates(): string[] {
+  if (typeof navigator === "undefined") {
+    return [];
+  }
+
+  return navigator.languages.length > 0 ? [...navigator.languages] : [navigator.language];
+}
+
+function matchSupportedLocale(rawValue: string): ResolvedLocale | null {
+  const normalized = rawValue.replace("_", "-");
+  const exactMatch = SUPPORTED_RESOLVED_LOCALES.find((locale) => locale.toLowerCase() === normalized.toLowerCase());
+  if (exactMatch) {
+    return exactMatch;
+  }
+
+  const [language = "", region = ""] = normalized.toLowerCase().split("-");
+  switch (language) {
+    case "zh":
+      return region === "tw" || region === "hk" || region === "mo" || normalized.toLowerCase().includes("hant")
+        ? "zh-TW"
+        : "zh-CN";
+    case "en":
+      return "en-US";
+    case "fr":
+      return "fr-FR";
+    case "es":
+      return "es-ES";
+    case "ja":
+      return "ja-JP";
+    case "ko":
+      return "ko-KR";
+    case "it":
+      return "it-IT";
+    default:
+      return null;
+  }
 }

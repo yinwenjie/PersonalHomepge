@@ -2,7 +2,7 @@
 
 ## Summary
 
-Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持续扩展的个人首页产品。当前 Phase 1.1-1.13 已完成本地编辑、同步码、账号托管、模板、主题、组件、导入、数据保全、观测、组件体验优化和产品化体验收口。Phase 1.14 已完成主域名准备，正式主域名确定为 `mylinker.net`。Phase 1.14.0 已完成迁移方案与回滚预案，Phase 1.14.1 已完成根路径构建与部署目标配置，Phase 1.14.2 已完成 Supabase Auth、Storage 与回调 URL 迁移准备，Phase 1.14.3 已完成 Cloudflare Pages preview 部署和回归，Phase 1.14.4 已完成仓库侧安全响应头和 Dashboard 操作手册；Phase 1.14.5/1.14.6 暂缓，Phase 1.14.7 已完成主域名正式切流、回归和回滚路径确认；多语言支持顺延为 Phase 1.15。
+Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持续扩展的个人首页产品。当前 Phase 1.1-1.13 已完成本地编辑、同步码、账号托管、模板、主题、组件、导入、数据保全、观测、组件体验优化和产品化体验收口。Phase 1.14 已完成主域名准备，正式主域名确定为 `mylinker.net`。Phase 1.14.0 已完成迁移方案与回滚预案，Phase 1.14.1 已完成根路径构建与部署目标配置，Phase 1.14.2 已完成 Supabase Auth、Storage 与回调 URL 迁移准备，Phase 1.14.3 已完成 Cloudflare Pages preview 部署和回归，Phase 1.14.4 已完成仓库侧安全响应头和 Dashboard 操作手册；Phase 1.14.5/1.14.6 暂缓，Phase 1.14.7 已完成主域名正式切流、回归和回滚路径确认；Phase 1.15 已开始，多语言数据模型与 migration 已完成。
 
 当前产品原则：
 
@@ -42,8 +42,9 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 - Phase 1.14.4 仓库侧已完成：新增 Cloudflare Pages 安全响应头、静态导出安全头校验和 `CloudflareSecurityBaseline.md` 操作手册；Cloudflare Dashboard Step 8 之后暂缓。
 - Phase 1.14.5/1.14.6 暂缓：GitHub Pages legacy 继续保留完整应用作为 fallback，不做迁移提示页；闭源开发与仓库安全收口后移。
 - Phase 1.14.7 已完成：`mylinker.net` 已作为主站入口完成回归，Supabase `Site URL` 已切换为 `https://mylinker.net/`，GitHub Pages legacy 继续保留完整应用作为 fallback。
+- Phase 1.15.0 已完成：多语言 locale 数据模型、`system` 解析、账号偏好 migration 和 verify 脚本已落地。
 
-下一步进入 Phase 1.15：多语言支持 v1。
+下一步进入 Phase 1.15.1：I18n Provider 与 formatter 底座。
 
 ## Phase Plan
 
@@ -63,7 +64,7 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 | Phase 1.12：组件设计优化子阶段 | 已完成 | 组件体验规范、Widget Shell、Todo/月历优化、配置入口、模板组件组合、候选组件 backlog | 纯前端新组件留 Phase 1.16 |
 | Phase 1.13：产品化体验收口 | 已完成 | 设置页信息架构 v2、产品身份收口、主题风格 v2 | 主域名准备独立到 Phase 1.14 |
 | Phase 1.14：主域名准备 | 已完成 | Cloudflare Pages 主站迁移、根路径构建、Supabase 回调、安全头、切流回归和回滚演练；1.14.5/1.14.6 暂缓，GitHub Pages legacy 保留完整应用 | 后续只做主域名运行观察和安全补强 |
-| Phase 1.15：多语言支持 v1 | 已拆分 / 待实现 | 语言数据模型、账号/本地偏好、I18n Provider、静态 dictionary、日期时间/月历 locale formatter、首页和设置页主路径 UI 本地化 | 先实现 1.15.0 数据模型与 migration |
+| Phase 1.15：多语言支持 v1 | 进行中 | 语言数据模型、账号/本地偏好、I18n Provider、静态 dictionary、日期时间/月历 locale formatter、首页和设置页主路径 UI 本地化 | 下一步实现 1.15.1 I18n Provider 与 formatter 底座 |
 | Phase 1.16：低成本组件扩展 | 候选 | Notes、Countdown、World Clock | 仅实现纯前端、低数据体积组件 |
 | Phase 1.17：只读渲染与分享链接 v1 | 候选 | 只读首页 renderer、只读分享链接、撤销机制 | 依赖主域名和只读渲染层设计 |
 | Phase 1.18：受控服务端与后台 dashboard v1 | 候选 | Edge Function/受控后端、管理员身份、管理员审计、只读后台 | 仅在主域名稳定后评估，v1 必须只读 |
@@ -307,11 +308,11 @@ Phase 1.15 采用分层交付：先固化语言偏好的数据模型和兼容边
 
 ### Phase 1.15.0：多语言数据模型与 migration
 
-状态：待实现。
+状态：已完成。
 
 目标：把“保存的语言偏好”和“实际渲染语言”拆开，为 `system` 和更多语言建立兼容的数据模型。
 
-主要任务：
+已完成：
 
 - 扩展前端语言类型，支持 `system`、`zh-CN`、`zh-TW`、`en-US`、`fr-FR`、`es-ES`、`ja-JP`、`ko-KR`、`it-IT`。
 - 定义 `LocaleMode` / `ResolvedLocale` 或等价模型：`system` 只作为偏好保存，渲染时解析为具体 locale。
@@ -535,7 +536,7 @@ type HomeDocumentV2 = {
 - `push_account_managed_sync_space`
 - `force_push_account_managed_sync_space`
 
-Phase 1.14 主域名准备未新增 Supabase migration，已调整 Supabase Auth `Site URL`、`Redirect URLs` 和相关生产环境变量。Phase 1.15 多语言支持需要优先复用 `account_preferences.locale` 保存语言模式；若现有约束无法保存 `system` 或新增语言值，则只做最小约束 migration，不新增账号偏好表。
+Phase 1.14 主域名准备未新增 Supabase migration，已调整 Supabase Auth `Site URL`、`Redirect URLs` 和相关生产环境变量。Phase 1.15.0 已新增 `016_account_preferences_i18n_locale.sql`，复用 `account_preferences.locale` 保存语言模式；该 migration 只放宽 locale 约束，不新增账号偏好表。
 
 ## Security And Privacy Requirements
 

@@ -7,6 +7,7 @@ import { getActionErrorMessage } from "@/domain/errors";
 import {
   DEFAULT_UI_PREFERENCES,
   normalizeUiPreferences,
+  resolveLocalePreference,
   type UiPreferences
 } from "@/domain/ui-preferences";
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
@@ -156,5 +157,5 @@ function applyUiPreferenceAttributes(preferences: UiPreferences): void {
 
   root.dataset.fontFamily = preferences.fontFamily;
   root.dataset.density = preferences.density;
-  root.lang = preferences.locale;
+  root.lang = resolveLocalePreference(preferences.locale);
 }

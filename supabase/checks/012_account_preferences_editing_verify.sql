@@ -116,7 +116,7 @@ where ap.default_space_id is not null
 
 -- 8. Existing rows should now have valid non-null editable preference values.
 select
-  count(*) filter (where locale not in ('zh-CN', 'en-US')) as invalid_locale_count,
+  count(*) filter (where locale not in ('system', 'zh-CN', 'zh-TW', 'en-US', 'fr-FR', 'es-ES', 'ja-JP', 'ko-KR', 'it-IT')) as invalid_locale_count,
   count(*) filter (where theme_preference not in ('system', 'light', 'dark')) as invalid_theme_count,
   count(*) filter (where font_family not in ('system', 'serif', 'mono')) as invalid_font_count,
   count(*) filter (where density not in ('comfortable', 'compact')) as invalid_density_count,

@@ -10,7 +10,7 @@ import {
   createHomeDocumentContentFingerprint,
   getHomeDocumentClassLabel
 } from "@/domain/home-document-protection";
-import type { LocalePreference } from "@/domain/ui-preferences";
+import { resolveLocalePreference, type LocalePreference } from "@/domain/ui-preferences";
 import {
   createSyncSecrets,
   formatSyncCode,
@@ -1387,7 +1387,7 @@ function localSyncMeta(): HomeSyncMeta {
 }
 
 function formatShortDateTime(value: string, locale: LocalePreference): string {
-  return new Intl.DateTimeFormat(locale, {
+  return new Intl.DateTimeFormat(resolveLocalePreference(locale), {
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",

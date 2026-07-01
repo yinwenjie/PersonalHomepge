@@ -24,7 +24,7 @@ import type { HomeDocumentV2, HomeSyncMeta } from "@/domain/home-document";
 import type { SettingsSectionId } from "@/domain/settings-layout";
 import { parseSyncCode, type StoredSyncBinding } from "@/domain/sync-code";
 import { getHomeThemePreset, normalizeHomeThemePresetId } from "@/domain/theme-preset";
-import { searchEngineLabel } from "@/domain/ui-preferences";
+import { localePreferenceLabel, searchEngineLabel } from "@/domain/ui-preferences";
 import { useAccountData } from "@/hooks/use-account-data";
 import { useHomeDocumentController } from "@/hooks/use-home-document-controller";
 import { useSettingsLayoutPreferences } from "@/hooks/use-settings-layout-preferences";
@@ -391,7 +391,7 @@ export function SettingsDashboard() {
     },
     themeImages: getThemeImagesSectionSummary(homeDocument),
     accountPreferences: {
-      summary: `${signedIn ? "账号偏好" : "本地偏好"} · ${uiPreferences.preferences.locale} · ${searchEngineLabel(uiPreferences.preferences.defaultSearchEngine)}`,
+      summary: `${signedIn ? "账号偏好" : "本地偏好"} · ${localePreferenceLabel(uiPreferences.preferences.locale)} · ${searchEngineLabel(uiPreferences.preferences.defaultSearchEngine)}`,
       tone: uiPreferences.error ? "warning" as StatusTone : "neutral" as StatusTone
     },
     dataRecovery: recoverySectionStatus

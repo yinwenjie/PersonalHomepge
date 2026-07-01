@@ -9,7 +9,7 @@ import {
   type HomeWidget
 } from "@/domain/home-document";
 import { bucketCount } from "@/domain/product-analytics";
-import type { LocalePreference } from "@/domain/ui-preferences";
+import { resolveLocalePreference, type LocalePreference } from "@/domain/ui-preferences";
 import { getWidgetDefinition } from "@/domain/widget-registry";
 import { useUiPreferences } from "@/hooks/use-ui-preferences";
 import {
@@ -603,7 +603,7 @@ function formatDateTime(value: string, locale: LocalePreference): string {
     return "未知";
   }
 
-  return new Intl.DateTimeFormat(locale, {
+  return new Intl.DateTimeFormat(resolveLocalePreference(locale), {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",

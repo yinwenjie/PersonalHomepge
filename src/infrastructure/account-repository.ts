@@ -344,6 +344,10 @@ export class AccountRepository {
         throw new Error("账号偏好保存失败：请先在 Supabase 执行 010_account_preferences_editing.sql。");
       }
 
+      if (isLocalePreferenceConstraintError(error)) {
+        throw new Error("账号偏好保存失败：请先在 Supabase 执行 016_account_preferences_i18n_locale.sql。");
+      }
+
       throw error;
     }
 
@@ -599,6 +603,11 @@ function mapPreferences(row: PreferencesRow): AccountPreferences {
 function isMissingPreferenceColumnsError(error: { message?: string; details?: string | null; hint?: string | null }): boolean {
   const text = `${error.message ?? ""} ${error.details ?? ""} ${error.hint ?? ""}`;
   return /font_family|density|default_search_engine|column .* does not exist|Could not find .* column/i.test(text);
+}
+
+function isLocalePreferenceConstraintError(error: { code?: string; message?: string; details?: string | null; hint?: string | null }): boolean {
+  const text = `${error.message ?? ""} ${error.details ?? ""} ${error.hint ?? ""}`;
+  return error.code === "23514" && /account_preferences_locale_allowed|locale/i.test(text);
 }
 
 function mapHomeSpace(row: HomeSpaceRow): HomeSpace {

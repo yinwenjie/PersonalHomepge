@@ -7,7 +7,7 @@ import {
   getHomeDocumentClassLabel,
   type DocumentProtectionState
 } from "@/domain/home-document-protection";
-import type { LocalePreference } from "@/domain/ui-preferences";
+import { resolveLocalePreference, type LocalePreference } from "@/domain/ui-preferences";
 import { useUiPreferences } from "@/hooks/use-ui-preferences";
 import {
   formatDeviceShortId,
@@ -88,7 +88,7 @@ function formatDateTime(value: string | null | undefined, locale: LocalePreferen
     return "未知";
   }
 
-  return new Intl.DateTimeFormat(locale, {
+  return new Intl.DateTimeFormat(resolveLocalePreference(locale), {
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",

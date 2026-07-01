@@ -26,6 +26,7 @@
 - `implementation/phase-1/Phase1_12_Implement.md`：Phase 1.12，组件设计优化；记录组件体验审计、Widget Shell、Todo/月历体验、配置入口、模板组件组合和后续组件候选设计。
 - `implementation/phase-1/Phase1_13_Implement.md`：Phase 1.13，产品化体验收口；记录设置页信息架构 v2、折叠设置项、本机展开状态和数据恢复中心历史版本下拉。
 - `implementation/phase-1/Phase1_14_Implement.md`：Phase 1.14，主域名准备；记录 Cloudflare Pages 主站迁移、GitHub Pages legacy 角色、根路径构建、Supabase 回调、安全基线和回滚演练。
+- `implementation/phase-1/Phase1_15_Implement.md`：Phase 1.15，多语言支持 v1；记录语言数据模型、系统语言解析、Supabase locale 约束和后续 i18n 分层落地计划。
 
 ## Tech Stack
 

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   buildSearchUrl,
   getSearchEngineDefinition,
+  resolveLocalePreference,
   searchEngineLabel
 } from "@/domain/ui-preferences";
 import { summarizeDocumentForAnalytics } from "@/domain/product-analytics";
@@ -72,7 +73,7 @@ export function HomeDashboard() {
   const titleConfirmButtonRef = useRef<HTMLButtonElement | null>(null);
   const titleCommitGuardRef = useRef(false);
   const homeViewedTrackedRef = useRef(false);
-  const locale = preferences.locale;
+  const locale = resolveLocalePreference(preferences.locale);
   const searchEngine = preferences.defaultSearchEngine;
   const searchEngineName = searchEngineLabel(searchEngine);
   const searchEngineDefinition = getSearchEngineDefinition(searchEngine);
