@@ -2,7 +2,7 @@
 
 ## Summary
 
-Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持续扩展的个人首页产品。当前 Phase 1.1-1.13 已完成本地编辑、同步码、账号托管、模板、主题、组件、导入、数据保全、观测、组件体验优化和产品化体验收口。Phase 1.14 已启动主域名准备，正式主域名确定为 `mylinker.net`。Phase 1.14.0 已完成迁移方案与回滚预案，Phase 1.14.1 已完成根路径构建与部署目标配置，Phase 1.14.2 已完成 Supabase Auth、Storage 与回调 URL 迁移准备，Phase 1.14.3 已完成 Cloudflare Pages preview 部署和回归，Phase 1.14.4 已完成仓库侧安全响应头和 Dashboard 操作手册；后续继续完成 Cloudflare Dashboard 手动配置、GitHub Pages 旧站角色、闭源开发评估和回滚演练；多语言支持顺延为 Phase 1.15。
+Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持续扩展的个人首页产品。当前 Phase 1.1-1.13 已完成本地编辑、同步码、账号托管、模板、主题、组件、导入、数据保全、观测、组件体验优化和产品化体验收口。Phase 1.14 已启动主域名准备，正式主域名确定为 `mylinker.net`。Phase 1.14.0 已完成迁移方案与回滚预案，Phase 1.14.1 已完成根路径构建与部署目标配置，Phase 1.14.2 已完成 Supabase Auth、Storage 与回调 URL 迁移准备，Phase 1.14.3 已完成 Cloudflare Pages preview 部署和回归，Phase 1.14.4 已完成仓库侧安全响应头和 Dashboard 操作手册；Phase 1.14.5/1.14.6 暂缓，Phase 1.14.7 进入主域名正式切流、回归和回滚演练；多语言支持顺延为 Phase 1.15。
 
 当前产品原则：
 
@@ -39,9 +39,11 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 - Phase 1.14.1 已完成：根路径构建与部署目标配置，`NEXT_PUBLIC_BASE_PATH` 规范化、静态导出验证脚本和 GitHub Pages workflow 校验已落地。
 - Phase 1.14.2 已完成：Supabase Auth、Storage 与回调 URL 迁移准备，明确当前来源回跳、Redirect URLs、Storage 回归和回滚记录。
 - Phase 1.14.3 已完成：Cloudflare Pages preview 已生成并完成回归，Supabase preview Redirect URLs 已添加，首页内容可在 preview 拉取并显示。
-- Phase 1.14.4 仓库侧已完成：新增 Cloudflare Pages 安全响应头、静态导出安全头校验和 `CloudflareSecurityBaseline.md` 操作手册；Cloudflare Dashboard 开关待手动执行和回归。
+- Phase 1.14.4 仓库侧已完成：新增 Cloudflare Pages 安全响应头、静态导出安全头校验和 `CloudflareSecurityBaseline.md` 操作手册；Cloudflare Dashboard Step 8 之后暂缓。
+- Phase 1.14.5/1.14.6 暂缓：GitHub Pages legacy 继续保留完整应用作为 fallback，不做迁移提示页；闭源开发与仓库安全收口后移。
+- Phase 1.14.7 进行中：新增主域名正式切流与回滚演练手册，记录当前命令级基线和 Supabase Site URL 切流步骤。
 
-下一步完成 Phase 1.14.4：Cloudflare Dashboard 安全基线配置和回归。
+下一步完成 Phase 1.14.7：Supabase Site URL 切流、主域名手动回归和 24 小时观察。
 
 ## Phase Plan
 
@@ -60,7 +62,7 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 | Phase 1.11：数据保全与发布观测体系 | 已完成 | 文档分类、本地/云端历史、恢复中心、危险写入保护、同步误覆盖防护、账号托管恢复边界、P0 演练、基础埋点、错误监控 | 继续作为所有后续功能的 P0 约束 |
 | Phase 1.12：组件设计优化子阶段 | 已完成 | 组件体验规范、Widget Shell、Todo/月历优化、配置入口、模板组件组合、候选组件 backlog | 纯前端新组件留 Phase 1.16 |
 | Phase 1.13：产品化体验收口 | 已完成 | 设置页信息架构 v2、产品身份收口、主题风格 v2 | 主域名准备独立到 Phase 1.14 |
-| Phase 1.14：主域名准备 | 进行中 | Cloudflare Pages 主站迁移、根路径构建、Supabase 回调、Cloudflare 安全基线、GitHub Pages 旧站角色、闭源开发评估和回滚演练；1.14.0-1.14.3 已完成，1.14.4 仓库侧已完成 | 下一步执行 Cloudflare Dashboard 安全基线配置 |
+| Phase 1.14：主域名准备 | 进行中 | Cloudflare Pages 主站迁移、根路径构建、Supabase 回调、安全头、切流回归和回滚演练；1.14.5/1.14.6 暂缓，GitHub Pages legacy 保留完整应用 | 下一步执行 Supabase Site URL 切流和 1.14.7 回归 |
 | Phase 1.15：多语言支持 v1 | 候选 | 语言模式、账号/本地偏好、静态 dictionary、日期时间/月历 locale formatter、主路径 UI 本地化 | 放在主域名准备之后独立实现 |
 | Phase 1.16：低成本组件扩展 | 候选 | Notes、Countdown、World Clock | 仅实现纯前端、低数据体积组件 |
 | Phase 1.17：只读渲染与分享链接 v1 | 候选 | 只读首页 renderer、只读分享链接、撤销机制 | 依赖主域名和只读渲染层设计 |
@@ -255,6 +257,8 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 
 ### Phase 1.14.5：GitHub Pages 旧站迁移提示
 
+状态：暂缓。
+
 目标：让旧地址用户知道主站迁移，并避免因为 localStorage origin 变化误以为数据丢失。
 
 主要任务：
@@ -265,6 +269,8 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 - 文案明确说明：已登录用户可在新主站登录恢复；纯本地用户需从旧站导出后到新站导入。
 
 ### Phase 1.14.6：闭源开发与仓库安全收口
+
+状态：暂缓。
 
 目标：评估并执行仓库闭源后的开发和部署策略，同时保持前端公开产物的安全边界清晰。
 
@@ -278,14 +284,18 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 
 ### Phase 1.14.7：正式切流、回归和回滚演练
 
+状态：进行中。
+
 目标：完成主域名正式上线，并用数据保全 P0 标准验证切流安全。
 
 主要任务：
 
-- 切流前完成根路径构建、Cloudflare Pages preview、Supabase 回调和旧站迁移提示验证。
+- 新增 `docs/guides/MainDomainCutoverRunbook.md`，记录当前基线、Supabase Site URL 切换、`www` redirect、回归矩阵和回滚演练。
+- 切流前完成根路径构建、Cloudflare Pages preview、Supabase Redirect URLs 和 GitHub Pages legacy 完整应用验证。
 - 切流后回归首页加载、Magic Link、账号恢复、同步、Storage 图片、数据恢复中心、埋点、错误监控和本地缓存隔离。
-- 验证旧站导出、新站导入流程。
-- 观察 24-72 小时后再决定是否关闭 GitHub Pages 完整应用。
+- GitHub Pages legacy 继续保留完整应用，不做迁移提示页，不关闭旧站。
+- CloudflareSecurityBaseline Step 8 之后暂缓，不在切流阶段新增 WAF、Custom Rule、Rate limiting 或 Bot Fight Mode。
+- 观察至少 24 小时后再标记 1.14.7 完成。
 - 演练 Cloudflare Pages 回滚和旧站回退路径。
 
 ## Phase 1.15 Breakdown

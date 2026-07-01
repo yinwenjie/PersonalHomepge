@@ -6,7 +6,7 @@
 
 本阶段只做准备和记录，不立即修改 Supabase Dashboard，不切 DNS，不改变生产登录回调。Magic Link 继续使用“从哪个来源发起登录，就回到哪个来源”的策略。
 
-Phase 1.14.3 已按计划补充 Cloudflare Pages preview Redirect URLs；除此之外仍不修改 Supabase `Site URL`，不切 DNS，不改变正式主域名回调策略。
+Phase 1.14.3 已按计划补充 Cloudflare Pages preview Redirect URLs。Phase 1.14.7 切流阶段需要将 Supabase `Site URL` 切换为 `https://mylinker.net/`，并继续保留旧站、localhost、preview 和主域名的 Redirect URLs。
 
 ## Auth 回调策略
 
@@ -159,5 +159,5 @@ Rollback owner:
 ## Phase Handoff
 
 - Phase 1.14.3 已创建 Cloudflare Pages project，并已补充 preview host 到 Redirect URLs。
-- Phase 1.14.7 正式切流前，执行完整 Auth、Storage、账号恢复、同步和观测回归。
-- GitHub Pages legacy 降级为迁移提示页前，必须确认旧站导出和新站导入路径可用。
+- Phase 1.14.7 正式切流时，执行完整 Auth、Storage、账号恢复、同步和观测回归。
+- Phase 1.14.5 暂缓期间，GitHub Pages legacy 保留完整应用，不降级为迁移提示页。

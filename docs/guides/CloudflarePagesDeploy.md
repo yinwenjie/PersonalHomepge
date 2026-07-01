@@ -148,5 +148,5 @@ Storage：
 ## 下一阶段衔接
 
 - Phase 1.14.4：在主站 preview 可用后，配置 Cloudflare 安全基线，详见 `docs/guides/CloudflareSecurityBaseline.md`。
-- Phase 1.14.5：准备 GitHub Pages 旧站迁移提示。
-- Phase 1.14.7：正式切流、完整回归和回滚演练。
+- Phase 1.14.5：暂缓，GitHub Pages 旧站继续保留完整应用作为 fallback。
+- Phase 1.14.7：正式切流、完整回归和回滚演练，详见 `docs/guides/MainDomainCutoverRunbook.md`。

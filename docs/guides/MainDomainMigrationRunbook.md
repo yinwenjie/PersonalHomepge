@@ -80,7 +80,7 @@ localStorage 按 origin 隔离。主域名迁移后，旧 GitHub Pages 上的本
 - Phase 1.14.2：Supabase Auth `Site URL`、`Redirect URLs` 和 Storage 回归方案已准备，详见 `docs/guides/SupabaseDomainMigrationChecklist.md`。
 - Phase 1.14.3：Cloudflare Pages preview 部署可访问，并已完成 preview Auth、账号托管内容拉取和 Storage 图片回归。
 - Phase 1.14.4：Cloudflare 安全基线配置方案已确认。
-- Phase 1.14.5：GitHub Pages legacy 迁移提示和导出路径已准备。
+- Phase 1.14.5 暂缓：GitHub Pages legacy 继续保留完整应用作为 fallback，不做迁移提示页。
 - `npm run typecheck`、`npm run lint`、`npm run build` 均通过。
 - 旧站导出、新站导入手动流程已验证。
 - 账号托管恢复、普通同步码绑定、数据恢复中心、Banner/背景图片均在 preview 验证。
@@ -168,7 +168,7 @@ Cloudflare：
 5. 配置 apex 和 `www` DNS。
 6. 设置 `www` 到 apex 的 redirect。
 7. 验证 HTTPS 证书、首页加载、静态资源、Magic Link、账号恢复和同步。
-8. 发布或开启 GitHub Pages legacy 迁移提示。
+8. GitHub Pages legacy 保留完整应用，不发布迁移提示页。
 9. 观察产品埋点、错误监控、Cloudflare 请求状态和用户反馈。
 
 ## Post-cutover Observation
@@ -186,7 +186,7 @@ Cloudflare：
 - 数据恢复中心本地/云端历史可用性。
 - `client_error_events` 新增错误类型。
 - Cloudflare 4xx/5xx、WAF 命中和异常流量。
-- 旧站导出、新站导入相关用户反馈。
+- GitHub Pages legacy fallback 使用情况和纯本地用户导出/导入反馈。
 
 ## Rollback Plan
 
@@ -262,6 +262,6 @@ No-go 条件：
 - Phase 1.14.2：执行 Supabase Auth、Storage 和回调 URL 迁移准备。
 - Phase 1.14.3：建立 Cloudflare Pages 主站部署。
 - Phase 1.14.4：落地 Cloudflare 安全基线。
-- Phase 1.14.5：实现 GitHub Pages 旧站迁移提示。
-- Phase 1.14.6：评估闭源开发和仓库安全收口。
-- Phase 1.14.7：正式切流、回归和回滚演练。
+- Phase 1.14.5：暂缓，GitHub Pages legacy 保留完整应用。
+- Phase 1.14.6：暂缓。
+- Phase 1.14.7：正式切流、回归和回滚演练，详见 `docs/guides/MainDomainCutoverRunbook.md`。
