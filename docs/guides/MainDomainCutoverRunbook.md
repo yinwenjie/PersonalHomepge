@@ -4,7 +4,7 @@
 
 本文档对应 Phase 1.14.7，用于把 `mylinker.net` 正式确认为主站入口，并完成 Auth、同步、Storage、数据恢复和回滚路径的 P0 回归。
 
-Phase 1.14.5 和 Phase 1.14.6 暂不执行：GitHub Pages legacy 继续保留完整应用作为 fallback，不做迁移提示页；闭源开发与仓库安全收口不进入本阶段。CloudflareSecurityBaseline.md 的 Step 8 之后全部暂缓，切流前不新增 WAF、Custom Rule、Rate limiting 或 Bot Fight Mode 风险。
+Phase 1.14.5 和 Phase 1.14.6 暂不执行：GitHub Pages legacy 继续保留完整应用作为 fallback，不做迁移提示页；闭源开发与仓库安全收口不进入本阶段。CloudflareSecurityBaseline.md 的 Step 8 之后全部暂缓，切流阶段不新增 WAF、Custom Rule、Rate limiting 或 Bot Fight Mode 风险。
 
 ## 当前基线
 
@@ -12,7 +12,7 @@ Phase 1.14.5 和 Phase 1.14.6 暂不执行：GitHub Pages legacy 继续保留完
 
 代码与部署：
 
-- 当前 commit：`c752472 chore: add cloudflare security baseline`。
+- 切流文档基线 commit：`b25c4c0 docs: add main domain cutover runbook`。
 - GitHub Pages legacy：继续部署完整应用，路径为 `https://yinwenjie.github.io/PersonalHomepge/`。
 - Cloudflare Pages preview：`https://personalhomepge.pages.dev/`。
 - 正式主域名：`https://mylinker.net/`。
@@ -40,7 +40,32 @@ Phase 1.14.5 和 Phase 1.14.6 暂不执行：GitHub Pages legacy 继续保留完
 Supabase 状态：
 
 - Redirect URLs 已由用户补充主域名相关精确 URL。
-- `Site URL` 是否已切到 `https://mylinker.net/` 需要在 Supabase Dashboard 中人工确认。
+- `Site URL` 已切换为 `https://mylinker.net/`。
+- Redirect URLs 保留 localhost、GitHub Pages legacy、Cloudflare Pages preview、`mylinker.net` 和 `www.mylinker.net` 的首页及 `/edit/`。
+
+## 切流完成记录
+
+记录时间：2026-07-01。
+
+已完成：
+
+- `mylinker.net` 已确认为主站入口。
+- Supabase Auth `Site URL` 已切换为 `https://mylinker.net/`。
+- 主域名首页和 `/edit/` 可访问。
+- 主域名 Magic Link、账号托管恢复、普通同步码、Storage 图片、数据恢复中心和 P0 数据保全手动回归已完成。
+- GitHub Pages legacy 继续保留完整应用作为 fallback。
+- Cloudflare Pages preview 和 GitHub Pages legacy 继续可作为回退入口。
+
+未执行或暂缓：
+
+- `www -> apex` redirect 未记录为已开启；`www.mylinker.net` 当前按可访问别名处理。
+- CloudflareSecurityBaseline.md Step 8 之后继续暂缓。
+- GitHub Pages 旧站迁移提示和闭源开发收口继续暂缓。
+
+后续观察：
+
+- 继续观察至少 24 小时的 Auth、Storage、同步、数据恢复、错误监控和 Cloudflare 4xx/5xx。
+- 若出现 P0 数据异常，优先按本文档的用户数据支持路径处理。
 
 ## 切流执行步骤
 
@@ -208,4 +233,4 @@ curl.exe -I --ssl-no-revoke https://yinwenjie.github.io/PersonalHomepge/
 - 主域名 Auth、账号恢复、同步码、Storage、数据恢复中心全部通过。
 - GitHub Pages legacy 保留完整应用作为 fallback。
 - 已记录回滚步骤，并至少完成命令级验证。
-- 观察至少 24 小时无 P0 数据保全、Auth、Storage 或同步异常。
+- 主域名手动回归已完成；继续观察至少 24 小时无 P0 数据保全、Auth、Storage 或同步异常，作为运行期监控。

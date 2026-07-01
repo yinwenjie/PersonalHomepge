@@ -2,9 +2,9 @@
 
 ## Summary
 
-Phase 1.14 聚焦正式主域名上线前后的部署、回调、安全和回滚体系。目标是把主站从当前 GitHub Pages 项目路径迁移到 Cloudflare Pages + `mylinker.net`，同时保留 GitHub Pages 作为 legacy 迁移提示和短期 fallback，避免因 origin 变化、`basePath` 变化或 Auth redirect 配置变化造成用户数据误判丢失。
+Phase 1.14 聚焦正式主域名上线前后的部署、回调、安全和回滚体系。目标是把主站从当前 GitHub Pages 项目路径迁移到 Cloudflare Pages + `mylinker.net`，同时保留 GitHub Pages legacy 完整应用作为 fallback，避免因 origin 变化、`basePath` 变化或 Auth redirect 配置变化造成用户数据误判丢失。
 
-正式主域名已确定为 `mylinker.net`，canonical host 使用 `https://mylinker.net/`；`https://www.mylinker.net/` 作为别名，后续跳转到 apex。
+正式主域名已确定为 `mylinker.net`，canonical host 使用 `https://mylinker.net/`；`https://www.mylinker.net/` 作为别名，后续可视稳定性开启跳转到 apex。
 
 本阶段不改变首页业务数据结构；所有迁移动作必须遵守 Phase 1.11 确立的数据保全 P0 原则。
 
@@ -13,8 +13,8 @@ Phase 1.14 聚焦正式主域名上线前后的部署、回调、安全和回滚
 已完成：
 
 - 新增 `docs/guides/MainDomainMigrationRunbook.md`，固化主域名迁移执行方案和回滚预案。
-- 明确主站迁移目标为 Cloudflare Pages，GitHub Pages 转为 legacy 迁移提示和短期回退入口。
-- 明确 canonical host 使用 `https://mylinker.net/`，`https://www.mylinker.net/` 跳转到 apex。
+- 明确主站迁移目标为 Cloudflare Pages，GitHub Pages 保留 legacy 完整应用和短期回退入口。
+- 明确 canonical host 使用 `https://mylinker.net/`，`https://www.mylinker.net/` 后续可作为跳转到 apex 的别名。
 - 明确新主站使用根路径 `/`，旧 GitHub Pages 继续保留 `/PersonalHomepge/` 项目路径。
 - 明确 localStorage origin 隔离风险：旧站本地数据不会自动出现在新主域名。
 - 明确用户数据迁移策略：账号托管用户登录恢复，同步码用户重新绑定，纯本地用户旧站导出后新站导入。
@@ -139,15 +139,12 @@ Phase 1.14 聚焦正式主域名上线前后的部署、回调、安全和回滚
 - 新增 `docs/guides/CloudflareSecurityBaseline.md`，记录 Cloudflare Dashboard 手动配置步骤、验证命令和回滚方案。
 - 明确 Dashboard 侧由账号持有人手动完成 DNS proxy、custom domain、TLS、Always Use HTTPS、DNSSEC、WAF、DDoS、2FA 和成员权限检查。
 
-待手动执行：
+Dashboard 状态：
 
-- Cloudflare Pages project 环境变量复查，确认只包含公开前端变量，不包含 service role 或管理员密钥。
-- DNS 记录使用 Proxied，正式主域名绑定到 Cloudflare Pages。
-- SSL/TLS 使用 `Full (strict)`，开启 Always Use HTTPS。
-- DNSSEC 根据 registrar 状态启用并确认 active。
-- WAF Managed Rules 使用默认配置启用；Custom WAF Rule 只阻断明显扫描路径。
-- HSTS、Rate limiting 和 Bot Fight Mode 保守处理，避免在切流前扩大误伤面。
-- Cloudflare、GitHub 和 Supabase 管理账号开启 2FA，保存 backup codes。
+- 已按 `CloudflareSecurityBaseline.md` 完成 Step 1-7：环境变量复查、custom domain、DNS/TLS/HTTPS、DNSSEC 和基础访问回归。
+- 主域名 `mylinker.net` 已可访问，安全响应头已生效。
+- Step 8 之后暂缓：WAF Managed Rules、Custom WAF Rule、Rate limiting 和 Bot Fight Mode 暂不启用，避免切流阶段扩大误伤面。
+- Cloudflare、GitHub 和 Supabase 管理账号 2FA 与成员权限检查继续作为账号安全运行期要求。
 
 数据与架构边界：
 
@@ -159,17 +156,20 @@ Phase 1.14 聚焦正式主域名上线前后的部署、回调、安全和回滚
 - 不关闭 GitHub Pages legacy。
 - 不修改 Supabase Auth `Site URL`。
 
-## 后续任务
-
 ## Phase 1.14.7：正式切流、回归和回滚演练
 
-已完成仓库侧准备：
+已完成：
 
 - 新增 `docs/guides/MainDomainCutoverRunbook.md`，记录主域名正式切流步骤、当前命令级基线、Supabase Site URL 手动切换、`www` redirect、回归矩阵和回滚演练。
 - 明确 Phase 1.14.5 和 Phase 1.14.6 暂缓：GitHub Pages legacy 继续保留完整应用作为 fallback，不做迁移提示页；闭源开发与仓库安全收口不进入本阶段。
 - 明确 CloudflareSecurityBaseline.md 的 Step 8 之后全部暂缓，切流前不新增 WAF、Custom Rule、Rate limiting 或 Bot Fight Mode 风险。
+- Supabase `Site URL` 已切换为 `https://mylinker.net/`。
+- Redirect URLs 保留 localhost、GitHub Pages legacy、Cloudflare Pages preview、`mylinker.net` 和 `www.mylinker.net`。
+- 主域名手动回归已完成：`mylinker.net` 首页和 `/edit/`、Magic Link、账号托管恢复、普通同步码、Storage 图片、数据恢复中心和 P0 数据保全路径均通过。
+- GitHub Pages legacy 继续保留完整应用，不做迁移提示页，不关闭旧站。
+- 已记录 Supabase Auth 回滚、Cloudflare Pages deployment 回滚、DNS/证书异常回退和用户数据支持路径。
 
-当前命令级基线：
+命令级基线：
 
 - `https://mylinker.net/` 返回 200。
 - `https://mylinker.net/edit/` 返回 200。
@@ -180,20 +180,12 @@ Phase 1.14 聚焦正式主域名上线前后的部署、回调、安全和回滚
 - 主域名安全头已生效：`X-Content-Type-Options`、`X-Frame-Options`、`Referrer-Policy`、`Permissions-Policy`。
 - 当前 HSTS 为 `max-age=15552000`。
 
-待手动执行：
+后续观察：
 
-- 在 Supabase Dashboard 中确认或切换 `Site URL` 为 `https://mylinker.net/`。
-- 保留 localhost、GitHub Pages legacy、Cloudflare Pages preview、`mylinker.net` 和 `www.mylinker.net` 的精确 Redirect URLs。
-- 如果 `www.mylinker.net` 已稳定访问，可在 Cloudflare Redirect Rules 中开启 `www -> apex`，否则保持 `www` 服务完整应用。
-- 完成主域名 Magic Link、账号托管恢复、同步码、Storage 图片和数据恢复中心手动回归。
-- 观察至少 24 小时无 P0 数据保全、Auth、Storage 或同步异常后，再标记 Phase 1.14.7 完成。
+- 继续观察至少 24 小时的 Auth、Storage、同步、数据恢复和 4xx/5xx 状态，作为运行期监控。
+- `www.mylinker.net` 是否开启 `www -> apex` redirect 仍作为后续可选收口项；当前不记录为已开启。
+- CloudflareSecurityBaseline Step 8 之后继续暂缓，待主域名稳定后再评估。
 
 ## 后续任务
 
-下一步完成 Supabase Site URL 切流、主域名手动回归和 24 小时观察。
-
-重点是确认 `mylinker.net` 正式主入口不会影响 Auth、账号恢复、同步码、Storage 图片、数据恢复中心和 P0 数据保全能力。
-
-Phase 1.14 后续仍需完成：
-
-- Phase 1.14.7：完成手动回归和观察后收口。
+下一步进入 Phase 1.15 多语言支持 v1。Phase 1.14 后续只保留主域名运行观察、`www` redirect 收口和 Cloudflare 安全补强。

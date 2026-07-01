@@ -2,11 +2,11 @@
 
 ## Summary
 
-本文档对应 Phase 1.14.2，用于在主域名切流前准备 Supabase Auth、Storage 和回调 URL 的配置与回归步骤。
+本文档对应 Phase 1.14.2，用于在主域名切流前准备 Supabase Auth、Storage 和回调 URL 的配置与回归步骤，并记录 Phase 1.14.7 正式切流后的当前状态。
 
-本阶段只做准备和记录，不立即修改 Supabase Dashboard，不切 DNS，不改变生产登录回调。Magic Link 继续使用“从哪个来源发起登录，就回到哪个来源”的策略。
+Phase 1.14.2 只做准备和记录，不立即修改 Supabase Dashboard，不切 DNS，不改变生产登录回调。Phase 1.14.7 已完成正式切流，Magic Link 继续使用“从哪个来源发起登录，就回到哪个来源”的策略。
 
-Phase 1.14.3 已按计划补充 Cloudflare Pages preview Redirect URLs。Phase 1.14.7 切流阶段需要将 Supabase `Site URL` 切换为 `https://mylinker.net/`，并继续保留旧站、localhost、preview 和主域名的 Redirect URLs。
+Phase 1.14.3 已按计划补充 Cloudflare Pages preview Redirect URLs。Phase 1.14.7 切流阶段已将 Supabase `Site URL` 切换为 `https://mylinker.net/`，并继续保留旧站、localhost、preview 和主域名的 Redirect URLs。
 
 ## Auth 回调策略
 
@@ -41,10 +41,10 @@ Phase 1.14.3 已按计划补充 Cloudflare Pages preview Redirect URLs。Phase 1
 - 当前 `NEXT_PUBLIC_SUPABASE_URL`。
 - 当前 `NEXT_PUBLIC_SUPABASE_ANON_KEY` 来源位置，仅记录变量名和位置，不复制完整 key 到文档。
 
-主域名正式切流前计划配置：
+主域名正式切流后的当前配置：
 
-- `Site URL`：切换为 `https://mylinker.net/`。
-- `Redirect URLs`：迁移窗口同时保留 localhost、GitHub Pages legacy、正式主域名和 Cloudflare Pages preview。
+- `Site URL`：`https://mylinker.net/`。
+- `Redirect URLs`：迁移窗口继续保留 localhost、GitHub Pages legacy、正式主域名、`www` 别名和 Cloudflare Pages preview。
 
 ## Redirect URLs 清单
 
@@ -61,7 +61,7 @@ https://www.mylinker.net/
 https://www.mylinker.net/edit/
 ```
 
-说明：`mylinker.net` 是 canonical host；`www.mylinker.net` 后续会跳转到 apex。迁移窗口中仍建议把 `www` 首页和设置页加入 Redirect URLs，避免用户从 `www` 发起 Magic Link 时被 Supabase 拒绝。
+说明：`mylinker.net` 是 canonical host；`www.mylinker.net` 后续可视稳定性跳转到 apex。迁移窗口中仍建议把 `www` 首页和设置页加入 Redirect URLs，避免用户从 `www` 发起 Magic Link 时被 Supabase 拒绝。
 
 Phase 1.14.3 创建 Cloudflare Pages project 后补充：
 
@@ -70,7 +70,7 @@ https://personalhomepge.pages.dev/
 https://personalhomepge.pages.dev/edit/
 ```
 
-当前状态：以上两个 Cloudflare Pages preview URL 已添加到 Supabase Auth Redirect URLs。
+当前状态：以上 Cloudflare Pages preview URL、主域名 URL 和 legacy URL 均已添加到 Supabase Auth Redirect URLs。
 
 如果 Cloudflare Pages preview host 每次部署变化，优先使用稳定 preview alias；如果必须使用 wildcard，先确认 Supabase Auth 对该模式的支持和风险，再执行。
 
@@ -122,6 +122,13 @@ Phase 1.14.3 preview 回归结果：
 - Preview 首页和 `/edit/` 的 Magic Link 回跳通过。
 - 登录后首页内容可通过账号托管链路拉取并显示。
 
+Phase 1.14.7 主域名回归结果：
+
+- Supabase `Site URL` 已切到 `https://mylinker.net/`。
+- 主域名首页和 `/edit/` Magic Link 回跳通过。
+- 账号托管恢复、普通同步码、数据恢复中心和 Storage 图片回归通过。
+- GitHub Pages legacy 继续保持完整应用可访问。
+
 账号数据：
 
 - 已登录账号托管空间可恢复。
@@ -159,5 +166,5 @@ Rollback owner:
 ## Phase Handoff
 
 - Phase 1.14.3 已创建 Cloudflare Pages project，并已补充 preview host 到 Redirect URLs。
-- Phase 1.14.7 正式切流时，执行完整 Auth、Storage、账号恢复、同步和观测回归。
+- Phase 1.14.7 已完成正式切流、完整 Auth、Storage、账号恢复、同步和观测回归。
 - Phase 1.14.5 暂缓期间，GitHub Pages legacy 保留完整应用，不降级为迁移提示页。

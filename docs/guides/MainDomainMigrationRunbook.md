@@ -2,17 +2,17 @@
 
 ## Summary
 
-本文档对应 Phase 1.14.0，用于在真正修改 DNS、Supabase Auth 和生产部署链路前，先固定主域名迁移的执行方案、检查清单和回滚路径。
+本文档对应 Phase 1.14.0，用于在真正修改 DNS、Supabase Auth 和生产部署链路前，先固定主域名迁移的执行方案、检查清单和回滚路径。Phase 1.14.7 已完成正式切流后，本文也作为主域名运行期的回滚参考。
 
-本阶段只生成方案，不执行线上切流，不修改 Supabase 配置，不新增 migration，也不改变当前 GitHub Pages 发布流程。
+Phase 1.14.0 阶段只生成方案，不执行线上切流，不修改 Supabase 配置，不新增 migration，也不改变当前 GitHub Pages 发布流程。正式切流已在 Phase 1.14.7 完成，Supabase `Site URL` 当前为 `https://mylinker.net/`。
 
 ## 核心决策
 
 - 正式主站迁移到 Cloudflare Pages。
 - 正式主域名已确定为 `mylinker.net`。
 - canonical host 使用 apex domain：`https://mylinker.net/`。
-- `https://www.mylinker.net/` 作为别名，统一 301/308 跳转到 apex domain。
-- 当前 GitHub Pages 地址保留为 legacy 入口和短期回退入口，不再作为长期主站。
+- `https://www.mylinker.net/` 作为别名；稳定后可配置 301/308 跳转到 apex domain。
+- 当前 GitHub Pages 地址保留完整应用，作为 legacy 入口和短期回退入口，不再作为长期主站。
 - 新主站使用根路径 `/`，旧 GitHub Pages 继续使用 `/PersonalHomepge/` 项目路径。
 - 数据保全优先级高于切流速度。迁移期间必须明确说明 localStorage 受 origin 隔离影响，旧站纯本地数据不会自动出现在新域名。
 
@@ -22,7 +22,7 @@
 |---|---|---|
 | Cloudflare DNS | 主域名 DNS | 托管 apex 和 `www`，启用代理和基础安全能力 |
 | Cloudflare Pages | 主站生产部署 | 连接 GitHub 仓库，生产分支使用 `production`，输出目录 `out` |
-| GitHub Pages | legacy / fallback | 保留旧路径提示、数据导出入口和短期回退能力 |
+| GitHub Pages | legacy / fallback | 保留完整应用、旧路径数据访问和短期回退能力 |
 | Supabase Auth | 登录和账号恢复 | `Site URL` 切换到正式主域名，迁移窗口保留旧站和 localhost redirect |
 | Supabase Storage | Banner/背景图片 | 继续由 Supabase 提供资源访问，新域名只影响前端来源和回归验证 |
 | Supabase Postgres/RPC | 同步、历史和观测 | 不因域名迁移改变 RLS/RPC 数据模型 |
@@ -34,7 +34,7 @@ flowchart LR
   User["用户浏览器"] --> Apex["https://mylinker.net/"]
   WWW["https://www.mylinker.net/"] --> Apex
   Apex --> CFP["Cloudflare Pages 主站"]
-  Legacy["GitHub Pages /PersonalHomepge/"] --> Notice["迁移提示 / 导出入口 / 短期回退"]
+  Legacy["GitHub Pages /PersonalHomepge/"] --> Fallback["完整应用 fallback / 导出入口 / 短期回退"]
   CFP --> Supabase["Supabase Auth / Storage / RPC"]
 ```
 
@@ -65,7 +65,7 @@ localStorage 按 origin 隔离。主域名迁移后，旧 GitHub Pages 上的本
 | 纯本地用户 | 旧站导出数据包，新站导入数据包 | 旧站保留导出入口和清晰提示，避免误以为数据丢失 |
 | 多浏览器用户 | 每个浏览器各自处理本地数据迁移 | 文案明确“浏览器本地数据不会跨域自动迁移” |
 
-迁移提示必须覆盖：
+旧站 fallback 的支持文案或后续迁移提示必须覆盖：
 
 - 已登录用户：新主站登录即可恢复账号托管空间。
 - 同步码用户：保留完整同步码即可在新主站恢复。
@@ -81,6 +81,7 @@ localStorage 按 origin 隔离。主域名迁移后，旧 GitHub Pages 上的本
 - Phase 1.14.3：Cloudflare Pages preview 部署可访问，并已完成 preview Auth、账号托管内容拉取和 Storage 图片回归。
 - Phase 1.14.4：Cloudflare 安全基线配置方案已确认。
 - Phase 1.14.5 暂缓：GitHub Pages legacy 继续保留完整应用作为 fallback，不做迁移提示页。
+- Phase 1.14.7 已完成：`mylinker.net` 作为主入口完成回归，Supabase `Site URL` 已切到 `https://mylinker.net/`。
 - `npm run typecheck`、`npm run lint`、`npm run build` 均通过。
 - 旧站导出、新站导入手动流程已验证。
 - 账号托管恢复、普通同步码绑定、数据恢复中心、Banner/背景图片均在 preview 验证。
@@ -94,7 +95,7 @@ localStorage 按 origin 隔离。主域名迁移后，旧 GitHub Pages 上的本
 - Magic Link 继续回到发起登录的当前来源，不强制跳主域名。
 - 记录当前 `Site URL`。
 - 记录当前全部 `Redirect URLs`。
-- `Site URL` 计划在正式切流前切换为 `https://mylinker.net/`。
+- `Site URL` 已在正式切流阶段切换为 `https://mylinker.net/`。
 - `Redirect URLs` 迁移窗口至少保留：
   - `http://localhost:3000/`
   - `http://localhost:3000/edit/`
@@ -166,7 +167,7 @@ Cloudflare：
 3. 更新 Supabase Auth `Site URL` 和 `Redirect URLs`，保留旧站 redirect。
 4. 在 Cloudflare Pages 绑定正式主域名。
 5. 配置 apex 和 `www` DNS。
-6. 设置 `www` 到 apex 的 redirect。
+6. 视 `www` 稳定性决定是否设置 `www` 到 apex 的 redirect。
 7. 验证 HTTPS 证书、首页加载、静态资源、Magic Link、账号恢复和同步。
 8. GitHub Pages legacy 保留完整应用，不发布迁移提示页。
 9. 观察产品埋点、错误监控、Cloudflare 请求状态和用户反馈。
@@ -264,4 +265,4 @@ No-go 条件：
 - Phase 1.14.4：落地 Cloudflare 安全基线。
 - Phase 1.14.5：暂缓，GitHub Pages legacy 保留完整应用。
 - Phase 1.14.6：暂缓。
-- Phase 1.14.7：正式切流、回归和回滚演练，详见 `docs/guides/MainDomainCutoverRunbook.md`。
+- Phase 1.14.7：已完成正式切流、回归和回滚路径确认，详见 `docs/guides/MainDomainCutoverRunbook.md`。

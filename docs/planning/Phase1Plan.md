@@ -2,7 +2,7 @@
 
 ## Summary
 
-Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持续扩展的个人首页产品。当前 Phase 1.1-1.13 已完成本地编辑、同步码、账号托管、模板、主题、组件、导入、数据保全、观测、组件体验优化和产品化体验收口。Phase 1.14 已启动主域名准备，正式主域名确定为 `mylinker.net`。Phase 1.14.0 已完成迁移方案与回滚预案，Phase 1.14.1 已完成根路径构建与部署目标配置，Phase 1.14.2 已完成 Supabase Auth、Storage 与回调 URL 迁移准备，Phase 1.14.3 已完成 Cloudflare Pages preview 部署和回归，Phase 1.14.4 已完成仓库侧安全响应头和 Dashboard 操作手册；Phase 1.14.5/1.14.6 暂缓，Phase 1.14.7 进入主域名正式切流、回归和回滚演练；多语言支持顺延为 Phase 1.15。
+Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持续扩展的个人首页产品。当前 Phase 1.1-1.13 已完成本地编辑、同步码、账号托管、模板、主题、组件、导入、数据保全、观测、组件体验优化和产品化体验收口。Phase 1.14 已完成主域名准备，正式主域名确定为 `mylinker.net`。Phase 1.14.0 已完成迁移方案与回滚预案，Phase 1.14.1 已完成根路径构建与部署目标配置，Phase 1.14.2 已完成 Supabase Auth、Storage 与回调 URL 迁移准备，Phase 1.14.3 已完成 Cloudflare Pages preview 部署和回归，Phase 1.14.4 已完成仓库侧安全响应头和 Dashboard 操作手册；Phase 1.14.5/1.14.6 暂缓，Phase 1.14.7 已完成主域名正式切流、回归和回滚路径确认；多语言支持顺延为 Phase 1.15。
 
 当前产品原则：
 
@@ -41,9 +41,9 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 - Phase 1.14.3 已完成：Cloudflare Pages preview 已生成并完成回归，Supabase preview Redirect URLs 已添加，首页内容可在 preview 拉取并显示。
 - Phase 1.14.4 仓库侧已完成：新增 Cloudflare Pages 安全响应头、静态导出安全头校验和 `CloudflareSecurityBaseline.md` 操作手册；Cloudflare Dashboard Step 8 之后暂缓。
 - Phase 1.14.5/1.14.6 暂缓：GitHub Pages legacy 继续保留完整应用作为 fallback，不做迁移提示页；闭源开发与仓库安全收口后移。
-- Phase 1.14.7 进行中：新增主域名正式切流与回滚演练手册，记录当前命令级基线和 Supabase Site URL 切流步骤。
+- Phase 1.14.7 已完成：`mylinker.net` 已作为主站入口完成回归，Supabase `Site URL` 已切换为 `https://mylinker.net/`，GitHub Pages legacy 继续保留完整应用作为 fallback。
 
-下一步完成 Phase 1.14.7：Supabase Site URL 切流、主域名手动回归和 24 小时观察。
+下一步进入 Phase 1.15：多语言支持 v1。
 
 ## Phase Plan
 
@@ -62,7 +62,7 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 | Phase 1.11：数据保全与发布观测体系 | 已完成 | 文档分类、本地/云端历史、恢复中心、危险写入保护、同步误覆盖防护、账号托管恢复边界、P0 演练、基础埋点、错误监控 | 继续作为所有后续功能的 P0 约束 |
 | Phase 1.12：组件设计优化子阶段 | 已完成 | 组件体验规范、Widget Shell、Todo/月历优化、配置入口、模板组件组合、候选组件 backlog | 纯前端新组件留 Phase 1.16 |
 | Phase 1.13：产品化体验收口 | 已完成 | 设置页信息架构 v2、产品身份收口、主题风格 v2 | 主域名准备独立到 Phase 1.14 |
-| Phase 1.14：主域名准备 | 进行中 | Cloudflare Pages 主站迁移、根路径构建、Supabase 回调、安全头、切流回归和回滚演练；1.14.5/1.14.6 暂缓，GitHub Pages legacy 保留完整应用 | 下一步执行 Supabase Site URL 切流和 1.14.7 回归 |
+| Phase 1.14：主域名准备 | 已完成 | Cloudflare Pages 主站迁移、根路径构建、Supabase 回调、安全头、切流回归和回滚演练；1.14.5/1.14.6 暂缓，GitHub Pages legacy 保留完整应用 | 后续只做主域名运行观察和安全补强 |
 | Phase 1.15：多语言支持 v1 | 候选 | 语言模式、账号/本地偏好、静态 dictionary、日期时间/月历 locale formatter、主路径 UI 本地化 | 放在主域名准备之后独立实现 |
 | Phase 1.16：低成本组件扩展 | 候选 | Notes、Countdown、World Clock | 仅实现纯前端、低数据体积组件 |
 | Phase 1.17：只读渲染与分享链接 v1 | 候选 | 只读首页 renderer、只读分享链接、撤销机制 | 依赖主域名和只读渲染层设计 |
@@ -76,7 +76,7 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 |---|---|---:|---|---:|---|
 | P0 | 设置页信息架构 v2 | High | 设置页抽象、折叠面板、历史版本下拉 | M | 已完成，作为后续设置扩展底座 |
 | P0 | 可编辑页面标题 | High | `HomeDocumentV2`、浏览器标题、模板、快照 | M | 已完成；页面标题与空间管理名称分离 |
-| P0 | 主域名准备 | High | `basePath`、Auth redirect、缓存隔离、Cloudflare Pages、旧站迁移提示、安全基线、部署回归 | M-L | Phase 1.14 独立做 |
+| P0 | 主域名准备 | High | `basePath`、Auth redirect、缓存隔离、Cloudflare Pages、legacy fallback、安全基线、部署回归 | M-L | 已完成；后续只做运行观察和安全补强 |
 | P0 | 多语言支持 v1 | High | i18n provider、账号/本地偏好、日期格式、静态 dictionary | L | Phase 1.15 独立做，放在主域名准备之后 |
 | P1 | 搜索引擎 Logo | Medium | 搜索引擎 registry、图标资源、搜索栏布局 | S | 已完成；随产品身份收口落地 |
 | P1 | 主题风格 v2 | High | 主题 token、appearance preset、旧主题兼容 | L | 已完成；新增 curated appearance preset 和 Millennium 风格 |
@@ -148,15 +148,15 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 主要任务：
 
 - 确认正式主域名和 `www` 跳转方向，推荐 apex domain 作为 canonical。
-- 明确主站迁移到 Cloudflare Pages，GitHub Pages 保留为旧路径提示和短期回退入口。
+- 明确主站迁移到 Cloudflare Pages，GitHub Pages 保留为旧路径完整应用 fallback 和短期回退入口。
 - 明确纯本地用户的数据迁移策略：旧站导出、新站导入；已登录用户通过账号同步恢复。
-- 制定回滚策略：Cloudflare Pages 回滚到上一部署、DNS 切回旧站、旧 GitHub Pages 保留迁移提示。
+- 制定回滚策略：Cloudflare Pages 回滚到上一部署、DNS/证书异常时保留 Pages preview 和旧 GitHub Pages fallback。
 - 列出迁移观察窗口和关键监控项：登录、同步、Storage 图片、错误监控、访问量和异常 4xx/5xx。
 
 实施结果：
 
-- 明确主站迁移到 Cloudflare Pages，GitHub Pages 转为 legacy 迁移提示和短期回退入口。
-- 明确 canonical host 使用 `https://mylinker.net/`，`https://www.mylinker.net/` 跳转到 apex。
+- 明确主站迁移到 Cloudflare Pages，GitHub Pages 保留 legacy 完整应用和短期回退入口。
+- 明确 canonical host 使用 `https://mylinker.net/`，`https://www.mylinker.net/` 后续可作为跳转到 apex 的别名。
 - 明确正式主站使用根路径 `/`，旧站继续使用 `/PersonalHomepge/`。
 - 明确 localStorage origin 隔离风险和三类用户迁移路径：账号托管登录恢复、同步码重新绑定、纯本地导出导入。
 - 固化 pre-cutover、Supabase/Auth、Cloudflare Pages、安全基线、切流、观察和回滚 checklist。
@@ -190,7 +190,7 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 
 主要任务：
 
-- 明确 Supabase Auth `Site URL` 后续切换为正式主域名，本阶段不立即修改 Dashboard。
+- 明确 Supabase Auth `Site URL` 在正式切流阶段切换为正式主域名，Phase 1.14.2 不立即修改 Dashboard。
 - 准备 `Redirect URLs` 清单，迁移窗口同时保留正式主域名、localhost 和旧 GitHub Pages 地址。
 - 回归 Magic Link、登录恢复、账号托管空间恢复、同步码绑定和退出登录。
 - 回归 Supabase Storage signed/public URL 在新域名下的图片展示。
@@ -230,7 +230,7 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 
 ### Phase 1.14.4：Cloudflare 安全基线
 
-状态：仓库侧已完成，Dashboard 手动配置待执行。
+状态：仓库侧已完成，Cloudflare Dashboard Step 1-7 已完成，Step 8 之后暂缓。
 
 目标：主站上线时同时建立低成本安全防线，减少入侵、勒索软件和 DDoS 风险。
 
@@ -250,10 +250,11 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 - `npm run verify:export` 已增加 `out/_headers` 和必需安全头校验。
 - 新增 `docs/guides/CloudflareSecurityBaseline.md`。
 
-待手动完成：
+Dashboard 状态：
 
-- 在 Cloudflare Dashboard 中按 `CloudflareSecurityBaseline.md` 完成 DNS/TLS/WAF/DNSSEC/2FA 配置。
-- 执行 preview 或正式主域名回归，确认 Auth、账号托管恢复、同步码和 Storage 图片均不受影响。
+- 已按 `CloudflareSecurityBaseline.md` 完成 Step 1-7。
+- Step 8 之后的 WAF Managed Rules、Custom WAF Rule、Rate limiting 和 Bot Fight Mode 暂缓，避免切流阶段扩大误伤面。
+- 主域名回归已完成，Auth、账号托管恢复、同步码和 Storage 图片未受影响。
 
 ### Phase 1.14.5：GitHub Pages 旧站迁移提示
 
@@ -284,19 +285,21 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 
 ### Phase 1.14.7：正式切流、回归和回滚演练
 
-状态：进行中。
+状态：已完成。
 
 目标：完成主域名正式上线，并用数据保全 P0 标准验证切流安全。
 
 主要任务：
 
-- 新增 `docs/guides/MainDomainCutoverRunbook.md`，记录当前基线、Supabase Site URL 切换、`www` redirect、回归矩阵和回滚演练。
+- 新增 `docs/guides/MainDomainCutoverRunbook.md`，记录当前基线、Supabase Site URL 切换、`www` alias/redirect 策略、回归矩阵和回滚演练。
 - 切流前完成根路径构建、Cloudflare Pages preview、Supabase Redirect URLs 和 GitHub Pages legacy 完整应用验证。
 - 切流后回归首页加载、Magic Link、账号恢复、同步、Storage 图片、数据恢复中心、埋点、错误监控和本地缓存隔离。
 - GitHub Pages legacy 继续保留完整应用，不做迁移提示页，不关闭旧站。
 - CloudflareSecurityBaseline Step 8 之后暂缓，不在切流阶段新增 WAF、Custom Rule、Rate limiting 或 Bot Fight Mode。
-- 观察至少 24 小时后再标记 1.14.7 完成。
-- 演练 Cloudflare Pages 回滚和旧站回退路径。
+- Supabase `Site URL` 已切换为 `https://mylinker.net/`，Redirect URLs 保留 localhost、GitHub Pages legacy、Cloudflare Pages preview、`mylinker.net` 和 `www.mylinker.net`。
+- 主域名手动回归已完成：Auth、账号托管恢复、同步、Storage、数据恢复中心和 P0 数据保全路径通过。
+- 演练并记录 Cloudflare Pages 回滚、Supabase Auth 回滚和旧站 fallback 路径。
+- 后续继续观察 24 小时以上，作为运行期监控，不阻塞 Phase 1.14.7 完成状态。
 
 ## Phase 1.15 Breakdown
 
@@ -447,7 +450,7 @@ type HomeDocumentV2 = {
 - `push_account_managed_sync_space`
 - `force_push_account_managed_sync_space`
 
-Phase 1.14 主域名准备预计不需要新增 Supabase migration，但需要调整 Supabase Auth `Site URL`、`Redirect URLs` 和相关生产环境变量。Phase 1.15 多语言支持需要优先复用 `account_preferences.locale` 保存语言模式；若现有约束无法保存 `system` 或新增语言值，则只做最小约束 migration，不新增账号偏好表。
+Phase 1.14 主域名准备未新增 Supabase migration，已调整 Supabase Auth `Site URL`、`Redirect URLs` 和相关生产环境变量。Phase 1.15 多语言支持需要优先复用 `account_preferences.locale` 保存语言模式；若现有约束无法保存 `system` 或新增语言值，则只做最小约束 migration，不新增账号偏好表。
 
 ## Security And Privacy Requirements
 
