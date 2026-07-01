@@ -2,7 +2,7 @@
 
 ## Summary
 
-Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持续扩展的个人首页产品。当前 Phase 1.1-1.13 已完成本地编辑、同步码、账号托管、模板、主题、组件、导入、数据保全、观测、组件体验优化和产品化体验收口。Phase 1.14 已启动主域名准备，Phase 1.14.0 已完成迁移方案与回滚预案，Phase 1.14.1 已完成根路径构建与部署目标配置，Phase 1.14.2 已完成 Supabase Auth、Storage 与回调 URL 迁移准备，Phase 1.14.3 已完成 Cloudflare Pages preview 部署和回归；后续继续处理 Cloudflare 安全基线、GitHub Pages 旧站角色、闭源开发评估和回滚演练；多语言支持顺延为 Phase 1.15。
+Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持续扩展的个人首页产品。当前 Phase 1.1-1.13 已完成本地编辑、同步码、账号托管、模板、主题、组件、导入、数据保全、观测、组件体验优化和产品化体验收口。Phase 1.14 已启动主域名准备，正式主域名确定为 `mylinker.net`。Phase 1.14.0 已完成迁移方案与回滚预案，Phase 1.14.1 已完成根路径构建与部署目标配置，Phase 1.14.2 已完成 Supabase Auth、Storage 与回调 URL 迁移准备，Phase 1.14.3 已完成 Cloudflare Pages preview 部署和回归，Phase 1.14.4 已完成仓库侧安全响应头和 Dashboard 操作手册；后续继续完成 Cloudflare Dashboard 手动配置、GitHub Pages 旧站角色、闭源开发评估和回滚演练；多语言支持顺延为 Phase 1.15。
 
 当前产品原则：
 
@@ -35,12 +35,13 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 - Phase 1.13.0 已完成：设置页信息架构 v2，一级设置项默认收起，展开状态仅保存在当前浏览器，数据恢复中心历史版本改为下拉选择。
 - Phase 1.13.1 已完成：产品身份收口，可编辑首页标题、浏览器标题和搜索引擎 logo 已落地。
 - Phase 1.13.2 已完成：主题风格 v2，主题从配色 preset 扩展为 appearance preset，并加入 Millennium 门户目录风格。
-- Phase 1.14.0 已完成：主域名迁移方案与回滚预案，明确 Cloudflare Pages 主站、GitHub Pages legacy、localStorage 跨域迁移和回滚路径。
+- Phase 1.14.0 已完成：主域名迁移方案与回滚预案，正式主域名确定为 `mylinker.net`，明确 Cloudflare Pages 主站、GitHub Pages legacy、localStorage 跨域迁移和回滚路径。
 - Phase 1.14.1 已完成：根路径构建与部署目标配置，`NEXT_PUBLIC_BASE_PATH` 规范化、静态导出验证脚本和 GitHub Pages workflow 校验已落地。
 - Phase 1.14.2 已完成：Supabase Auth、Storage 与回调 URL 迁移准备，明确当前来源回跳、Redirect URLs、Storage 回归和回滚记录。
 - Phase 1.14.3 已完成：Cloudflare Pages preview 已生成并完成回归，Supabase preview Redirect URLs 已添加，首页内容可在 preview 拉取并显示。
+- Phase 1.14.4 仓库侧已完成：新增 Cloudflare Pages 安全响应头、静态导出安全头校验和 `CloudflareSecurityBaseline.md` 操作手册；Cloudflare Dashboard 开关待手动执行和回归。
 
-下一步进入 Phase 1.14.4：Cloudflare 安全基线。
+下一步完成 Phase 1.14.4：Cloudflare Dashboard 安全基线配置和回归。
 
 ## Phase Plan
 
@@ -59,7 +60,7 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 | Phase 1.11：数据保全与发布观测体系 | 已完成 | 文档分类、本地/云端历史、恢复中心、危险写入保护、同步误覆盖防护、账号托管恢复边界、P0 演练、基础埋点、错误监控 | 继续作为所有后续功能的 P0 约束 |
 | Phase 1.12：组件设计优化子阶段 | 已完成 | 组件体验规范、Widget Shell、Todo/月历优化、配置入口、模板组件组合、候选组件 backlog | 纯前端新组件留 Phase 1.16 |
 | Phase 1.13：产品化体验收口 | 已完成 | 设置页信息架构 v2、产品身份收口、主题风格 v2 | 主域名准备独立到 Phase 1.14 |
-| Phase 1.14：主域名准备 | 进行中 | Cloudflare Pages 主站迁移、根路径构建、Supabase 回调、Cloudflare 安全基线、GitHub Pages 旧站角色、闭源开发评估和回滚演练；1.14.0-1.14.3 已完成 | 下一步进入 Cloudflare 安全基线 |
+| Phase 1.14：主域名准备 | 进行中 | Cloudflare Pages 主站迁移、根路径构建、Supabase 回调、Cloudflare 安全基线、GitHub Pages 旧站角色、闭源开发评估和回滚演练；1.14.0-1.14.3 已完成，1.14.4 仓库侧已完成 | 下一步执行 Cloudflare Dashboard 安全基线配置 |
 | Phase 1.15：多语言支持 v1 | 候选 | 语言模式、账号/本地偏好、静态 dictionary、日期时间/月历 locale formatter、主路径 UI 本地化 | 放在主域名准备之后独立实现 |
 | Phase 1.16：低成本组件扩展 | 候选 | Notes、Countdown、World Clock | 仅实现纯前端、低数据体积组件 |
 | Phase 1.17：只读渲染与分享链接 v1 | 候选 | 只读首页 renderer、只读分享链接、撤销机制 | 依赖主域名和只读渲染层设计 |
@@ -153,7 +154,7 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 实施结果：
 
 - 明确主站迁移到 Cloudflare Pages，GitHub Pages 转为 legacy 迁移提示和短期回退入口。
-- 明确 canonical host 推荐 apex domain，`www` 跳转到 apex。
+- 明确 canonical host 使用 `https://mylinker.net/`，`https://www.mylinker.net/` 跳转到 apex。
 - 明确正式主站使用根路径 `/`，旧站继续使用 `/PersonalHomepge/`。
 - 明确 localStorage origin 隔离风险和三类用户迁移路径：账号托管登录恢复、同步码重新绑定、纯本地导出导入。
 - 固化 pre-cutover、Supabase/Auth、Cloudflare Pages、安全基线、切流、观察和回滚 checklist。
@@ -227,16 +228,30 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 
 ### Phase 1.14.4：Cloudflare 安全基线
 
+状态：仓库侧已完成，Dashboard 手动配置待执行。
+
 目标：主站上线时同时建立低成本安全防线，减少入侵、勒索软件和 DDoS 风险。
 
 主要任务：
 
-- 开启 Cloudflare 代理、HTTPS、Always Use HTTPS 和 DNSSEC。
-- SSL/TLS 使用 `Full (strict)`；HSTS 先短周期观察，稳定后再考虑长期策略。
-- 启用 Cloudflare DDoS 默认防护和 WAF Free Managed Ruleset。
-- 配置基础 rate limiting，优先保护异常高频访问和未来受控 API 入口。
-- 新增或调整静态安全响应头：`X-Content-Type-Options`、`Referrer-Policy`、`Permissions-Policy`、`X-Frame-Options`；CSP 先保守或 report-only。
+- 仓库侧新增 Cloudflare Pages `_headers`，设置低误伤安全响应头：`X-Content-Type-Options`、`Referrer-Policy`、`Permissions-Policy`、`X-Frame-Options`。
+- 新增 `docs/guides/CloudflareSecurityBaseline.md`，详细记录 Cloudflare Dashboard 操作、验证和回滚。
+- Dashboard 侧开启或确认 Cloudflare 代理、HTTPS、Always Use HTTPS 和 DNSSEC。
+- SSL/TLS 使用 `Full (strict)`；HSTS 先暂缓或短周期观察，稳定后再考虑长期策略。
+- 启用 Cloudflare DDoS 默认防护和 WAF Managed Ruleset。
+- 配置保守的 Custom WAF Rules，阻断明显扫描路径；Rate limiting 本阶段可暂缓或只做极高频 challenge。
 - Cloudflare、GitHub 和 Supabase 管理账号启用 2FA，优先使用硬件密钥；严禁 service role 或第三方 secret 进入前端。
+
+已完成：
+
+- 新增 `public/_headers`。
+- `npm run verify:export` 已增加 `out/_headers` 和必需安全头校验。
+- 新增 `docs/guides/CloudflareSecurityBaseline.md`。
+
+待手动完成：
+
+- 在 Cloudflare Dashboard 中按 `CloudflareSecurityBaseline.md` 完成 DNS/TLS/WAF/DNSSEC/2FA 配置。
+- 执行 preview 或正式主域名回归，确认 Auth、账号托管恢复、同步码和 Storage 图片均不受影响。
 
 ### Phase 1.14.5：GitHub Pages 旧站迁移提示
 

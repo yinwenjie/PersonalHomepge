@@ -32,6 +32,7 @@ console.log(`Static export verified for ${basePath || "/"} base path.`);
 function verifyStaticExport(directory) {
   const indexPath = path.join(directory, "index.html");
   const nextDirectory = path.join(directory, "_next");
+  const headersPath = path.join(directory, "_headers");
 
   if (!existsSync(indexPath)) {
     fail("Missing out/index.html.");
@@ -40,6 +41,8 @@ function verifyStaticExport(directory) {
   if (!existsSync(nextDirectory)) {
     fail("Missing out/_next directory.");
   }
+
+  verifyCloudflareHeaders(headersPath);
 
   const htmlFiles = collectFiles(directory, (filePath) => filePath.endsWith(".html"));
   if (htmlFiles.length === 0) {
@@ -93,6 +96,27 @@ function verifyStaticExport(directory) {
 
   if (malformedReferences.length > 0) {
     fail(`Found malformed references with repeated slashes: ${malformedReferences.join(", ")}`);
+  }
+}
+
+function verifyCloudflareHeaders(headersPath) {
+  if (!existsSync(headersPath)) {
+    fail("Missing out/_headers Cloudflare Pages security headers file.");
+    return;
+  }
+
+  const content = readFileSync(headersPath, "utf8");
+  const requiredHeaders = [
+    "X-Content-Type-Options: nosniff",
+    "X-Frame-Options: DENY",
+    "Referrer-Policy: strict-origin-when-cross-origin",
+    "Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), bluetooth=()"
+  ];
+
+  for (const header of requiredHeaders) {
+    if (!content.includes(header)) {
+      fail(`Missing required Cloudflare Pages security header: ${header}`);
+    }
   }
 }
 

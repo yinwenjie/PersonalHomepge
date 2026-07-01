@@ -9,8 +9,9 @@
 ## 核心决策
 
 - 正式主站迁移到 Cloudflare Pages。
-- canonical host 推荐使用 apex domain，例如 `https://<primary-domain>/`。
-- `https://www.<primary-domain>/` 作为别名，统一 301/308 跳转到 apex domain。
+- 正式主域名已确定为 `mylinker.net`。
+- canonical host 使用 apex domain：`https://mylinker.net/`。
+- `https://www.mylinker.net/` 作为别名，统一 301/308 跳转到 apex domain。
 - 当前 GitHub Pages 地址保留为 legacy 入口和短期回退入口，不再作为长期主站。
 - 新主站使用根路径 `/`，旧 GitHub Pages 继续使用 `/PersonalHomepge/` 项目路径。
 - 数据保全优先级高于切流速度。迁移期间必须明确说明 localStorage 受 origin 隔离影响，旧站纯本地数据不会自动出现在新域名。
@@ -30,8 +31,8 @@
 
 ```mermaid
 flowchart LR
-  User["用户浏览器"] --> Apex["https://<primary-domain>/"]
-  WWW["https://www.<primary-domain>/"] --> Apex
+  User["用户浏览器"] --> Apex["https://mylinker.net/"]
+  WWW["https://www.mylinker.net/"] --> Apex
   Apex --> CFP["Cloudflare Pages 主站"]
   Legacy["GitHub Pages /PersonalHomepge/"] --> Notice["迁移提示 / 导出入口 / 短期回退"]
   CFP --> Supabase["Supabase Auth / Storage / RPC"]
@@ -93,14 +94,16 @@ localStorage 按 origin 隔离。主域名迁移后，旧 GitHub Pages 上的本
 - Magic Link 继续回到发起登录的当前来源，不强制跳主域名。
 - 记录当前 `Site URL`。
 - 记录当前全部 `Redirect URLs`。
-- `Site URL` 计划在正式切流前切换为 `https://<primary-domain>/`。
+- `Site URL` 计划在正式切流前切换为 `https://mylinker.net/`。
 - `Redirect URLs` 迁移窗口至少保留：
   - `http://localhost:3000/`
   - `http://localhost:3000/edit/`
   - `https://yinwenjie.github.io/PersonalHomepge/`
   - `https://yinwenjie.github.io/PersonalHomepge/edit/`
-  - `https://<primary-domain>/`
-  - `https://<primary-domain>/edit/`
+  - `https://mylinker.net/`
+  - `https://mylinker.net/edit/`
+  - `https://www.mylinker.net/`
+  - `https://www.mylinker.net/edit/`
 - Phase 1.14.3 已创建 Cloudflare Pages project，并已补充 preview host 的首页和设置页 URL。
 - Magic Link 登录后应回到当前发起登录的 host。
 - 验证账号托管空间恢复不会跳回旧站。
@@ -144,6 +147,8 @@ Cloudflare：
 - 开启可用的 Free Managed Ruleset。
 - HSTS 先使用短周期或暂缓，稳定后再拉长 max-age。
 - CSP 先采用保守策略或 report-only，避免一次性破坏 Supabase/Auth/Storage 流程。
+- 仓库侧通过 `public/_headers` 设置低误伤静态安全响应头。
+- Dashboard 手动步骤、验证和回滚详见 `docs/guides/CloudflareSecurityBaseline.md`。
 
 账号与仓库：
 

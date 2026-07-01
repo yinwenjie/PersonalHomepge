@@ -2,7 +2,9 @@
 
 ## Summary
 
-Phase 1.14 聚焦正式主域名上线前后的部署、回调、安全和回滚体系。目标是把主站从当前 GitHub Pages 项目路径迁移到 Cloudflare Pages + 自购主域名，同时保留 GitHub Pages 作为 legacy 迁移提示和短期 fallback，避免因 origin 变化、`basePath` 变化或 Auth redirect 配置变化造成用户数据误判丢失。
+Phase 1.14 聚焦正式主域名上线前后的部署、回调、安全和回滚体系。目标是把主站从当前 GitHub Pages 项目路径迁移到 Cloudflare Pages + `mylinker.net`，同时保留 GitHub Pages 作为 legacy 迁移提示和短期 fallback，避免因 origin 变化、`basePath` 变化或 Auth redirect 配置变化造成用户数据误判丢失。
+
+正式主域名已确定为 `mylinker.net`，canonical host 使用 `https://mylinker.net/`；`https://www.mylinker.net/` 作为别名，后续跳转到 apex。
 
 本阶段不改变首页业务数据结构；所有迁移动作必须遵守 Phase 1.11 确立的数据保全 P0 原则。
 
@@ -12,7 +14,7 @@ Phase 1.14 聚焦正式主域名上线前后的部署、回调、安全和回滚
 
 - 新增 `docs/guides/MainDomainMigrationRunbook.md`，固化主域名迁移执行方案和回滚预案。
 - 明确主站迁移目标为 Cloudflare Pages，GitHub Pages 转为 legacy 迁移提示和短期回退入口。
-- 明确 canonical host 推荐使用 apex domain，`www` 跳转到 apex。
+- 明确 canonical host 使用 `https://mylinker.net/`，`https://www.mylinker.net/` 跳转到 apex。
 - 明确新主站使用根路径 `/`，旧 GitHub Pages 继续保留 `/PersonalHomepge/` 项目路径。
 - 明确 localStorage origin 隔离风险：旧站本地数据不会自动出现在新主域名。
 - 明确用户数据迁移策略：账号托管用户登录恢复，同步码用户重新绑定，纯本地用户旧站导出后新站导入。
@@ -123,16 +125,48 @@ Phase 1.14 聚焦正式主域名上线前后的部署、回调、安全和回滚
 - 除添加 Cloudflare Pages preview Redirect URLs 外，不修改 Supabase `Site URL`。
 - 不修改 DNS、GitHub Pages 线上角色或正式主域名绑定。
 
+## Phase 1.14.4：Cloudflare 安全基线
+
+仓库侧已完成：
+
+- 新增 `public/_headers`，为 Cloudflare Pages 静态导出产物设置低误伤安全响应头：
+  - `X-Content-Type-Options: nosniff`
+  - `X-Frame-Options: DENY`
+  - `Referrer-Policy: strict-origin-when-cross-origin`
+  - `Permissions-Policy` 禁用 camera、microphone、geolocation、payment、usb、serial、bluetooth。
+- `scripts/verify-static-export.mjs` 增加 `out/_headers` 和必需安全头校验，防止后续构建遗漏 Cloudflare Pages 安全头配置。
+- 暂不启用强制 CSP，避免误伤 Supabase Auth、Supabase Storage signed URL、外链 Banner/背景图和同步流程。
+- 新增 `docs/guides/CloudflareSecurityBaseline.md`，记录 Cloudflare Dashboard 手动配置步骤、验证命令和回滚方案。
+- 明确 Dashboard 侧由账号持有人手动完成 DNS proxy、custom domain、TLS、Always Use HTTPS、DNSSEC、WAF、DDoS、2FA 和成员权限检查。
+
+待手动执行：
+
+- Cloudflare Pages project 环境变量复查，确认只包含公开前端变量，不包含 service role 或管理员密钥。
+- DNS 记录使用 Proxied，正式主域名绑定到 Cloudflare Pages。
+- SSL/TLS 使用 `Full (strict)`，开启 Always Use HTTPS。
+- DNSSEC 根据 registrar 状态启用并确认 active。
+- WAF Managed Rules 使用默认配置启用；Custom WAF Rule 只阻断明显扫描路径。
+- HSTS、Rate limiting 和 Bot Fight Mode 保守处理，避免在切流前扩大误伤面。
+- Cloudflare、GitHub 和 Supabase 管理账号开启 2FA，保存 backup codes。
+
+数据与架构边界：
+
+- 不新增 Supabase migration。
+- 不修改 `HomeDocumentV2`。
+- 不修改业务运行时代码。
+- 不引入 Cloudflare Worker。
+- 不切正式主域名。
+- 不关闭 GitHub Pages legacy。
+- 不修改 Supabase Auth `Site URL`。
+
 ## 后续任务
 
-下一步进入 Phase 1.14.4 Cloudflare 安全基线。
+下一步完成 Cloudflare Dashboard 安全基线配置和回归。
 
-重点是在正式主域名绑定前，完成 Cloudflare 代理、HTTPS、基础 WAF、DDoS 防护、响应头和账号安全设置的低成本基线。
+重点是在正式主域名绑定前，确认 Cloudflare 代理、HTTPS、基础 WAF、DDoS 防护、响应头和账号安全设置不会影响 Auth、账号恢复、同步码和 Storage 图片。
 
 Phase 1.14 后续仍需完成：
 
-- Phase 1.14.3：Cloudflare Pages 主站部署。
-- Phase 1.14.4：Cloudflare 安全基线。
 - Phase 1.14.5：GitHub Pages 旧站迁移提示。
 - Phase 1.14.6：闭源开发与仓库安全收口。
 - Phase 1.14.7：正式切流、回归和回滚演练。

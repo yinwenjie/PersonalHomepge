@@ -2,7 +2,7 @@
 
 ## Summary
 
-本文档对应 Phase 1.14.3，用于创建 Cloudflare Pages 主站部署链路。当前目标是先获得一个可回归的 Cloudflare Pages preview，不立即切 DNS，不绑定正式主域名，不关闭 GitHub Pages legacy。
+本文档对应 Phase 1.14.3，用于创建 Cloudflare Pages 主站部署链路。当前目标是先获得一个可回归的 Cloudflare Pages preview，不立即切 DNS，不绑定正式主域名 `mylinker.net`，不关闭 GitHub Pages legacy。
 
 本项目仍保持 Next.js static export，Cloudflare Pages 只负责构建并托管 `out/` 静态产物。
 
@@ -147,6 +147,6 @@ Storage：
 
 ## 下一阶段衔接
 
-- Phase 1.14.4：在主站 preview 可用后，配置 Cloudflare 安全基线。
+- Phase 1.14.4：在主站 preview 可用后，配置 Cloudflare 安全基线，详见 `docs/guides/CloudflareSecurityBaseline.md`。
 - Phase 1.14.5：准备 GitHub Pages 旧站迁移提示。
 - Phase 1.14.7：正式切流、完整回归和回滚演练。

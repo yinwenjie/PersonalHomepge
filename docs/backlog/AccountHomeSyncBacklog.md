@@ -41,10 +41,10 @@ Account
 账号系统、首页空间和域名体系后续应统一到一个稳定的主域名和空间路由模型下：
 
 - 短期：
-  - 主域名已购买，当前仍继续使用 GitHub Pages 和 `/PersonalHomepge/` 项目路径。
+  - 主域名 `mylinker.net` 已购买，当前仍继续使用 GitHub Pages 和 `/PersonalHomepge/` 项目路径。
   - 域名迁移独立为 Phase 1.14，不阻塞 Phase 1.13 产品化体验收口。
 - 正式推出前：
-  - 主站迁移到 Cloudflare Pages，绑定自购主域名，逐步摆脱 `/PersonalHomepge/` 项目路径。
+  - 主站迁移到 Cloudflare Pages，绑定 `mylinker.net`，逐步摆脱 `/PersonalHomepge/` 项目路径。
   - Supabase Auth 的 `Site URL` 和 `Redirect URLs` 切换到统一主域名。
   - 回归 `basePath`、静态资源路径、Auth 回调、Storage 图片、观测事件和本地缓存域隔离。
   - GitHub Pages 保留为旧站迁移提示和短期回退入口，不再长期承载完整主应用。
@@ -106,7 +106,7 @@ Account
 | 数据导入 | 浏览器收藏/标签导入需求集 | 把大量已有收藏和当前标签转成可整理的首页内容 | 暂不细化；先设计权限边界、大批量处理、清洗、预览和回滚策略 | P1 | Phase 1.9B |
 | 安全 | 数据导入/恢复 | 与数据导出形成恢复闭环 | 严格校验导入 schema，先恢复本地首页 JSON，不导入 secret | P2 | Phase 1.10 |
 | 安全 | 账号删除 | 合规和用户控制 | 删除账号数据、空间、偏好和绑定 | P2 | Phase 1.10 |
-| 部署与域名 | 统一自购主域名 | 摆脱 GitHub Pages 项目路径，统一品牌入口 | 主站从 `/PersonalHomepge/` 迁移到根路径，自定义 `Site URL` 和 redirect | P1 | Phase 1.14 |
+| 部署与域名 | 统一 `mylinker.net` 主域名 | 摆脱 GitHub Pages 项目路径，统一品牌入口 | 主站从 `/PersonalHomepge/` 迁移到根路径，自定义 `Site URL` 和 redirect | P1 | Phase 1.14 |
 | 部署与域名 | 迁移到 Cloudflare Pages | 低成本获得主域名、预览部署、WAF、DDoS 和后续 Worker 扩展空间 | 保持 `basePath` 可配置，Cloudflare Pages 承载主站，GitHub Pages 作为旧站提示/回退 | P1 | Phase 1.14 |
 | 部署与域名 | VIP 自定义域名 | 高感知付费能力 | 每个 `home_space` 可绑定一个或多个自定义域名，需验证所有权和证书状态 | P1 | Phase 2 |
 | 付费权益 | VIP 状态认证 | 付费功能入口 | Stripe customer 和 entitlement 关联账号 | P0 | Phase 2 |
@@ -300,7 +300,7 @@ Phase 1 暂不做：
 ### Phase 1.14
 
 - 主域名准备，包括 Cloudflare Pages 主站迁移、GitHub Pages 旧站角色、Auth redirect、`basePath`、Storage 图片、安全基线和本地缓存域隔离回归。
-- 自购主域名上线后，`basePath`、Supabase Auth URL 配置和本地缓存域隔离都会变化，需要单独回归。
+- `mylinker.net` 上线后，`basePath`、Supabase Auth URL 配置和本地缓存域隔离都会变化，需要单独回归。
 
 ### Phase 2
 
@@ -323,7 +323,7 @@ Phase 1 暂不做：
 - 账号托管凭证允许空白设备恢复空间内容，安全边界从“持有同步码”转为“账号身份 + RLS”，需要单独验收跨账号隔离和前端泄露风险。
 - Supabase Auth session 配置变化可能影响现有同步码 RPC，需要完整回归。
 - GitHub Pages 是静态部署，旧站保留期间需要提前验证 Auth redirect URL、base path、callback 行为和迁移提示。
-- 自购主域名上线后，`basePath`、Supabase Auth URL 配置、Storage 图片、观测事件和本地缓存域隔离都会变化，需要单独回归。
+- `mylinker.net` 上线后，`basePath`、Supabase Auth URL 配置、Storage 图片、观测事件和本地缓存域隔离都会变化，需要单独回归。
 - VIP 自定义域名不是简单 DNS 功能，而是 `home_space -> hostname` 的绑定系统，需要域名所有权验证、证书管理和空间路由。
 - AI 能力的主要风险包括用户数据隐私、提示注入、调用成本、额度限制和结果可解释性。Phase 2 设计时应先明确哪些首页数据会被发送给 AI provider，以及用户是否需要显式确认。
 
