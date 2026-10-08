@@ -10,6 +10,7 @@ const basePath = normalizeBasePath(
   "base path"
 );
 const expectedAssetPrefix = `${basePath}/_next/`;
+const BINARY_ASSET_PATTERN = /\.(?:png|jpe?g|gif|webp|avif|ico|bmp|woff2?|ttf|otf|eot|mp4|webm|mp3|wav|pdf|zip|gz|br|wasm)$/i;
 
 const failures = [];
 
@@ -161,14 +162,14 @@ function verifyReleaseSafety(directory) {
       envFiles.push(path.relative(process.cwd(), filePath));
     }
 
-    if (!/\.(?:html|js|css|txt|json)$/.test(fileName)) {
+    if (BINARY_ASSET_PATTERN.test(fileName)) {
       continue;
     }
 
     const content = readFileSync(filePath, "utf8");
     const relativePath = path.relative(process.cwd(), filePath);
 
-    if (/\.(?:js|css)$/.test(fileName) && /[#@]\s*sourceMappingURL=/.test(content)) {
+    if (/[#@]\s*sourceMappingURL=/.test(content)) {
       sourceMapComments.push(relativePath);
     }
 
