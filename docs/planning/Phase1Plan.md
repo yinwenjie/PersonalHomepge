@@ -40,7 +40,8 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 - Phase 1.14.2 已完成：Supabase Auth、Storage 与回调 URL 迁移准备，明确当前来源回跳、Redirect URLs、Storage 回归和回滚记录。
 - Phase 1.14.3 已完成：Cloudflare Pages preview 已生成并完成回归，Supabase preview Redirect URLs 已添加，首页内容可在 preview 拉取并显示。
 - Phase 1.14.4 仓库侧已完成：新增 Cloudflare Pages 安全响应头、静态导出安全头校验和 `CloudflareSecurityBaseline.md` 操作手册；Cloudflare Dashboard Step 8 之后暂缓。
-- Phase 1.14.5/1.14.6 暂缓：GitHub Pages legacy 继续保留完整应用作为 fallback，不做迁移提示页；闭源开发与仓库安全收口后移。
+- Phase 1.14.5 最小版已完成（2026-10-08）：GitHub Pages legacy 继续保留完整应用，首页顶部增加可关闭的迁移提示，引导纯本地用户导出数据包后到 `mylinker.net` 导入；旧站降级为跳转页仍后移。
+- Phase 1.14.6 暂缓：闭源开发与仓库安全收口后移。
 - Phase 1.14.7 已完成：`mylinker.net` 已作为主站入口完成回归，Supabase `Site URL` 已切换为 `https://mylinker.net/`，GitHub Pages legacy 继续保留完整应用作为 fallback。
 - Phase 1.15.0 已完成：多语言 locale 数据模型、`system` 解析、账号偏好 migration 和 verify 脚本已落地。
 - Phase 1.15.1 已完成：I18n Provider、`useI18n()`、静态 dictionary、统一 formatter、首页日期/月历和组件折叠摘要的运行时接入已落地。
@@ -70,7 +71,7 @@ Phase 1.17 已完成并通过线上验收。只读 Renderer、公开投影、最
 | Phase 1.11：数据保全与发布观测体系 | 已完成 | 文档分类、本地/云端历史、恢复中心、危险写入保护、同步误覆盖防护、账号托管恢复边界、P0 演练、基础埋点、错误监控 | 继续作为所有后续功能的 P0 约束 |
 | Phase 1.12：组件设计优化子阶段 | 已完成 | 组件体验规范、Widget Shell、Todo/月历优化、配置入口、模板组件组合、候选组件 backlog | 纯前端新组件留 Phase 1.16 |
 | Phase 1.13：产品化体验收口 | 已完成 | 设置页信息架构 v2、产品身份收口、主题风格 v2 | 主域名准备独立到 Phase 1.14 |
-| Phase 1.14：主域名准备 | 已完成 | Cloudflare Pages 主站迁移、根路径构建、Supabase 回调、安全头、切流回归和回滚演练；1.14.5/1.14.6 暂缓，GitHub Pages legacy 保留完整应用 | 后续只做主域名运行观察和安全补强 |
+| Phase 1.14：主域名准备 | 已完成 | Cloudflare Pages 主站迁移、根路径构建、Supabase 回调、安全头、切流回归和回滚演练；1.14.5 迁移提示最小版已上线，1.14.6 暂缓，GitHub Pages legacy 保留完整应用 | 后续只做主域名运行观察和安全补强 |
 | Phase 1.15：多语言支持 v1 | 已完成 | 语言数据模型、账号/本地偏好、I18n Provider、静态 dictionary、日期时间/月历 locale formatter、首页、设置页、同步、导入和错误细节本地化；新增 i18n 校验、小语种关键路径覆盖和多视口人工回归 | 后续只做翻译修订和缺陷修复 |
 | Phase 1.16：低成本组件扩展 | 已完成并部署 | Notes、Countdown、World Clock、模板组合、恢复预览摘要、观测隐私校验和多视口回归已完成 | 后续仅做缺陷修复与组件候选评估 |
 | Phase 1.17：只读渲染与分享链接 v1 | 已完成并通过线上验收 | 只读首页 renderer、公开快照存储/RPC、设置页发布管理、会话内链接、撤销机制、`/share/` 静态公开入口 | 后续仅做缺陷修复、安全回归和运行观察 |
@@ -266,7 +267,14 @@ Dashboard 状态：
 
 ### Phase 1.14.5：GitHub Pages 旧站迁移提示
 
-状态：暂缓。
+状态：最小版已完成（2026-10-08）；旧站降级为极简跳转页或关闭仍暂缓。
+
+已完成：
+
+- 新增 `LegacySiteNotice`，仅在 `*.github.io` 主机名下于首页顶部显示，主站 `mylinker.net` 和 Cloudflare Pages preview 不显示。
+- 提示说明已登录用户到新站登录即可恢复，纯本地用户需先“导出数据包”再到新站“导入/恢复数据包”；提供打开主站、前往设置导出和“不再提示”三个操作。
+- “不再提示”只写入本机 `homepage:legacy-notice:v1`，不写入 `HomeDocumentV2`、不同步、不埋点。
+- 文案已覆盖 8 种界面语言并通过 `verify:i18n`。
 
 目标：让旧地址用户知道主站迁移，并避免因为 localStorage origin 变化误以为数据丢失。
 
@@ -922,6 +930,7 @@ type HomeDocumentV2 = {
 - `homepage:document-protection:v1`：文档分类和保护状态缓存。
 - `homepage:analytics:v1`：本机埋点偏好和匿名安装标识。
 - `homepage:settings-layout:v1`：设置页 section 展开状态。
+- `homepage:legacy-notice:v1`：GitHub Pages 旧站迁移提示是否已关闭，仅本机。
 
 新增或扩展方向：
 
