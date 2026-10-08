@@ -47,6 +47,8 @@ function verifyStaticExport(directory) {
 
   verifyCloudflareHeaders(headersPath);
 
+  verifyReleaseSafety(directory);
+
   const htmlFiles = collectFiles(directory, (filePath) => filePath.endsWith(".html"));
   if (htmlFiles.length === 0) {
     fail("No HTML files found in out/.");
@@ -138,6 +140,90 @@ function verifyCloudflareHeaders(headersPath) {
     if (!content.includes(header)) {
       fail(`Missing required Cloudflare Pages security header: ${header}`);
     }
+  }
+}
+
+function verifyReleaseSafety(directory) {
+  const allFiles = collectFiles(directory, () => true);
+  const sourceMapFiles = [];
+  const envFiles = [];
+  const sourceMapComments = [];
+  const secretMarkers = [];
+
+  for (const filePath of allFiles) {
+    const fileName = path.basename(filePath);
+
+    if (fileName.endsWith(".map")) {
+      sourceMapFiles.push(path.relative(process.cwd(), filePath));
+    }
+
+    if (fileName.startsWith(".env")) {
+      envFiles.push(path.relative(process.cwd(), filePath));
+    }
+
+    if (!/\.(?:html|js|css|txt|json)$/.test(fileName)) {
+      continue;
+    }
+
+    const content = readFileSync(filePath, "utf8");
+    const relativePath = path.relative(process.cwd(), filePath);
+
+    if (/\.(?:js|css)$/.test(fileName) && /[#@]\s*sourceMappingURL=/.test(content)) {
+      sourceMapComments.push(relativePath);
+    }
+
+    for (const marker of findSecretMarkers(content)) {
+      secretMarkers.push(`${relativePath} (${marker})`);
+    }
+  }
+
+  if (sourceMapFiles.length > 0) {
+    fail(`Source maps must not be published: ${sourceMapFiles.join(", ")}`);
+  }
+
+  if (envFiles.length > 0) {
+    fail(`Environment files must not be published: ${envFiles.join(", ")}`);
+  }
+
+  if (sourceMapComments.length > 0) {
+    fail(`Published assets must not reference source maps: ${sourceMapComments.join(", ")}`);
+  }
+
+  if (secretMarkers.length > 0) {
+    fail(`Possible server-only secrets found in the static export: ${secretMarkers.join(", ")}`);
+  }
+}
+
+function findSecretMarkers(content) {
+  const markers = new Set();
+
+  if (/service_role/i.test(content)) {
+    markers.add("service_role");
+  }
+
+  if (/\bsb_secret_[A-Za-z0-9_-]+/.test(content)) {
+    markers.add("Supabase secret key");
+  }
+
+  const jwtPattern = /\beyJ[A-Za-z0-9_-]+\.(eyJ[A-Za-z0-9_-]+)\.[A-Za-z0-9_-]+/g;
+  let match = jwtPattern.exec(content);
+  while (match) {
+    const role = readJwtRole(match[1]);
+    if (role !== "anon") {
+      markers.add(`JWT with role ${role ?? "unknown"}`);
+    }
+    match = jwtPattern.exec(content);
+  }
+
+  return markers;
+}
+
+function readJwtRole(encodedPayload) {
+  try {
+    const payload = JSON.parse(Buffer.from(encodedPayload, "base64url").toString("utf8"));
+    return typeof payload.role === "string" ? payload.role : null;
+  } catch {
+    return null;
   }
 }
 
