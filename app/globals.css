@@ -6,7 +6,7 @@
   --surface-soft: #f0f4f8;
   --text: #1d2633;
   --muted: #657181;
-  --quiet: #8a95a5;
+  --quiet: #667282;
   --line: #dfe5ec;
   --line-strong: #c9d3df;
   --danger: #c2410c;
@@ -80,7 +80,7 @@
     --surface-soft: #202c3a;
     --text: #edf2f7;
     --muted: #aab6c4;
-    --quiet: #7d8b9d;
+    --quiet: #8d9aab;
     --line: #344255;
     --line-strong: #4a5c73;
     --danger: #fb923c;
@@ -115,7 +115,7 @@
   --surface-soft: #202c3a;
   --text: #edf2f7;
   --muted: #aab6c4;
-  --quiet: #7d8b9d;
+  --quiet: #8d9aab;
   --line: #344255;
   --line-strong: #4a5c73;
   --danger: #fb923c;
@@ -266,9 +266,41 @@ button:disabled {
   cursor: text;
 }
 
-.home-title-display:focus-visible {
+/* The button truncates instead, so its focus ring is not clipped. */
+.home-title-editable {
+  overflow: visible;
+}
+
+.home-title-button {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius);
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: inherit;
+  cursor: text;
+}
+
+.home-title-button:focus-visible {
   outline: 3px solid var(--focus-ring);
   outline-offset: 4px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .home-title-inline-form {
@@ -1291,6 +1323,19 @@ h1 {
     grid-template-columns: var(--add-control-size) minmax(0, 1fr);
   }
 
+  .site-tile {
+    grid-template-columns: minmax(0, 1fr) 40px;
+  }
+
+  .site-action-toggle {
+    width: 40px;
+    height: 40px;
+  }
+
+  .site-menu-button {
+    min-height: 40px;
+  }
+
   .widget-card {
     padding: 12px;
   }
@@ -1357,8 +1402,20 @@ h1 {
 @media (prefers-reduced-motion: reduce) {
   .ungrouped-section > .ungrouped-add-button,
   .add-group-row > .add-group-button,
-  .ungrouped-links {
+  .ungrouped-links,
+  .links {
     transition: none;
+  }
+
+  /* dnd-kit sets transitions inline, so only !important can switch them off. */
+  .site-tile,
+  .section {
+    transition: none !important;
+  }
+
+  .site-tile:hover,
+  .site-tile:focus-within {
+    transform: none;
   }
 }
 
@@ -5354,6 +5411,22 @@ h1 {
   }
 
   .links {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .site-tile {
+    gap: 2px;
+    padding: 4px 2px 4px 6px;
+  }
+
+  .site-link {
+    grid-template-columns: 28px minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .site-icon {
+    width: 28px;
+    height: 28px;
   }
 }

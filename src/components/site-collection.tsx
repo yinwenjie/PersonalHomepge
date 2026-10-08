@@ -621,6 +621,7 @@ function SortableSiteTile({
         <a className="site-link" href={site.url} target="_blank" rel="noopener noreferrer">
           <SiteIcon site={site} />
           <span className="site-name">{site.name}</span>
+          <span className="visually-hidden">{t("site.opensInNewTab")}</span>
         </a>
       )}
       <div className="site-action-shell" aria-label={t("site.siteActionShellAria", { site: site.name })}>

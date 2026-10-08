@@ -272,15 +272,6 @@ export function HomeDashboard() {
     }
   }
 
-  function handleTitleDisplayKeyDown(event: KeyboardEvent<HTMLHeadingElement>) {
-    if (event.key !== "Enter" && event.key !== " ") {
-      return;
-    }
-
-    event.preventDefault();
-    startTitleEditing();
-  }
-
   function cancelTitleConfirmation() {
     setTitlePendingConfirmation(null);
     setTitleDraft("");
@@ -346,15 +337,15 @@ export function HomeDashboard() {
                 />
               </form>
             ) : (
-              <h1
-                className="home-title-display"
-                title={t("home.titleDisplayTitle")}
-                role="button"
-                tabIndex={0}
-                onClick={startTitleEditing}
-                onKeyDown={handleTitleDisplayKeyDown}
-              >
-                {documentTitle}
+              <h1 className="home-title-display home-title-editable">
+                <button
+                  className="home-title-button"
+                  type="button"
+                  title={t("home.titleDisplayTitle")}
+                  onClick={startTitleEditing}
+                >
+                  {documentTitle}
+                </button>
               </h1>
             )}
           </div>
@@ -408,7 +399,7 @@ export function HomeDashboard() {
         </form>
         <div className="search-meta">
           <span>{t("home.searchEngineMeta", { engine: searchEngineName })}</span>
-          <span><span className="search-count">{format.number(visibleCount)}</span> {t("home.searchVisibleUnit")}</span>
+          <span aria-live="polite"><span className="search-count">{format.number(visibleCount)}</span> {t("home.searchVisibleUnit")}</span>
         </div>
       </section>
 
