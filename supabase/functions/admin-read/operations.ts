@@ -31,8 +31,6 @@ import type {
 import type { OperationContext, OperationHandler, OperationResult } from "./handler.ts";
 
 export const MAX_RESOLVED_USERS = 20;
-/** Candidate profiles checked against Auth per email search. */
-const MAX_EMAIL_CANDIDATES = 50;
 const MAX_EMAIL_LENGTH = 320;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -40,7 +38,8 @@ export interface ResolvedUserDto {
   userId: string;
   email: string | null;
   displayName: string | null;
-  createdAt: string;
+  /** Profile creation time; null when the user has no profile row. */
+  createdAt: string | null;
 }
 
 export interface HomeSpaceDto {
@@ -151,32 +150,28 @@ async function resolveUser(
     throw new AdminRequestError("invalid_request");
   }
 
-  let profiles: ProfileRow[];
-  let email: string | null = null;
+  // profiles.email is editable by its owner, so email search runs against auth.users
+  // (migration 020) and every DTO email comes from Auth, never the profile copy.
+  let userIds: string[];
+  let knownEmail: string | null = null;
   if (filters.userId !== undefined) {
-    const profile = await store.findProfileById(parseUuid(filters.userId));
-    profiles = profile ? [profile] : [];
+    userIds = [parseUuid(filters.userId)];
   } else if (filters.email !== undefined) {
-    email = parseEmail(filters.email);
-    profiles = await store.findProfilesByEmail(email, MAX_EMAIL_CANDIDATES);
+    knownEmail = parseEmail(filters.email);
+    userIds = await store.findAuthUserIdsByEmail(knownEmail);
   } else {
     const space = await store.findHomeSpace(parseUuid(filters.homeSpaceId));
-    const profile = space ? await store.findProfileById(space.user_id) : null;
-    profiles = profile ? [profile] : [];
+    userIds = space ? [space.user_id] : [];
   }
 
-  // profiles.email is editable by its owner, so every candidate is checked against
-  // Supabase Auth and the DTO carries the Auth email, never the profile copy.
   const users: ResolvedUserDto[] = [];
-  for (const profile of profiles) {
-    const authEmail = await store.getAuthEmail(profile.id);
-    if (email !== null && authEmail !== email) {
+  for (const userId of userIds.slice(0, MAX_RESOLVED_USERS)) {
+    const authEmail = knownEmail ?? await store.getAuthEmail(userId);
+    if (knownEmail === null && authEmail === null) {
       continue;
     }
-    users.push(toResolvedUser(profile, authEmail));
-    if (users.length === MAX_RESOLVED_USERS) {
-      break;
-    }
+    const profile = await store.findProfileById(userId);
+    users.push(toResolvedUser(userId, authEmail, profile));
   }
   return {
     data: { users },
@@ -421,12 +416,16 @@ function parseTimestamp(value: unknown): string {
   return value;
 }
 
-function toResolvedUser(row: ProfileRow, authEmail: string | null): ResolvedUserDto {
+function toResolvedUser(
+  userId: string,
+  authEmail: string | null,
+  profile: ProfileRow | null,
+): ResolvedUserDto {
   return {
-    userId: row.id,
+    userId,
     email: authEmail,
-    displayName: row.display_name,
-    createdAt: row.created_at,
+    displayName: profile?.display_name ?? null,
+    createdAt: profile?.created_at ?? null,
   };
 }
 

@@ -82,7 +82,8 @@ export interface AdminAuditFilters {
 
 export interface AdminReadStore {
   findProfileById(userId: string): Promise<ProfileRow | null>;
-  findProfilesByEmail(email: string, limit: number): Promise<ProfileRow[]>;
+  /** Auth user ids whose Auth email equals an already-normalized email (migration 020). */
+  findAuthUserIdsByEmail(email: string): Promise<string[]>;
   /**
    * Returns the Supabase Auth email for a user id, or null when the user does not exist.
    * profiles.email is user-editable, so this is the authoritative value.
@@ -149,11 +150,11 @@ export function createSupabaseAdminReadStore(client: SupabaseClient): AdminReadS
       );
     },
 
-    async findProfilesByEmail(email, limit) {
-      return rowsOrThrow<ProfileRow>(
-        await client.from("profiles").select(PROFILE_COLUMNS).eq("email", email)
-          .order("created_at", { ascending: false }).limit(limit),
+    async findAuthUserIdsByEmail(email) {
+      const rows = rowsOrThrow<{ user_id: string }>(
+        await client.rpc("admin_find_auth_user_ids_by_email", { p_email: email }),
       );
+      return rows.map((row) => row.user_id);
     },
 
     async getAuthEmail(userId) {

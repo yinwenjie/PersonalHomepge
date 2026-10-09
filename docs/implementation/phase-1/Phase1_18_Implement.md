@@ -246,7 +246,7 @@ cursor: 可选的不透明分页游标
 - 分页游标绑定 operation 和目标（管理员审计绑定完整 filter 组合），换目标重放会被拒绝。
 - `content_fingerprint` 实际是文档内容的稳定序列化（含标题、站点 URL 和组件配置），所以快照 DTO 只返回其 SHA-256 前 12 位 `fingerprintDigest`。
 - 快照 summary 只保留分组/站点/组件数量、主题 preset 和 banner/背景布尔值，不返回 `documentTitle`。
-- `profiles.email` 可由用户本人修改，所以 `resolve-user` 只把它当候选索引：每个候选都用 Auth Admin `getUserById` 核对，只返回 Auth 邮箱与搜索词一致的用户，DTO 的 email 也取自 Auth。
+- `profiles.email` 可由用户本人修改，且注册是开放的，所以按邮箱查用户改为调用迁移 `020_admin_auth_email_lookup.sql` 的 `admin_find_auth_user_ids_by_email`：security definer、空 search_path、只授权 `service_role`，按 Auth 邮箱精确返回最多 20 个用户 ID；DTO 的 email 也一律取自 Auth。这一点替代了上文“邮箱从 `profiles.email` 精确解析”的原设计（2026-10-09 负责人确认）。远程部署后由 `supabase/checks/022_admin_auth_email_lookup_verify.sql` 验证。
 - `home_space_audit_events.event_type` 没有数据库约束，未知值统一投影为 `other`；metadata 只保留 `snapshotSource` 和 `snapshotSaved`。
 
 ### Operation 与角色矩阵

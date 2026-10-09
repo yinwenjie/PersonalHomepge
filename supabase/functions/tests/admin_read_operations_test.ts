@@ -80,9 +80,9 @@ function fakeStore(
   const calls: Calls = { pages: [], emails: [], adminFilters: [] };
   const store: AdminReadStore = {
     findProfileById: (id) => Promise.resolve(id === USER_ID ? PROFILE : null),
-    findProfilesByEmail: (email) => {
+    findAuthUserIdsByEmail: (email) => {
       calls.emails.push(email);
-      return Promise.resolve(email === PROFILE.email ? [PROFILE] : []);
+      return Promise.resolve(email === "person@example.com" ? [USER_ID] : []);
     },
     getAuthEmail: (id) =>
       Promise.resolve(
@@ -194,25 +194,23 @@ Deno.test("resolve-user finds an exact, normalized email and audits the target",
   assertEquals(result.audits[0].resultCount, 1);
 });
 
-Deno.test("resolve-user ignores profiles whose editable email does not match Auth", async () => {
-  const impostor: ProfileRow = { ...PROFILE, id: OTHER_USER_ID, display_name: "Impostor" };
+Deno.test("resolve-user takes emails from Auth, never the editable profile copy", async () => {
   const { store } = fakeStore({
-    findProfilesByEmail: () => Promise.resolve([impostor, PROFILE]),
+    findProfileById: () => Promise.resolve({ ...PROFILE, email: "edited@example.com" }),
   });
-  const result = await call(store, {
+  const byId = await call(store, {
     operation: "resolve-user",
     reason: REASON,
-    filters: { email: "person@example.com" },
+    filters: { userId: USER_ID },
   });
-  assertEquals(result.body.data.users.map((u: { userId: string }) => u.userId), [USER_ID]);
-
-  const byId = await call(
-    fakeStore({
-      findProfileById: () => Promise.resolve({ ...PROFILE, email: "edited@example.com" }),
-    }).store,
-    { operation: "resolve-user", reason: REASON, filters: { userId: USER_ID } },
-  );
   assertEquals(byId.body.data.users[0].email, "person@example.com");
+
+  const gone = await call(store, {
+    operation: "resolve-user",
+    reason: REASON,
+    filters: { userId: "12121212-1212-4212-8212-121212121212" },
+  });
+  assertEquals(gone.body.data, { users: [] });
 });
 
 Deno.test("resolve-user resolves through a home space id and reports empty results", async () => {
@@ -227,7 +225,7 @@ Deno.test("resolve-user resolves through a home space id and reports empty resul
   const missing = await call(store, {
     operation: "resolve-user",
     reason: REASON,
-    filters: { userId: OTHER_USER_ID },
+    filters: { email: "nobody@example.com" },
   });
   assertEquals(missing.status, 200);
   assertEquals(missing.body.data, { users: [] });
