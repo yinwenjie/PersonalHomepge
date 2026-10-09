@@ -457,13 +457,16 @@ Deno.test("read: concurrent requests for an expired feed fetch it only once", as
 
   let release!: () => void;
   const gate = new Promise<void>((resolve) => (release = resolve));
+  let entered!: () => void;
+  const fetching = new Promise<void>((resolve) => (entered = resolve));
   h.setRoute(FEED, async () => {
+    entered();
     await gate;
     return feedResponse("v2")();
   });
 
   const winner = call(h, { mode: "read", feeds: [FEED] });
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await fetching;
   const loser = await call(h, { mode: "read", feeds: [FEED] });
   assertEquals(loser.body.feeds[0].status, "stale");
   assertEquals(loser.body.feeds[0].items[0].title, "v1");
@@ -616,12 +619,16 @@ Deno.test("check: saving a checked feed keeps a read refresh's lease", async () 
 
   let release!: () => void;
   const gate = new Promise<void>((resolve) => (release = resolve));
+  let entered!: () => void;
+  const fetching = new Promise<void>((resolve) => (entered = resolve));
   h.setRoute(FEED, async () => {
+    entered();
     await gate;
     return feedResponse("v2")();
   });
   const reader = call(h, { mode: "read", feeds: [FEED] });
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  // Wait until the reader is inside its fetch, not a fixed number of ticks.
+  await fetching;
 
   // The reader is now blocked inside its fetch, holding the lease; the check answers at once.
   h.setRoute(FEED, feedResponse("checked"));
@@ -656,12 +663,15 @@ Deno.test("a refresh that outlives its lease cannot overwrite the next holder's 
 
   let release!: () => void;
   const gate = new Promise<void>((resolve) => (release = resolve));
+  let entered!: () => void;
+  const fetching = new Promise<void>((resolve) => (entered = resolve));
   h.setRoute(FEED, async () => {
+    entered();
     await gate;
     return feedResponse("late")();
   });
   const slow = call(h, { mode: "read", feeds: [FEED] });
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await fetching;
 
   // The slow reader's lease expires and a second reader takes over and finishes first.
   h.clock.advance(61_000);

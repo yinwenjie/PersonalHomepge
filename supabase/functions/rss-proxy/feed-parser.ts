@@ -150,7 +150,7 @@ function rssEntry(node: Node, feedUrl: URL): RawEntry {
   const item = asElement(node) ?? {};
   return {
     title: item.title,
-    link: pickLink(item.link, false, feedUrl) ?? permalinkGuid(item.guid),
+    link: pickLink(item.link, false, feedUrl) ?? permalinkGuid(item.guid, feedUrl),
     guid: item.guid ?? item["@_about"],
     date: item.pubDate ?? item.date ?? item.published ?? item.updated,
     summary: item.description ?? item.summary ?? item.encoded,
@@ -197,14 +197,15 @@ function pickLink(node: Node, atomOnly: boolean, base: URL): string | null {
  * An RSS <guid> is the item's URL unless isPermaLink="false" (RSS 2.0 defaults it to true).
  * Only an absolute http(s) URL counts, since a permalink is never relative.
  */
-function permalinkGuid(node: Node): string | null {
+function permalinkGuid(node: Node, base: URL): string | null {
   const guid = asArray(node)[0];
   const permaLink = asElement(guid)?.["@_isPermaLink"];
   if (typeof permaLink === "string" && permaLink.trim().toLowerCase() === "false") {
     return null;
   }
   const text = textOf(guid).trim();
-  return /^https?:\/\//i.test(text) ? absoluteHttpUrl(text, new URL(text)) : null;
+  // The base is never used for an absolute URL; parsing errors stay inside absoluteHttpUrl.
+  return /^https?:\/\//i.test(text) ? absoluteHttpUrl(text, base) : null;
 }
 
 /** Applies an element's xml:base (the parser drops the xml: prefix) on top of the inherited base. */

@@ -55,6 +55,7 @@ Deno.test("uses a permalink guid when an RSS item has no link", async () => {
       <item><title>Explicit</title><guid isPermaLink="true">https://example.com/b</guid></item>
       <item><title>Not a link</title><guid isPermaLink="false">https://example.com/c</guid></item>
       <item><title>Relative</title><guid>/d</guid></item>
+      <item><title>Malformed</title><guid>http://[</guid></item>
     </channel></rss>`,
     FEED_URL,
   );
