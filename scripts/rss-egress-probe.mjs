@@ -70,7 +70,8 @@ async function runnerAddress() {
 /**
  * Classifies one internal target. Only positive evidence of blocking passes: an answer, a
  * refused/reset connection or a TLS failure proves the address is routable, and anything
- * else (a timeout, or a DNS failure on a name that should resolve) leaves it untested.
+ * else (a timeout, "no route to host", or a DNS failure on a name that should resolve)
+ * leaves it untested.
  */
 function verdict(result) {
   const outcome = String(result.outcome);
@@ -81,8 +82,14 @@ function verdict(result) {
   ) {
     return "reachable";
   }
-  // A timeout is not evidence: a reachable host that drops packets looks the same.
-  if (/unreachable|no route|not permitted|permission denied|os error (1|13|101|113)\b/i.test(outcome)) {
+  // Blocked means the runtime refused the connection (EPERM/EACCES or Deno's own permission
+  // error) or has no route to the whole network (ENETUNREACH). A timeout, or "no route to
+  // host" (EHOSTUNREACH), can just mean nothing lives at the sampled address of a routable
+  // range, so neither counts.
+  if (
+    /not permitted|permission denied|PermissionDenied|requires net access|not allowed|network is unreachable|os error (1|13|101)\b/i
+      .test(outcome)
+  ) {
     return "blocked";
   }
   if (/dns|lookup|resolve|name or service|nodename/i.test(outcome)) {
