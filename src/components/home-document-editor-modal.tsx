@@ -11,7 +11,7 @@ interface HomeDocumentEditorModalProps {
   onClose: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onUpdateFormValue: (field: keyof FormValues, value: string) => void;
-  onDeleteSite: (groupId: string, siteId: string) => boolean;
+  onDeleteSite: (groupId: string, siteId: string) => Promise<boolean>;
 }
 
 export function HomeDocumentEditorModal({
@@ -71,8 +71,8 @@ export function HomeDocumentEditorModal({
             <button
               className="danger-button"
               type="button"
-              onClick={() => {
-                if (onDeleteSite(editor.groupId, editor.siteId)) {
+              onClick={async () => {
+                if (await onDeleteSite(editor.groupId, editor.siteId)) {
                   onClose();
                 }
               }}

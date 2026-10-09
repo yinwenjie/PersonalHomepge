@@ -2,6 +2,7 @@
 
 import type { ChangeEvent, RefObject } from "react";
 import { useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { requestConfirm } from "@/components/confirm-dialog";
 import { StatusMessage, type StatusTone } from "@/components/status-message";
 import {
   applyBookmarkImportDraft,
@@ -242,7 +243,7 @@ export function BookmarkImportPanel({
     setMessageTone(undoSaved ? "success" : "warning");
   }
 
-  function undoLastImport() {
+  async function undoLastImport() {
     const undo = getStorageRepository()?.loadUndo(documentValue.documentId);
     if (!undo) {
       setMessage(t("settings.import.noUndo"));
@@ -251,7 +252,7 @@ export function BookmarkImportPanel({
       return;
     }
 
-    if (!window.confirm(t("settings.import.undoConfirm"))) {
+    if (!(await requestConfirm(t("settings.import.undoConfirm")))) {
       return;
     }
 

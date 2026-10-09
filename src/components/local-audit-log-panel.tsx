@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { requestConfirm } from "@/components/confirm-dialog";
 import { StatusMessage } from "@/components/status-message";
 import { useI18n } from "@/hooks/use-i18n";
 import type { I18nTranslate } from "@/i18n/messages";
@@ -30,8 +31,8 @@ export function LocalAuditLogPanel() {
 
   const visibleEvents = useMemo(() => events.slice(0, VISIBLE_EVENT_COUNT), [events]);
 
-  function clearEvents() {
-    if (!window.confirm(t("settings.audit.clearConfirm"))) {
+  async function clearEvents() {
+    if (!(await requestConfirm({ message: t("settings.audit.clearConfirm"), tone: "danger" }))) {
       return;
     }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { requestConfirm } from "@/components/confirm-dialog";
 import { createId, type HomeWidget } from "@/domain/home-document";
 import {
   createNoteItem,
@@ -77,8 +78,8 @@ export function NotesListWidget({ widget, onUpdate }: NotesListWidgetProps) {
       : note), t("notes.message.updated"));
   }
 
-  function deleteNote(noteId: string) {
-    if (!window.confirm(t("notes.deleteConfirm"))) {
+  async function deleteNote(noteId: string) {
+    if (!(await requestConfirm({ message: t("notes.deleteConfirm"), confirmLabel: t("common.delete"), tone: "danger" }))) {
       return;
     }
 

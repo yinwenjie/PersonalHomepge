@@ -3,6 +3,7 @@
 import type { FormEvent, KeyboardEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { showAlert } from "@/components/confirm-dialog";
 import {
   buildSearchUrl,
   getSearchEngineDefinition,
@@ -202,7 +203,7 @@ export function HomeDashboard() {
 
   function applyTemplate(template: HomeTemplate) {
     if (!protectBeforeDangerousOverwrite("before-template-apply").canContinue) {
-      window.alert(t("home.templateProtectFailed"));
+      void showAlert(t("home.templateProtectFailed"));
       return;
     }
 
@@ -246,7 +247,7 @@ export function HomeDashboard() {
     titleCommitGuardRef.current = true;
     const nextTitle = normalizeHomeDocumentTitle(titleDraft);
     if (!normalizeText(titleDraft)) {
-      window.alert(t("home.titleEmptyAlert"));
+      void showAlert(t("home.titleEmptyAlert"));
       cancelTitleEditing();
       window.setTimeout(() => {
         titleCommitGuardRef.current = false;

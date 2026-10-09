@@ -19,6 +19,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { requestConfirm } from "@/components/confirm-dialog";
 import { createId, type HomeWidget } from "@/domain/home-document";
 import {
   createTodoItem,
@@ -112,12 +113,15 @@ export function TodoListWidget({ widget, onUpdate }: TodoListWidgetProps) {
     updateItems(items.filter((item) => item.id !== itemId), t("todo.message.deleted"));
   }
 
-  function clearCompleted() {
+  async function clearCompleted() {
     if (stats.completed === 0) {
       return;
     }
 
-    if (!window.confirm(t("todo.clearCompletedConfirm", { count: format.number(stats.completed) }))) {
+    if (!(await requestConfirm({
+      message: t("todo.clearCompletedConfirm", { count: format.number(stats.completed) }),
+      tone: "danger"
+    }))) {
       return;
     }
 

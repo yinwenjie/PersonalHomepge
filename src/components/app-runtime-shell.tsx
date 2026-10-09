@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { ConfirmDialogHost } from "@/components/confirm-dialog";
 import { ErrorMonitorBoundary } from "@/components/error-monitor-boundary";
 import { ErrorMonitoringInstaller } from "@/components/error-monitoring-installer";
 import { SupabaseAuthProvider } from "@/providers/supabase-auth-provider";
@@ -17,7 +18,10 @@ export function AppRuntimeShell({ children }: AppRuntimeShellProps) {
       <ErrorMonitoringInstaller />
       <SupabaseAuthProvider>
         <UiPreferencesProvider>
-          <I18nProvider>{children}</I18nProvider>
+          <I18nProvider>
+            {children}
+            <ConfirmDialogHost />
+          </I18nProvider>
         </UiPreferencesProvider>
       </SupabaseAuthProvider>
     </ErrorMonitorBoundary>

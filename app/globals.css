@@ -3048,6 +3048,36 @@ h1 {
   gap: 12px;
 }
 
+.confirm-dialog {
+  width: min(440px, calc(100% - 40px));
+  max-width: none;
+  margin: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.confirm-dialog::backdrop {
+  background: var(--modal-overlay, rgba(29, 38, 51, 0.22));
+}
+
+.confirm-dialog-card {
+  width: 100%;
+}
+
+.confirm-dialog-message {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.confirm-dialog-actions {
+  justify-content: flex-end;
+}
+
 .editor-title {
   margin: 0;
   font-size: 17px;

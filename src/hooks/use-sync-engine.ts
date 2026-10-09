@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { hasPendingDialog, requestConfirm, showAlert, waitForDialogsClosed } from "@/components/confirm-dialog";
 import type { HomeDocumentV2, HomeSyncMeta } from "@/domain/home-document";
 import { getErrorMessage } from "@/domain/errors";
 import {
@@ -26,7 +27,7 @@ export interface SyncEngineOptions {
   storageReady: boolean;
   /**
    * Whether a sync panel shows this engine's status. When false, failures that
-   * block an overwrite fall back to window.alert so they are not lost.
+   * block an overwrite fall back to an alert dialog so they are not lost.
    */
   visible: boolean;
   onBeforeCloudOverwrite: (documentValue: HomeDocumentV2, source: LocalHomeSnapshotSource) => boolean;
@@ -111,7 +112,7 @@ export function useSyncEngine({
     setError(failureMessage);
     setMessage("");
     if (!visible) {
-      window.alert(failureMessage);
+      void showAlert(failureMessage);
     }
     return false;
   }, [onBeforeOverwrite, visible]);
@@ -350,7 +351,7 @@ export function useSyncEngine({
       const snapshotSource = options.source === "resolve" && localDocument.syncMeta.status === "conflict"
         ? "before-conflict-cloud-resolve"
         : "before-cloud-pull";
-      if (shouldConfirmCloudPull(options.source) && !window.confirm(getCloudPullConfirmMessage(options.source, t))) {
+      if (shouldConfirmCloudPull(options.source) && !(await requestConfirm(getCloudPullConfirmMessage(options.source, t)))) {
         setSyncMetaFromBinding(activeBinding, getCancelSyncStatus(localDocument), t("settings.sync.pullCancelled"));
         setMessage(t("settings.sync.pullCancelledLocalUnchanged"));
         return;
@@ -403,6 +404,7 @@ export function useSyncEngine({
       || documentRef.current.syncMeta.status === "conflict"
       || isSyncPausedForBinding(documentRef.current, activeBinding)
       || editorOpenRef.current
+      || hasPendingDialog()
     ) {
       return;
     }
@@ -457,7 +459,7 @@ export function useSyncEngine({
     }
 
     const localClassification = classifyHomeDocument(localDocument);
-    if (options.source !== "auto" && !window.confirm(getCloudOverwriteConfirmMessage(localClassification, options.force, t))) {
+    if (options.source !== "auto" && !(await requestConfirm(getCloudOverwriteConfirmMessage(localClassification, options.force, t)))) {
       setMessage(t("settings.sync.uploadCancelledCloudUnchanged"));
       setError("");
       recordLocalAuditEvent({
@@ -691,11 +693,18 @@ export function useSyncEngine({
       clearTimeout(autoPushTimerRef.current);
     }
 
+    let cancelled = false;
     autoPushTimerRef.current = setTimeout(() => {
-      performPush({ force: false, source: "auto" });
+      // An open confirm dialog may still change the document; push once it is answered.
+      void waitForDialogsClosed().then(() => {
+        if (!cancelled) {
+          performPush({ force: false, source: "auto" });
+        }
+      });
     }, AUTO_PUSH_DEBOUNCE_MS);
 
     return () => {
+      cancelled = true;
       if (autoPushTimerRef.current) {
         clearTimeout(autoPushTimerRef.current);
       }

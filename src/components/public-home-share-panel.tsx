@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { requestConfirm } from "@/components/confirm-dialog";
 import {
   ReadOnlyHomeRenderer,
   ReadOnlyHomeRendererBoundary
@@ -92,7 +93,7 @@ export function PublicHomeSharePanel({
       return;
     }
 
-    if (!window.confirm(t("settings.publicShare.publishConfirm"))) {
+    if (!(await requestConfirm(t("settings.publicShare.publishConfirm")))) {
       return;
     }
 
@@ -155,7 +156,7 @@ export function PublicHomeSharePanel({
       return;
     }
 
-    if (!window.confirm(t("settings.publicShare.revokeConfirm"))) {
+    if (!(await requestConfirm(t("settings.publicShare.revokeConfirm")))) {
       return;
     }
 

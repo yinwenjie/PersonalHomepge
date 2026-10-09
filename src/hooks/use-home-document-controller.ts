@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { requestConfirm, showAlert } from "@/components/confirm-dialog";
 import {
   createDefaultHomeDocument,
   HomeDocumentV2,
@@ -196,13 +197,13 @@ export function useHomeDocumentController() {
   const restoreHomeDocumentWithBackup = useCallback((nextDocument: HomeDocumentV2, message: string): boolean => {
     const repository = repositoryRef.current;
     if (!repository) {
-      window.alert("本地存储尚未就绪，请稍后重试。");
+      void showAlert("本地存储尚未就绪，请稍后重试。");
       return false;
     }
 
     const currentDocument = homeDocumentRef.current;
     if (!protectBeforeDangerousOverwrite("before-data-package-restore").canContinue) {
-      window.alert("未能保存当前首页，已取消覆盖操作。");
+      void showAlert("未能保存当前首页，已取消覆盖操作。");
       return false;
     }
 
@@ -219,7 +220,7 @@ export function useHomeDocumentController() {
         },
         severity: "error"
       });
-      window.alert("恢复前备份失败，已取消导入。");
+      void showAlert("恢复前备份失败，已取消导入。");
       recordLocalAuditEvent({
         documentId: currentDocument.documentId,
         level: "danger",
@@ -282,12 +283,12 @@ export function useHomeDocumentController() {
       const parsed = JSON.parse(await file.text()) as unknown;
       const imported = parseImportedDocument(parsed);
 
-      if (!window.confirm("导入会覆盖当前本地首页，继续？")) {
+      if (!(await requestConfirm("导入会覆盖当前本地首页，继续？"))) {
         return;
       }
 
       if (!protectBeforeDangerousOverwrite("before-json-import").canContinue) {
-        window.alert("未能保存当前首页，已取消覆盖操作。");
+        void showAlert("未能保存当前首页，已取消覆盖操作。");
         return;
       }
 
@@ -316,18 +317,21 @@ export function useHomeDocumentController() {
       trackProductEvent("document.json_import_failed", {
         reasonCode: "invalid-json"
       });
-      window.alert("导入失败：JSON 格式不正确。");
+      void showAlert("导入失败：JSON 格式不正确。");
     }
   }, [commitHomeDocument, protectBeforeDangerousOverwrite]);
 
-  const resetDefault = useCallback((options: ResetDefaultOptions = {}) => {
-    if (!window.confirm(options.confirmMessage ?? "清空内容并恢复默认会覆盖当前浏览器中的首页。重置前会自动保存一份本地备份，继续？")) {
+  const resetDefault = useCallback(async (options: ResetDefaultOptions = {}) => {
+    if (!(await requestConfirm({
+      message: options.confirmMessage ?? "清空内容并恢复默认会覆盖当前浏览器中的首页。重置前会自动保存一份本地备份，继续？",
+      tone: "danger"
+    }))) {
       return;
     }
 
     const repository = repositoryRef.current;
     if (!repository) {
-      window.alert("本地存储尚未就绪，请稍后重试。");
+      void showAlert("本地存储尚未就绪，请稍后重试。");
       return;
     }
 
@@ -338,7 +342,7 @@ export function useHomeDocumentController() {
     }
 
     if (!protectBeforeDangerousOverwrite("before-reset-default").canContinue) {
-      window.alert("未能保存当前首页，已取消覆盖操作。");
+      void showAlert("未能保存当前首页，已取消覆盖操作。");
       return;
     }
 
@@ -360,7 +364,7 @@ export function useHomeDocumentController() {
         },
         severity: "error"
       });
-      window.alert("重置前备份失败，已取消恢复默认。");
+      void showAlert("重置前备份失败，已取消恢复默认。");
       recordLocalAuditEvent({
         documentId: currentDocument.documentId,
         level: "danger",
@@ -402,9 +406,9 @@ export function useHomeDocumentController() {
     });
   }, [protectBeforeDangerousOverwrite]);
 
-  const restoreResetBackup = useCallback(() => {
-    if (!window.confirm("恢复备份会覆盖当前本地首页，继续？")) {
-      return;
+  const restoreResetBackup = useCallback(async (): Promise<boolean> => {
+    if (!(await requestConfirm("恢复备份会覆盖当前本地首页，继续？"))) {
+      return false;
     }
 
     const repository = repositoryRef.current;
@@ -412,13 +416,13 @@ export function useHomeDocumentController() {
     if (!backup) {
       repository?.clearResetBackup();
       setHasResetBackup(false);
-      window.alert("没有可恢复的重置前备份。");
-      return;
+      void showAlert("没有可恢复的重置前备份。");
+      return false;
     }
 
     if (!protectBeforeDangerousOverwrite("before-reset-backup-restore").canContinue) {
-      window.alert("未能保存当前首页，已取消覆盖操作。");
-      return;
+      void showAlert("未能保存当前首页，已取消覆盖操作。");
+      return false;
     }
 
     commitHomeDocument(backup, "已恢复上一次重置前页面");
@@ -428,6 +432,7 @@ export function useHomeDocumentController() {
       message: "已恢复上一次重置前页面。",
       type: "document.reset_backup_restored"
     });
+    return true;
   }, [commitHomeDocument, protectBeforeDangerousOverwrite]);
 
   const restoreLocalSnapshot = useCallback((
@@ -436,7 +441,7 @@ export function useHomeDocumentController() {
   ): boolean => {
     const repository = repositoryRef.current;
     if (!repository) {
-      window.alert("本地存储尚未就绪，请稍后重试。");
+      void showAlert("本地存储尚未就绪，请稍后重试。");
       return false;
     }
 
@@ -499,7 +504,7 @@ export function useHomeDocumentController() {
         spaceId: currentDocument.syncMeta.spaceId,
         type: "local_snapshot.restore_failed"
       });
-      window.alert("本地历史版本恢复失败，请稍后重试。");
+      void showAlert("本地历史版本恢复失败，请稍后重试。");
       return false;
     }
   }, [protectBeforeDangerousOverwrite]);
@@ -510,7 +515,7 @@ export function useHomeDocumentController() {
   ): boolean => {
     const repository = repositoryRef.current;
     if (!repository) {
-      window.alert("本地存储尚未就绪，请稍后重试。");
+      void showAlert("本地存储尚未就绪，请稍后重试。");
       return false;
     }
 
@@ -573,7 +578,7 @@ export function useHomeDocumentController() {
         spaceId: currentDocument.syncMeta.spaceId,
         type: "cloud_snapshot.restore_failed"
       });
-      window.alert("云端历史版本恢复失败，请稍后重试。");
+      void showAlert("云端历史版本恢复失败，请稍后重试。");
       return false;
     }
   }, [protectBeforeDangerousOverwrite]);

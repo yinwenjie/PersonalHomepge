@@ -2,6 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useMemo, useState } from "react";
+import { requestConfirm, showAlert } from "@/components/confirm-dialog";
 import { StatusMessage } from "@/components/status-message";
 import type { HomeSpace } from "@/domain/account";
 import type { HomeDocumentV2 } from "@/domain/home-document";
@@ -163,7 +164,7 @@ export function HomeSpacesPanel({
     const templateDocument = createHomeDocumentFromTemplate(selectedTemplate.id);
     const spaceName = templateSpaceName.trim() || selectedTemplate.recommendedSpaceName;
     if (!onBeforeOverwrite("before-template-home-space-switch")) {
-      window.alert(t("settings.homeSpaces.createTemplateProtectFailed"));
+      void showAlert(t("settings.homeSpaces.createTemplateProtectFailed"));
       return;
     }
 
@@ -206,7 +207,7 @@ export function HomeSpacesPanel({
       return;
     }
 
-    if (!window.confirm(t("settings.homeSpaces.confirmActivateMessage"))) {
+    if (!(await requestConfirm(t("settings.homeSpaces.confirmActivateMessage")))) {
       return;
     }
 
@@ -246,7 +247,7 @@ export function HomeSpacesPanel({
     setActivationCode("");
     setActiveSpaceId(null);
 
-    if (!window.confirm(t("settings.homeSpaces.confirmRestoreManaged"))) {
+    if (!(await requestConfirm(t("settings.homeSpaces.confirmRestoreManaged")))) {
       return;
     }
 
@@ -288,7 +289,7 @@ export function HomeSpacesPanel({
       return;
     }
 
-    if (!window.confirm(t("settings.homeSpaces.confirmMigrate"))) {
+    if (!(await requestConfirm(t("settings.homeSpaces.confirmMigrate")))) {
       return;
     }
 
@@ -355,7 +356,7 @@ export function HomeSpacesPanel({
       return;
     }
 
-    if (!window.confirm(removeConfirmMessage(homeSpace, isCurrent, t))) {
+    if (!(await requestConfirm({ message: removeConfirmMessage(homeSpace, isCurrent, t), tone: "danger" }))) {
       return;
     }
 
