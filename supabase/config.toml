@@ -75,3 +75,8 @@ backend = "postgres"
 [functions.admin-read]
 enabled = true
 verify_jwt = true
+
+# Temporary rss-proxy go-live probe; deployed and deleted within one rss-egress-probe run.
+[functions.egress-probe]
+enabled = true
+verify_jwt = true

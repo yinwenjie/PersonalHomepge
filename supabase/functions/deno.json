@@ -14,7 +14,7 @@
     }
   },
   "tasks": {
-    "check": "deno check _shared/ admin-read/ tests/",
+    "check": "deno check _shared/ admin-read/ egress-probe/ tests/",
     "test": "deno test tests/"
   }
 }
