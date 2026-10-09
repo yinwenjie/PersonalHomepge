@@ -192,7 +192,7 @@ order by opened_installs desc;
 口径约定：
 
 - **安装**：一个 `anonymous_id`，即一个浏览器里的一份本机数据，不等于一个人或一个账号。
-- **新安装日**：这个安装第一次上报 `home.viewed` 的日期。埋点上线前就在用的老用户，会被算成埋点上线后第一次打开那天的新安装，所以最早几周的留存偏高。
+- **新安装日**：这个安装第一次上报 `home.viewed` 的日期。表里最早的 30 天不算新安装：埋点上线前就在用的老用户，以及按保留策略清理掉早期事件的老用户，都会在那段时间里“第一次出现”。所以清理时请保留至少 120 天（建议 180 天），否则 D30 没有可算的新安装。
 - **活跃**：当天至少上报过一次 `home.viewed`。日期统一按 UTC 切分。
 - **未满期的不计入**：例如新安装才 5 天，它的 D7 还没到，就不进 D7 的分母，避免把“还没发生”算成“没回来”。
 
@@ -206,6 +206,9 @@ with views as (
   from public.product_analytics_events
   where event_name = 'home.viewed'
   group by 1, 2
+),
+data_start as (
+  select min(day) as first_day from views
 ),
 cohorts as (
   select anonymous_id, min(day) as cohort_day
@@ -227,7 +230,10 @@ flags as (
       select 1 from views v where v.anonymous_id = c.anonymous_id and v.day = c.cohort_day + 30
     ) end as d30
   from cohorts c
-  where c.cohort_day >= current_date - 90
+  cross join data_start d
+  -- Skip the first 30 retained days: anyone whose earlier views were deleted or predate
+  -- analytics would otherwise look like a new install there.
+  where c.cohort_day >= greatest(current_date - 90, d.first_day + 30)
 )
 select
   date_trunc('week', cohort_day)::date as cohort_week,
@@ -251,6 +257,9 @@ with views as (
   where event_name = 'home.viewed'
   group by 1, 2
 ),
+data_start as (
+  select min(day) as first_day from views
+),
 cohorts as (
   select anonymous_id, min(day) as cohort_day
   from views
@@ -269,7 +278,10 @@ flags as (
       where v.anonymous_id = c.anonymous_id and v.day between c.cohort_day + 28 and c.cohort_day + 34
     ) end as week4
   from cohorts c
-  where c.cohort_day >= current_date - 90
+  cross join data_start d
+  -- Skip the first 30 retained days: anyone whose earlier views were deleted or predate
+  -- analytics would otherwise look like a new install there.
+  where c.cohort_day >= greatest(current_date - 90, d.first_day + 30)
 )
 select
   date_trunc('week', cohort_day)::date as cohort_week,
@@ -309,15 +321,20 @@ order by 1 desc;
 
 ### 4. 新安装第一周是否把首页变成自己的
 
-默认首页自带 20 多个示例网站，所以“链接数 ≥10”没有区分度。这里改看第一周内有没有把首页变成自己的：添加网站、分组或组件，套用模板，导入书签，恢复数据包，绑定同步码，创建账号托管空间，或者首页已经是本机保存的文档（`hasStoredDocument = true`）。只统计满 7 天、且在 60 天内的新安装。
+默认首页自带 20 多个示例网站，所以“链接数 ≥10”没有区分度。这里改看第一周内有没有把首页变成自己的：添加网站、分组或组件，换主题、Banner 或背景，套用模板，导入书签，恢复数据包，绑定同步码，创建账号托管空间，或者首页已经是本机保存的文档（`hasStoredDocument = true`）。只统计满 7 天、且在 60 天内的新安装。
 
 ```sql
-with first_seen as (
+with data_start as (
+  select min(created_at) as first_at
+  from public.product_analytics_events
+  where event_name = 'home.viewed'
+),
+first_seen as (
   select anonymous_id, min(created_at) as first_seen_at
   from public.product_analytics_events
   where event_name = 'home.viewed'
   group by 1
-  having min(created_at) >= now() - interval '60 days'
+  having min(created_at) >= greatest(now() - interval '60 days', (select first_at from data_start) + interval '30 days')
      and min(created_at) < now() - interval '7 days'
 ),
 first_week as (
@@ -330,7 +347,7 @@ first_week as (
 select
   count(distinct f.anonymous_id) as new_installs,
   round(100.0 * count(distinct w.anonymous_id) filter (
-    where w.event_name in ('site.added', 'group.added', 'widget.added', 'template.applied', 'bookmark_import.completed', 'data_package.restored', 'sync.code_bound', 'home_space.account_managed_created')
+    where w.event_name in ('site.added', 'group.added', 'widget.added', 'theme.changed', 'theme_image.changed', 'template.applied', 'bookmark_import.completed', 'data_package.restored', 'sync.code_bound', 'home_space.account_managed_created')
        or (w.event_name = 'home.viewed' and w.properties ->> 'hasStoredDocument' = 'true')
   ) / nullif(count(distinct f.anonymous_id), 0), 1) as customized_in_7d_pct,
   round(100.0 * count(distinct w.anonymous_id) filter (
