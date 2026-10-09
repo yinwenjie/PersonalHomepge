@@ -79,7 +79,7 @@ export async function fetchDocument(
 
   while (true) {
     await checkFetchTarget(url, deps.resolve, budget.signal);
-    if (budget.charge && !(await withDeadline(budget.charge(), budget.signal))) {
+    if (budget.charge && !(await chargeWithinDeadline(budget))) {
       throw new FetchRateLimited();
     }
 
@@ -164,6 +164,18 @@ export async function fetchDocument(
   }
 }
 
+/** A charge that cannot finish in time is our outage, not the feed's: report it as unspendable. */
+async function chargeWithinDeadline(budget: FetchBudget): Promise<boolean> {
+  try {
+    return await withDeadline(budget.charge!(), budget.signal);
+  } catch (error) {
+    if (error instanceof FeedError) {
+      return false;
+    }
+    throw error;
+  }
+}
+
 async function readCapped(response: Response, signal: AbortSignal): Promise<Uint8Array> {
   if (!response.body) {
     return new Uint8Array();
@@ -237,7 +249,12 @@ function fetchFailure(error: unknown, signal: AbortSignal): FeedError {
 
 /** Finds the first RSS or Atom alternate link in an HTML page. */
 export function discoverFeedLink(html: string, pageUrl: URL): URL | null {
-  for (const match of html.matchAll(/<link\b[^>]*>/gi)) {
+  // Links inside comments, scripts or styles are not part of the page's head.
+  const markup = html
+    .slice(0, 512 * 1024)
+    .replace(/<!--[\s\S]*?(?:-->|$)/g, " ")
+    .replace(/<(script|style|template|noscript)\b[\s\S]*?(?:<\/\1\s*>|$)/gi, " ");
+  for (const match of markup.matchAll(/<link\b[^>]*>/gi)) {
     const attributes = parseAttributes(match[0]);
     const rel = (attributes.get("rel") ?? "").toLowerCase().split(/\s+/);
     const type = (attributes.get("type") ?? "").toLowerCase().trim();

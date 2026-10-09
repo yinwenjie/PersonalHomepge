@@ -213,6 +213,15 @@ Deno.test("discoverFeedLink finds RSS or Atom alternates and ignores others", ()
     null,
   );
   assertEquals(discoverFeedLink("<p>no feed</p>", page), null);
+  assertEquals(
+    discoverFeedLink(
+      `<!-- <link rel="alternate" type="application/rss+xml" href="/old.xml"> -->
+       <script>const s = '<link rel="alternate" type="application/rss+xml" href="/js.xml">';</script>
+       <link rel="alternate" type="application/rss+xml" href="/real.xml">`,
+      page,
+    )?.href,
+    "https://example.com/real.xml",
+  );
 });
 
 Deno.test("a stalled DNS lookup ends at the fetch deadline", async () => {
@@ -257,16 +266,16 @@ Deno.test("every outbound request is charged, including redirects", async () => 
   ]);
 });
 
-Deno.test("a stalled rate-limit charge ends at the fetch deadline", async () => {
+Deno.test("a stalled rate-limit charge ends at the deadline as unspendable budget", async () => {
   const controller = new AbortController();
   setTimeout(() => controller.abort(new DOMException("time is up", "TimeoutError")), 10);
-  assertEquals(
-    await failure(fetchDocument(
+  const error = await assertRejects(() =>
+    fetchDocument(
       normalizeFeedUrl("https://example.com/feed"),
       { allowHtml: false },
       { signal: controller.signal, hops: 0, charge: () => new Promise(() => {}) },
       deps({ "https://example.com/feed": xml() }),
-    )),
-    "timeout",
+    )
   );
+  assertEquals((error as Error).name, "FetchRateLimited");
 });

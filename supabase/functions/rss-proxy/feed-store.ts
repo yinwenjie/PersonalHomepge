@@ -29,8 +29,8 @@ export interface FeedStore {
   finishRefresh(urlHash: string, update: FeedUpdate): Promise<void>;
   releaseLease(urlHash: string): Promise<void>;
   /**
-   * check mode: caches a feed found by checking a pasted URL, only if it has no row yet.
-   * An existing row is left to read-mode refreshes.
+   * check mode: caches a feed found by checking a pasted URL when it has no row yet, or
+   * replaces a failed row nobody is refreshing. Healthy or leased rows are left alone.
    */
   saveChecked(urlHash: string, feedUrl: string, update: FeedUpdate): Promise<void>;
   /** Bumps last_requested_at, at most once a day per feed, so cleanup keeps used feeds. */
@@ -112,18 +112,22 @@ export function createSupabaseFeedStore(client: SupabaseClient): FeedStore {
     },
 
     async saveChecked(urlHash, feedUrl, update) {
-      const { error } = await table().upsert(
-        {
-          url_hash: urlHash,
-          feed_url: feedUrl,
-          ...toRow(update),
-          last_requested_at: new Date().toISOString(),
-        },
-        // Insert only: an existing row belongs to read-mode refreshes and their lease, and a
-        // check must never race one of them.
+      const row = { ...toRow(update), last_requested_at: new Date().toISOString() };
+      // A new feed is inserted. An existing row belongs to read-mode refreshes, except one
+      // stuck in failure backoff with nobody refreshing it: a successful check replaces that.
+      const inserted = await table().upsert(
+        { url_hash: urlHash, feed_url: feedUrl, ...row },
         { onConflict: "url_hash", ignoreDuplicates: true },
       );
-      if (error) {
+      if (inserted.error) {
+        throw new FeedStoreError("save");
+      }
+      const replaced = await table()
+        .update(row)
+        .eq("url_hash", urlHash)
+        .eq("status", "error")
+        .or(`refresh_lease_until.is.null,refresh_lease_until.lt."${new Date().toISOString()}"`);
+      if (replaced.error) {
         throw new FeedStoreError("save");
       }
     },

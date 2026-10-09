@@ -100,7 +100,13 @@ class MemoryStore implements FeedStore {
 
   saveChecked(hash: string, feedUrl: string, update: FeedUpdate) {
     this.calls.push("save");
-    if (!this.rows.has(hash)) {
+    const existing = this.rows.get(hash);
+    if (
+      existing && existing.status === "error" &&
+      (existing.leaseUntil === null || existing.leaseUntil < this.clock.now)
+    ) {
+      Object.assign(existing, update, { lastRequestedAt: this.clock.now });
+    } else if (!existing) {
       this.rows.set(hash, {
         urlHash: hash,
         feedUrl,
@@ -644,4 +650,24 @@ Deno.test("validators from a redirected feed are not stored for the original URL
   const row = h.store.rows.get(await sha256Hex(FEED))!;
   assertEquals(row.items[0].title, "moved");
   assertEquals(row.etag, null);
+});
+
+Deno.test("check: a successful check replaces a feed stuck in failure backoff", async () => {
+  const h = harness();
+  await call(h, { mode: "read", feeds: [FEED] }); // no route: fails, backs off 30 minutes
+  const hash = await sha256Hex(FEED);
+  assertEquals(h.store.rows.get(hash)!.status, "error");
+
+  h.setRoute(FEED, feedResponse("back"));
+  await call(h, { mode: "check", feeds: [FEED] });
+  const read = await call(h, { mode: "read", feeds: [FEED] });
+  assertEquals(read.body.feeds[0].status, "ok");
+  assertEquals(read.body.feeds[0].items[0].title, "back");
+});
+
+Deno.test("a store outage after claiming releases the lease", async () => {
+  const h = harness();
+  h.store.failGlobalCharge = true;
+  assertEquals((await call(h, { mode: "read", feeds: [FEED] })).status, 503);
+  assertEquals(h.store.rows.get(await sha256Hex(FEED))!.leaseUntil, null);
 });

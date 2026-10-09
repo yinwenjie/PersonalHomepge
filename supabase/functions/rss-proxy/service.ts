@@ -138,6 +138,8 @@ async function readOne(
     update = await refresh(url, row, deps);
   } catch (error) {
     if (!(error instanceof FetchRateLimited)) {
+      // Free the lease so the next caller can retry once the store is back.
+      await deps.store.releaseLease(hash).catch(() => {});
       throw error;
     }
     // Over the global request budget: leave the row as it was so the next caller retries.
