@@ -220,20 +220,17 @@ flags as (
     c.anonymous_id,
     c.cohort_day,
     -- null = the day has not fully passed yet, so this install does not count either way
-    case when c.cohort_day + 1 < current_date then exists (
-      select 1 from views v where v.anonymous_id = c.anonymous_id and v.day = c.cohort_day + 1
-    ) end as d1,
-    case when c.cohort_day + 7 < current_date then exists (
-      select 1 from views v where v.anonymous_id = c.anonymous_id and v.day = c.cohort_day + 7
-    ) end as d7,
-    case when c.cohort_day + 30 < current_date then exists (
-      select 1 from views v where v.anonymous_id = c.anonymous_id and v.day = c.cohort_day + 30
-    ) end as d30
+    case when c.cohort_day + 1 < current_date then bool_or(v.day = c.cohort_day + 1) end as d1,
+    case when c.cohort_day + 7 < current_date then bool_or(v.day = c.cohort_day + 7) end as d7,
+    case when c.cohort_day + 30 < current_date then bool_or(v.day = c.cohort_day + 30) end as d30
   from cohorts c
   cross join data_start d
+  -- One join plus aggregation instead of a subquery per install, so cost stays linear.
+  join views v on v.anonymous_id = c.anonymous_id
   -- Skip the first 30 retained days: anyone whose earlier views were deleted or predate
   -- analytics would otherwise look like a new install there.
   where c.cohort_day >= greatest(current_date - 90, d.first_day + 30)
+  group by c.anonymous_id, c.cohort_day
 )
 select
   date_trunc('week', cohort_day)::date as cohort_week,
@@ -269,19 +266,17 @@ flags as (
   select
     c.anonymous_id,
     c.cohort_day,
-    case when c.cohort_day + 13 < current_date then exists (
-      select 1 from views v
-      where v.anonymous_id = c.anonymous_id and v.day between c.cohort_day + 7 and c.cohort_day + 13
-    ) end as week1,
-    case when c.cohort_day + 34 < current_date then exists (
-      select 1 from views v
-      where v.anonymous_id = c.anonymous_id and v.day between c.cohort_day + 28 and c.cohort_day + 34
-    ) end as week4
+    case when c.cohort_day + 13 < current_date
+      then bool_or(v.day between c.cohort_day + 7 and c.cohort_day + 13) end as week1,
+    case when c.cohort_day + 34 < current_date
+      then bool_or(v.day between c.cohort_day + 28 and c.cohort_day + 34) end as week4
   from cohorts c
   cross join data_start d
+  join views v on v.anonymous_id = c.anonymous_id
   -- Skip the first 30 retained days: anyone whose earlier views were deleted or predate
   -- analytics would otherwise look like a new install there.
   where c.cohort_day >= greatest(current_date - 90, d.first_day + 30)
+  group by c.anonymous_id, c.cohort_day
 )
 select
   date_trunc('week', cohort_day)::date as cohort_week,
@@ -328,7 +323,7 @@ order by 1 desc;
 
 ### 4. 新安装第一周是否把首页变成自己的
 
-默认首页自带 20 多个示例网站，所以“链接数 ≥10”没有区分度。这里改看第一周内有没有把首页变成自己的：添加网站、分组或组件，换主题、Banner 或背景，套用模板，导入书签，导入 JSON、恢复数据包或备份、从恢复中心恢复，绑定同步码，创建或恢复账号托管空间，或者首页已经是本机保存的文档（`hasStoredDocument = true`）。只统计满 7 天、且在 60 天内的新安装。
+默认首页自带 20 多个示例网站，所以“链接数 ≥10”没有区分度。这里改看第一周内有没有把首页变成自己的：添加网站、分组或组件，换主题、Banner 或背景，套用模板（含账号托管空间从模板创建），导入书签，导入 JSON、恢复数据包或备份、从恢复中心恢复，绑定同步码，创建或恢复账号托管空间，或者首页已经是本机保存的文档（`hasStoredDocument = true`）。只统计满 7 天、且在 60 天内的新安装。
 
 ```sql
 with data_start as (
@@ -354,7 +349,7 @@ first_week as (
 select
   count(distinct f.anonymous_id) as new_installs,
   round(100.0 * count(distinct w.anonymous_id) filter (
-    where w.event_name in ('site.added', 'group.added', 'widget.added', 'theme.changed', 'theme_image.changed', 'template.applied', 'bookmark_import.completed', 'data_package.restored', 'document.json_imported', 'document.reset_backup_restored', 'recovery.local_restored', 'recovery.cloud_restored', 'sync.code_bound', 'home_space.account_managed_created', 'home_space.account_managed_restored')
+    where w.event_name in ('site.added', 'group.added', 'widget.added', 'theme.changed', 'theme_image.changed', 'template.applied', 'home_space.account_managed_template_created', 'bookmark_import.completed', 'data_package.restored', 'document.json_imported', 'document.reset_backup_restored', 'recovery.local_restored', 'recovery.cloud_restored', 'sync.code_bound', 'home_space.account_managed_created', 'home_space.account_managed_restored')
        or (w.event_name = 'home.viewed' and w.properties ->> 'hasStoredDocument' = 'true')
   ) / nullif(count(distinct f.anonymous_id), 0), 1) as customized_in_7d_pct,
   round(100.0 * count(distinct w.anonymous_id) filter (
