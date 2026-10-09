@@ -7,6 +7,7 @@ import {
   MAX_RESPONSE_BODY_BYTES,
   USER_AGENT,
 } from "./contract.ts";
+import { decodeEntities } from "./feed-parser.ts";
 import { checkFetchTarget, type DnsResolver, normalizeFeedUrl, withDeadline } from "./url-guard.ts";
 
 export type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
@@ -323,6 +324,7 @@ function parseAttributes(tag: string): Map<string, string> {
   return attributes;
 }
 
+/** Attribute values carry HTML character references (&amp;, &#038;, &#x26;, ...). */
 function decodeAttribute(value: string): string {
-  return value.replace(/&amp;/gi, "&").replace(/&#38;/g, "&").trim();
+  return decodeEntities(value).trim();
 }
