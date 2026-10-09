@@ -42,6 +42,16 @@ export function detectBrowserFamily(userAgent: string): BrowserFamily {
   return "other";
 }
 
+/**
+ * Phones and tablets have no startup-page or Home-button settings like the desktop steps
+ * describe (Chrome on iOS cannot set a homepage at all), so the guide is desktop-only.
+ * iPadOS reports a Mac user agent, so touch support on "Macintosh" also counts.
+ */
+export function isMobileDevice(userAgent: string, maxTouchPoints: number): boolean {
+  return /\b(iPhone|iPad|iPod|Android|Mobile)\b/.test(userAgent) ||
+    (/\bMacintosh\b/.test(userAgent) && maxTouchPoints > 1);
+}
+
 export function toGuideBrowser(family: BrowserFamily): HomepageGuideBrowser {
   return family === "other" ? "chrome" : family;
 }

@@ -9,6 +9,7 @@ import {
   type HomepageGuideBrowser,
   type HomepageGuideSource,
   type HomepageGuideState,
+  isMobileDevice,
   normalizeHomepageGuideState,
   shouldShowHomepageTip,
   toGuideBrowser,
@@ -47,6 +48,10 @@ const BROWSER_MESSAGE_KEYS: Record<HomepageGuideBrowser, { steps: I18nMessageKey
   }
 };
 
+function isGuideSupported(): boolean {
+  return !isMobileDevice(window.navigator.userAgent, window.navigator.maxTouchPoints ?? 0);
+}
+
 function isLegacyHost(): boolean {
   return window.location.hostname.endsWith(LEGACY_HOST_SUFFIX);
 }
@@ -81,7 +86,7 @@ export function HomepageGuideTip({ suppressed }: { suppressed: boolean }) {
 
   useEffect(() => {
     const timerId = window.setTimeout(() => {
-      if (isLegacyHost()) {
+      if (isLegacyHost() || !isGuideSupported()) {
         return;
       }
 
@@ -135,7 +140,17 @@ export function HomepageGuideTip({ suppressed }: { suppressed: boolean }) {
 /** Settings entry point; always available, unlike the dismissible home tip. */
 export function HomepageGuideButton() {
   const { t } = useI18n();
+  const [supported, setSupported] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+
+  useEffect(() => {
+    const timerId = window.setTimeout(() => setSupported(isGuideSupported()), 0);
+    return () => window.clearTimeout(timerId);
+  }, []);
+
+  if (!supported) {
+    return null;
+  }
 
   return (
     <>
@@ -189,7 +204,8 @@ function HomepageGuideDialog({ source, onClose }: { source: HomepageGuideSource;
       }
       await navigator.clipboard.writeText(address);
       setCopyStatus("copied");
-      trackProductEvent("homepage_guide.address_copied", { source, browserFamily: browser });
+      // Same browserFamily as the open event, so the funnel query pairs them per browser.
+      trackProductEvent("homepage_guide.address_copied", { source, browserFamily: detected });
     } catch {
       setCopyStatus("failed");
     }
