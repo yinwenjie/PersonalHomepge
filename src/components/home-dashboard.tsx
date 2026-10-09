@@ -22,6 +22,7 @@ import { createHomeDocumentFromTemplate, type HomeTemplate } from "@/domain/home
 import { SYNC_BINDING_STORAGE_KEY } from "@/domain/sync-code";
 import { HomeDocumentEditorModal } from "@/components/home-document-editor-modal";
 import { HomeThemeStyleBridge } from "@/components/home-theme-style-bridge";
+import { LegacySiteNotice } from "@/components/legacy-site-notice";
 import { SiteCollection } from "@/components/site-collection";
 import { SyncPanel } from "@/components/sync-panel";
 import { TemplateLibraryPanel } from "@/components/template-library-panel";
@@ -351,6 +352,8 @@ export function HomeDashboard() {
           </div>
         </div>
       </header>
+
+      <LegacySiteNotice />
 
       {showWelcome ? (
         <div className="welcome-template-shell">
