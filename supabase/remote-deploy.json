@@ -32,6 +32,11 @@
       "file": "supabase/checks/021_admin_readonly_foundation_verify.sql",
       "purpose": "Verify Phase 1.18.1 structure, privileges, negative constraints and rollback-scoped A/B/C fixtures.",
       "requiresRollback": true
+    },
+    {
+      "file": "supabase/checks/022_admin_auth_email_lookup_verify.sql",
+      "purpose": "Verify the Phase 1.18.3 service-role-only Auth email lookup and that an edited profile email does not resolve.",
+      "requiresRollback": true
     }
   ]
 }

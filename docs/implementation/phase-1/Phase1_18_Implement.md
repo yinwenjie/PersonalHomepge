@@ -240,7 +240,14 @@ cursor: 可选的不透明分页游标
 
 ## 1.18.3：只读查询 API
 
-状态：待实施。
+状态：2026-10-09 代码与单元测试已完成，尚未部署，也未连真实数据库联调。`preview-snapshot` 的服务端投影属于 1.18.5，在此之前该 operation 仍返回 `invalid_request`。
+
+- `_shared/admin-read-store.ts` 固定表名、列名和排序（`created_at desc, id desc` keyset 分页），不查询 `document_json`；`admin-read/operations.ts` 校验各 operation 的严格 filters 并投影 DTO。
+- 分页游标绑定 operation 和目标（管理员审计绑定完整 filter 组合），换目标重放会被拒绝。
+- `content_fingerprint` 实际是文档内容的稳定序列化（含标题、站点 URL 和组件配置），所以快照 DTO 只返回其 SHA-256 前 12 位 `fingerprintDigest`。
+- 快照 summary 只保留分组/站点/组件数量、主题 preset 和 banner/背景布尔值，不返回 `documentTitle`。
+- `profiles.email` 可由用户本人修改，且注册是开放的，所以按邮箱查用户改为调用迁移 `020_admin_auth_email_lookup.sql` 的 `admin_find_auth_user_ids_by_email`：security definer、空 search_path、只授权 `service_role`，按 Auth 邮箱精确返回最多 20 个用户 ID；DTO 的 email 也一律取自 Auth。这一点替代了上文“邮箱从 `profiles.email` 精确解析”的原设计（2026-10-09 负责人确认）。远程部署后由 `supabase/checks/022_admin_auth_email_lookup_verify.sql` 验证。
+- `home_space_audit_events.event_type` 没有数据库约束，未知值统一投影为 `other`；metadata 只保留 `snapshotSource` 和 `snapshotSaved`。
 
 ### Operation 与角色矩阵
 
@@ -312,6 +319,10 @@ cursor: 可选的不透明分页游标
 - 站点 URL 可作为不可点击文本显示；不得触发外链导航、favicon 网络请求或第三方预取。
 - Banner/背景只展示配置状态、source 和安全文件类型摘要，不显示完整外部 URL、Storage path，不请求图片，也不创建 signed URL。
 - 预览组件在私有 Admin 仓库中实现，不从公开主站构建产物加载运行时代码；可以按已固定的安全字段重做只读展示，但不得复制或挂载编辑、拖拽、计时写回、设置弹窗、同步、恢复、本地存储或观测副作用。
+
+### 1.18.3 遗留
+
+- `home_space_snapshots.content_fingerprint`、`summary` 和 `home_space_audit_events.metadata`/`summary_*` 没有长度上限，且用户本人可直接插入。`list-snapshots`、`list-home-audit-events` 目前取回原始列后在 Edge Function 投影，用户可让后台查看其本人数据时返回 503（不泄露、不影响他人）。1.18.5 实现快照投影时一并改为数据库端投影或加长度约束。
 
 ### 安全行为
 
