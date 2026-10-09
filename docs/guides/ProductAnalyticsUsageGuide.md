@@ -295,17 +295,24 @@ order by 1 desc;
 
 ### 3. 日均打开次数
 
-一个活跃安装在活跃的那一天打开首页的次数。真正设为启动页或主页的人一天会打开很多次，所以“每天打开 3 次以上的活跃天比例”可以作为“已经设为首页”的间接信号。从设置页返回首页也会再记一次 `home.viewed`，所以次数会略偏高。
+一个活跃安装在活跃的那一天打开首页的次数。真正设为启动页或主页的人一天会打开很多次，所以“每天打开 3 次以上的活跃天比例”可以作为“已经设为首页”的间接信号。从设置页返回首页也会再记一次 `home.viewed`，所以次数会略偏高。只统计最近 4 个完整的 UTC 周（周一到周日），当天和本周还没过完，算进来会把次数拉低。
 
 ```sql
-with install_days as (
+with bounds as (
   select
-    anonymous_id,
-    (created_at at time zone 'UTC')::date as day,
+    (date_trunc('week', now() at time zone 'UTC') - interval '28 days') at time zone 'UTC' as from_at,
+    date_trunc('week', now() at time zone 'UTC') at time zone 'UTC' as to_at
+),
+install_days as (
+  select
+    e.anonymous_id,
+    (e.created_at at time zone 'UTC')::date as day,
     count(*) as opens
-  from public.product_analytics_events
-  where event_name = 'home.viewed'
-    and created_at >= now() - interval '28 days'
+  from public.product_analytics_events e
+  cross join bounds b
+  where e.event_name = 'home.viewed'
+    and e.created_at >= b.from_at
+    and e.created_at < b.to_at
   group by 1, 2
 )
 select
