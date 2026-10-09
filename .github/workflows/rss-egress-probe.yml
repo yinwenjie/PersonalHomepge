@@ -45,9 +45,22 @@ jobs:
           node-version-file: .node-version
 
       - name: Setup Supabase CLI
+        id: cli
         uses: supabase/setup-cli@v1
         with:
           version: 2.113.0
 
       - name: Run probe
+        timeout-minutes: 6
         run: node scripts/rss-egress-probe.mjs
+
+      # Runs after failures, cancellation and the probe step's timeout, so the probe never
+      # outlives the run.
+      - name: Delete probe
+        if: always() && steps.cli.outcome == 'success'
+        run: |
+          supabase functions delete egress-probe --project-ref "$SUPABASE_PROJECT_ID" --yes || true
+          if supabase functions list --project-ref "$SUPABASE_PROJECT_ID" | grep -qw egress-probe; then
+            echo "egress-probe is still deployed; delete it by hand."
+            exit 1
+          fi

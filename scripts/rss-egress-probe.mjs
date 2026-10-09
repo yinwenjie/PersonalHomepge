@@ -5,7 +5,8 @@
 //    including through public names that resolve to them.
 // 2. Client address: with a spoofed X-Forwarded-For, the gateway must append the real caller
 //    address as the last entry, which is the only entry rss-proxy trusts.
-// Deploys the egress-probe function, calls it once, and always deletes it again.
+// Deploys the egress-probe function and calls it once. The workflow deletes it in a separate
+// always() step, so cleanup also happens when this process is cancelled or times out.
 
 import { spawnSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
@@ -65,18 +66,43 @@ async function runnerAddress() {
   return text;
 }
 
+/**
+ * Classifies one internal target. Only positive evidence of blocking passes: an answer or a
+ * refused/reset connection proves the address is routable, and anything unrecognised (for
+ * example a DNS failure on a name that should resolve) leaves the target untested.
+ */
+function verdict(result) {
+  const outcome = String(result.outcome);
+  if (outcome.startsWith("response") || /refused|reset|os error (104|111)\b/i.test(outcome)) {
+    return "reachable";
+  }
+  if (outcome === "timeout"
+    || /unreachable|no route|not permitted|permission denied|os error (1|13|101|113)\b/i.test(outcome)) {
+    return "blocked";
+  }
+  if (/dns|lookup|resolve|name or service|nodename/i.test(outcome)) {
+    return result.unresolvableIsBlocked ? "blocked" : "untested";
+  }
+  return "untested";
+}
+
 function judge(report, runnerIp) {
   const problems = [];
 
   console.log("\nEgress results:");
   for (const result of report.results ?? []) {
-    const answered = String(result.outcome).startsWith("response");
-    const ok = result.control ? answered : !answered;
-    console.log(`  ${ok ? "ok  " : "FAIL"} ${result.name}: ${result.outcome}`);
-    if (!ok) {
-      problems.push(result.control
-        ? `the public control did not answer (${result.outcome})`
-        : `${result.name} answered (${result.outcome})`);
+    if (result.control) {
+      const ok = String(result.outcome).startsWith("response");
+      console.log(`  ${ok ? "ok  " : "FAIL"} ${result.name}: ${result.outcome}`);
+      if (!ok) {
+        problems.push(`the public control did not answer (${result.outcome})`);
+      }
+      continue;
+    }
+    const status = verdict(result);
+    console.log(`  ${status === "blocked" ? "ok  " : "FAIL"} ${result.name}: ${status} (${result.outcome})`);
+    if (status !== "blocked") {
+      problems.push(`${result.name} is ${status}: ${result.outcome}`);
     }
   }
   console.log(`  Deno.createHttpClient available: ${report.createHttpClient === true}`);
@@ -107,10 +133,8 @@ if (confirmation !== projectRef) {
 }
 
 let problems = [];
-let deployed = false;
 try {
   run(["functions", "deploy", functionName, "--project-ref", projectRef, "--use-api"]);
-  deployed = true;
   const key = anonKey(projectRef);
   const runnerIp = await runnerAddress();
 
@@ -138,14 +162,6 @@ try {
   problems = judge(report, runnerIp);
 } catch (error) {
   problems.push(error.message);
-} finally {
-  if (deployed) {
-    try {
-      run(["functions", "delete", functionName, "--project-ref", projectRef, "--yes"]);
-    } catch (error) {
-      problems.push(`cleanup failed, delete ${functionName} by hand: ${error.message}`);
-    }
-  }
 }
 
 if (problems.length > 0) {
