@@ -91,6 +91,7 @@ export interface AdminAuditEventDto {
   id: string;
   requestId: string;
   adminUserId: string | null;
+  adminAuthUserId: string;
   adminRole: string;
   action: string;
   severity: string;
@@ -277,7 +278,7 @@ async function listAdminAuditEvents(
   const filters = readFilters(
     request.filters,
     [
-      "adminUserId",
+      "adminAuthUserId",
       "targetUserId",
       "targetHomeSpaceId",
       "action",
@@ -289,7 +290,9 @@ async function listAdminAuditEvents(
   );
 
   const query: AdminAuditFilters = {};
-  if (filters.adminUserId !== undefined) query.adminUserId = parseUuid(filters.adminUserId);
+  if (filters.adminAuthUserId !== undefined) {
+    query.adminAuthUserId = parseUuid(filters.adminAuthUserId);
+  }
   if (filters.targetUserId !== undefined) query.targetUserId = parseUuid(filters.targetUserId);
   if (filters.targetHomeSpaceId !== undefined) {
     query.targetHomeSpaceId = parseUuid(filters.targetHomeSpaceId);
@@ -309,8 +312,9 @@ async function listAdminAuditEvents(
     throw new AdminRequestError("invalid_request");
   }
 
-  // Cursors are bound to the exact filter set so a page cannot be continued under other filters.
-  const scope = `list-admin-audit-events:${JSON.stringify(query)}`;
+  // Cursors are bound to a digest of the exact filter set so a page cannot be continued under
+  // other filters, while the cursor stays well under MAX_CURSOR_LENGTH.
+  const scope = `list-admin-audit-events:${await sha256Hex(JSON.stringify(query), 16)}`;
   const page = readPage(filters.pageSize, request.cursor, scope);
   const rows = await store.listAdminAuditEvents(query, {
     limit: page.size + 1,
@@ -467,6 +471,7 @@ function toAdminAuditEvent(row: AdminAuditRow): AdminAuditEventDto {
     id: row.id,
     requestId: row.request_id,
     adminUserId: row.admin_user_id,
+    adminAuthUserId: row.admin_auth_user_id,
     adminRole: row.admin_role,
     action: row.action,
     severity: row.severity,
@@ -512,9 +517,13 @@ function emptySummary(): SnapshotSummaryDto {
   };
 }
 
-async function digestFingerprint(fingerprint: string): Promise<string> {
-  const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(fingerprint));
-  return [...new Uint8Array(hash).slice(0, 6)].map((b) => b.toString(16).padStart(2, "0")).join(
-    "",
-  );
+function digestFingerprint(fingerprint: string): Promise<string> {
+  return sha256Hex(fingerprint, 6);
+}
+
+async function sha256Hex(value: string, bytes: number): Promise<string> {
+  const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return [...new Uint8Array(hash).slice(0, bytes)]
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }

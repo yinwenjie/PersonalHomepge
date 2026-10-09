@@ -11,9 +11,22 @@ export interface PagePosition {
 const TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}:\d{2})$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
+/**
+ * Accepts only ISO timestamps whose calendar fields are real (no Feb 31, hour 24, etc.),
+ * because Date.parse silently rolls those over while PostgreSQL rejects them.
+ */
 export function isTimestamp(value: unknown): value is string {
-  return typeof value === "string" && TIMESTAMP_PATTERN.test(value) &&
-    !Number.isNaN(Date.parse(value));
+  if (typeof value !== "string" || !TIMESTAMP_PATTERN.test(value)) {
+    return false;
+  }
+  const [year, month, day, hour, minute, second] = value.slice(0, 19).split(/[-T:]/).map(Number);
+  const utc = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+  const offset = value.slice(19).replace(/^\.\d+/, "");
+  const offsetValid = offset === "Z" ||
+    (Number(offset.slice(1, 3)) <= 23 && Number(offset.slice(4, 6)) <= 59);
+  return offsetValid && utc.getUTCFullYear() === year && utc.getUTCMonth() === month - 1 &&
+    utc.getUTCDate() === day && utc.getUTCHours() === hour && utc.getUTCMinutes() === minute &&
+    utc.getUTCSeconds() === second;
 }
 
 export function encodeCursor(scope: string, position: PagePosition): string {

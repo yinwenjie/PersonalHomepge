@@ -381,6 +381,10 @@ Deno.test("admin audit list validates filters and binds the cursor to them", asy
       { action: "admin.user.delete" },
       { createdFrom: "2026-10-09T00:00:00Z", createdTo: "2026-10-01T00:00:00Z" },
       { createdFrom: "last week" },
+      { createdFrom: "2026-02-31T00:00:00Z" },
+      { createdTo: "2026-10-09T24:00:00Z" },
+      { createdTo: "2026-10-09T00:00:00+25:00" },
+      { adminUserId: USER_ID },
       { reason: "anything" },
     ]
   ) {
@@ -398,6 +402,71 @@ Deno.test("admin audit list validates filters and binds the cursor to them", asy
     { ...OWNER, role: "support" },
   );
   assertEquals(support.status, 403);
+});
+
+Deno.test("fully filtered admin audit cursors round-trip under the cursor limit", async () => {
+  const rows = [3, 2, 1].map((n) => ({
+    id: `aaaaaaaa-aaaa-4aaa-8aaa-00000000000${n}`,
+    request_id: `bbbbbbbb-bbbb-4bbb-8bbb-00000000000${n}`,
+    admin_user_id: null,
+    admin_auth_user_id: OWNER.authUserId,
+    admin_role: "owner",
+    action: "admin.snapshot.list",
+    severity: "info",
+    reason: REASON,
+    target_user_id: USER_ID,
+    target_home_space_id: SPACE_ID,
+    target_snapshot_id: null,
+    result_count: 1,
+    created_at: `2026-10-0${n}T12:34:56.123456+00:00`,
+  }));
+  const { store, calls } = fakeStore({
+    listAdminAuditEvents: (filters, page) => {
+      calls.adminFilters.push(filters);
+      calls.pages.push(page);
+      return Promise.resolve(rows.slice(0, page.limit));
+    },
+  });
+  const filters = {
+    adminAuthUserId: OWNER.authUserId,
+    targetUserId: USER_ID,
+    targetHomeSpaceId: SPACE_ID,
+    action: "admin.snapshot.list",
+    createdFrom: "2026-01-01T00:00:00.000000+08:00",
+    createdTo: "2026-12-31T23:59:59.999999+08:00",
+    pageSize: 1,
+  };
+
+  const first = await call(store, {
+    operation: "list-admin-audit-events",
+    reason: REASON,
+    filters,
+  });
+  assertEquals(first.status, 200);
+  assertEquals(first.body.data.events[0].adminUserId, null);
+  assertEquals(first.body.data.events[0].adminAuthUserId, OWNER.authUserId);
+  assert(first.body.nextCursor.length <= 512, `cursor is ${first.body.nextCursor.length}`);
+  assertEquals(
+    (calls.adminFilters[0] as Record<string, unknown>).adminAuthUserId,
+    OWNER.authUserId,
+  );
+
+  const second = await call(store, {
+    operation: "list-admin-audit-events",
+    reason: REASON,
+    filters,
+    cursor: first.body.nextCursor,
+  });
+  assertEquals(second.status, 200);
+  assertEquals(calls.pages[1].after?.id, rows[0].id);
+
+  const otherFilters = await call(store, {
+    operation: "list-admin-audit-events",
+    reason: REASON,
+    filters: { ...filters, targetUserId: OTHER_USER_ID },
+    cursor: first.body.nextCursor,
+  });
+  assertEquals(otherFilters.status, 400);
 });
 
 Deno.test("preview-snapshot stays unavailable until 1.18.5", async () => {

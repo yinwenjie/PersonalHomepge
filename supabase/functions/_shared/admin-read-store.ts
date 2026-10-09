@@ -58,6 +58,7 @@ export interface AdminAuditRow {
   id: string;
   request_id: string;
   admin_user_id: string | null;
+  admin_auth_user_id: string;
   admin_role: string;
   action: string;
   severity: string;
@@ -70,7 +71,8 @@ export interface AdminAuditRow {
 }
 
 export interface AdminAuditFilters {
-  adminUserId?: string;
+  /** Matches the retained admin_auth_user_id, which survives deletion of the admin_users row. */
+  adminAuthUserId?: string;
   targetUserId?: string;
   targetHomeSpaceId?: string;
   action?: AdminAuditAction;
@@ -99,7 +101,7 @@ const SNAPSHOT_COLUMNS = "id, revision, snapshot_source, content_fingerprint, su
 const HOME_AUDIT_COLUMNS =
   "id, home_space_id, event_type, severity, before_revision, after_revision, snapshot_id, summary_before, summary_after, metadata, created_at";
 const ADMIN_AUDIT_COLUMNS =
-  "id, request_id, admin_user_id, admin_role, action, severity, reason, target_user_id, target_home_space_id, target_snapshot_id, result_count, created_at";
+  "id, request_id, admin_user_id, admin_auth_user_id, admin_role, action, severity, reason, target_user_id, target_home_space_id, target_snapshot_id, result_count, created_at";
 
 // Minimal structural view of a PostgREST filter builder, so keyset paging is written once.
 interface Pageable<T> {
@@ -186,7 +188,9 @@ export function createSupabaseAdminReadStore(client: SupabaseClient): AdminReadS
 
     async listAdminAuditEvents(filters, page) {
       let query = client.from("admin_audit_events").select(ADMIN_AUDIT_COLUMNS);
-      if (filters.adminUserId) query = query.eq("admin_user_id", filters.adminUserId);
+      if (filters.adminAuthUserId) {
+        query = query.eq("admin_auth_user_id", filters.adminAuthUserId);
+      }
       if (filters.targetUserId) query = query.eq("target_user_id", filters.targetUserId);
       if (filters.targetHomeSpaceId) {
         query = query.eq("target_home_space_id", filters.targetHomeSpaceId);
