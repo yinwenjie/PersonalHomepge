@@ -1,0 +1,82 @@
+name: Verify Site
+
+# Checks the public site on every pull request and master push: type, lint and privacy
+# checks, then both static builds (Cloudflare Pages root and GitHub Pages /PersonalHomepge)
+# with the export and Phase 1.18 admin isolation checks. Builds only; deploys nothing.
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-site-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Verify observability privacy
+        run: npm run verify:privacy
+
+      - name: Verify admin isolation (source)
+        run: npm run verify:admin-isolation
+
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        base_path: ["", "/PersonalHomepge"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build static site
+        env:
+          NEXT_PUBLIC_BASE_PATH: ${{ matrix.base_path }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL || 'https://jfmwdbzxypgxthahaylp.supabase.co' }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_jmlhw6DPSgPWSUgNZotByg_tFlpMIrL' }}
+        run: npm run build
+
+      - name: Verify static export
+        env:
+          NEXT_PUBLIC_BASE_PATH: ${{ matrix.base_path }}
+        run: npm run verify:export
+
+      - name: Verify admin isolation (export)
+        env:
+          NEXT_PUBLIC_BASE_PATH: ${{ matrix.base_path }}
+        run: npm run verify:admin-isolation

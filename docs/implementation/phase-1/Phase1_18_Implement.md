@@ -333,7 +333,17 @@ cursor: 可选的不透明分页游标
 
 ## 1.18.6：回归、部署与运行观察
 
-状态：待实施。
+状态：公开仓库的自动隔离校验已于 2026-10-09 完成；其余待实施。
+
+- `npm run verify:admin-isolation`（`scripts/verify-admin-isolation.mjs`）检查站点源码 `app/`、`src/`、`public/` 和 next.config：
+  - 没有名为 admin 的路由或资源；
+  - 没有 `admin-read`、`admin.mylinker.net`、管理 operation 名、管理表名、service role 或 `supabase/functions/` 引用；
+  - next.config 没有配置 `/admin` 路径。
+
+  存在 `out/` 时，同样检查静态导出的全部文本文件，以及 sitemap/robots。
+- `verify:export` 断言导出中没有 `out/admin`、`out/admin.html`、`out/admin/index.html`。
+- 新增 `.github/workflows/verify-site.yml`：每个 PR 和 master push 都会跑 typecheck、lint、`verify:privacy` 和源码隔离校验，并构建根路径和 `/PersonalHomepge` 两套静态站，再跑 `verify:export` 与导出隔离校验。
+- `deploy-pages.yml` 在发布 GitHub Pages 前也会跑隔离校验。
 
 ### 自动校验
 

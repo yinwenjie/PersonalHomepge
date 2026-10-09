@@ -46,6 +46,8 @@ function verifyStaticExport(directory) {
 
   verifyPublicShareEntry(shareIndexPath);
 
+  verifyNoAdminEntry(directory);
+
   verifyCloudflareHeaders(headersPath);
 
   verifyReleaseSafety(directory);
@@ -102,6 +104,16 @@ function verifyStaticExport(directory) {
 
   if (malformedReferences.length > 0) {
     fail(`Found malformed references with repeated slashes: ${malformedReferences.join(", ")}`);
+  }
+}
+
+// Phase 1.18: admin pages live in a separate private site; this export must not have one.
+// npm run verify:admin-isolation checks the rest of the boundary.
+function verifyNoAdminEntry(directory) {
+  for (const entry of ["admin", "admin.html", path.join("admin", "index.html")]) {
+    if (existsSync(path.join(directory, entry))) {
+      fail(`Unexpected out/${entry}: admin pages must not be part of the public site.`);
+    }
   }
 }
 
