@@ -1,6 +1,8 @@
 // Fixed, column-whitelisted reads for admin-read. Server-only.
 // Table names, columns and ordering are constants here; nothing in a request can
-// choose them. document_json is never selected.
+// choose them. document_json is never selected. Profiles, snapshots and user-side
+// audit events are read through the migration 023 functions, which bound every
+// user-writable column in the database before it reaches this function.
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.117.3";
 import { AdminBackendError } from "./admin-auth.ts";
 import { type AdminAuditAction, AdminRequestError } from "./admin-contract.ts";
@@ -14,7 +16,7 @@ export interface PageQuery {
 
 export interface ProfileRow {
   id: string;
-  email: string | null;
+  /** At most 80 characters (migration 023). */
   display_name: string | null;
   created_at: string;
 }
@@ -35,7 +37,9 @@ export interface SnapshotRow {
   id: string;
   revision: number;
   snapshot_source: string;
-  content_fingerprint: string;
+  /** First 12 hex characters of SHA-256 over content_fingerprint, computed in the database. */
+  fingerprint_digest: string;
+  /** Already reduced to the six summary fields by admin_project_snapshot_summary. */
   summary: unknown;
   created_at: string;
 }
@@ -100,12 +104,8 @@ export interface AdminReadStore {
   listAdminAuditEvents(filters: AdminAuditFilters, page: PageQuery): Promise<AdminAuditRow[]>;
 }
 
-const PROFILE_COLUMNS = "id, email, display_name, created_at";
 const HOME_SPACE_COLUMNS =
   "id, user_id, sync_space_id, name, access_mode, is_default, created_at, updated_at, last_used_at";
-const SNAPSHOT_COLUMNS = "id, revision, snapshot_source, content_fingerprint, summary, created_at";
-const HOME_AUDIT_COLUMNS =
-  "id, home_space_id, event_type, severity, before_revision, after_revision, snapshot_id, summary_before, summary_after, metadata, created_at";
 const ADMIN_AUDIT_COLUMNS =
   "id, request_id, admin_user_id, admin_auth_user_id, admin_role, action, severity, reason, target_user_id, target_home_space_id, target_snapshot_id, result_count, created_at";
 
@@ -128,6 +128,15 @@ function applyPage<T extends Pageable<T>>(query: T, page: PageQuery): T {
     .limit(page.limit);
 }
 
+/** Keyset arguments shared by the migration 023 list functions. */
+function pageArgs(page: PageQuery) {
+  return {
+    p_after_created_at: page.after?.createdAt ?? null,
+    p_after_id: page.after?.id ?? null,
+    p_limit: page.limit,
+  };
+}
+
 function rowsOrThrow<T>(result: { data: unknown; error: unknown }): T[] {
   if (result.error) {
     throw new AdminBackendError("query");
@@ -145,9 +154,10 @@ function rowOrThrow<T>(result: { data: unknown; error: unknown }): T | null {
 export function createSupabaseAdminReadStore(client: SupabaseClient): AdminReadStore {
   return {
     async findProfileById(userId) {
-      return rowOrThrow<ProfileRow>(
-        await client.from("profiles").select(PROFILE_COLUMNS).eq("id", userId).maybeSingle(),
+      const rows = rowsOrThrow<ProfileRow>(
+        await client.rpc("admin_read_profile", { p_user_id: userId }),
       );
+      return rows[0] ?? null;
     },
 
     async findAuthUserIdsByEmail(email) {
@@ -189,21 +199,22 @@ export function createSupabaseAdminReadStore(client: SupabaseClient): AdminReadS
 
     async listSnapshots(userId, homeSpaceId, page) {
       return rowsOrThrow<SnapshotRow>(
-        await applyPage(
-          client.from("home_space_snapshots").select(SNAPSHOT_COLUMNS)
-            .eq("user_id", userId).eq("home_space_id", homeSpaceId),
-          page,
-        ),
+        await client.rpc("admin_list_snapshots", {
+          p_user_id: userId,
+          p_home_space_id: homeSpaceId,
+          ...pageArgs(page),
+        }),
       );
     },
 
     async listHomeAuditEvents(userId, homeSpaceId, page) {
-      let query = client.from("home_space_audit_events").select(HOME_AUDIT_COLUMNS)
-        .eq("user_id", userId);
-      if (homeSpaceId) {
-        query = query.eq("home_space_id", homeSpaceId);
-      }
-      return rowsOrThrow<HomeAuditRow>(await applyPage(query, page));
+      return rowsOrThrow<HomeAuditRow>(
+        await client.rpc("admin_list_home_audit_events", {
+          p_user_id: userId,
+          p_home_space_id: homeSpaceId,
+          ...pageArgs(page),
+        }),
+      );
     },
 
     async listAdminAuditEvents(filters, page) {

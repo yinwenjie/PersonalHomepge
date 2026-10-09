@@ -320,9 +320,16 @@ cursor: 可选的不透明分页游标
 - Banner/背景只展示配置状态、source 和安全文件类型摘要，不显示完整外部 URL、Storage path，不请求图片，也不创建 signed URL。
 - 预览组件在私有 Admin 仓库中实现，不从公开主站构建产物加载运行时代码；可以按已固定的安全字段重做只读展示，但不得复制或挂载编辑、拖拽、计时写回、设置弹窗、同步、恢复、本地存储或观测副作用。
 
-### 1.18.3 遗留
+### 1.18.3 遗留（2026-10-09 已由 migration 023 处理）
 
-- `home_space_snapshots.content_fingerprint`、`summary` 和 `home_space_audit_events.metadata`/`summary_*` 没有长度上限，且用户本人可直接插入。`list-snapshots`、`list-home-audit-events` 目前取回原始列后在 Edge Function 投影，用户可让后台查看其本人数据时返回 503（不泄露、不影响他人）。1.18.5 实现快照投影时一并改为数据库端投影或加长度约束。
+- 问题：`home_space_snapshots.content_fingerprint`、`summary`、`home_space_audit_events.metadata`/`summary_*`/`event_type` 和 `profiles.display_name` 都没有长度上限，且用户本人可以直接写入。admin-read 原来取回原始列，再在 Edge Function 里投影，所以用户可以让后台查看自己数据时失败。
+- 处理：`023_admin_read_bounded_projections.sql` 新增 4 个只授权 `service_role` 的函数，投影改在数据库里做：
+  - 指纹只返回 SHA-256 前 12 位。
+  - summary 只保留 6 个字段。
+  - metadata 只保留 3 个短字段。
+  - 超长的 event_type 变为 `other`。
+  - display_name 截断到 80 字符。
+- 同时发现：本地新建的 Supabase 不再默认给 `service_role` 授予 public 表的读权限。所以读取函数改为 security definer，`home_spaces` 只对 `service_role` 授权后台需要的元数据列。线上部署后由 `supabase/checks/025_admin_read_bounded_projections_verify.sql` 验证，它也是部署 `admin-read` 前的预检之一。
 
 ### 安全行为
 
