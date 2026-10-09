@@ -24,11 +24,29 @@ async function attempt(url: string): Promise<string> {
   }
 }
 
+// Headers a gateway may use to pass on the caller's address. The probe reports what arrives
+// so rss-proxy's rate limit can key on the one the gateway sets, not one a caller can forge.
+const CLIENT_HEADERS = [
+  "x-forwarded-for",
+  "x-real-ip",
+  "cf-connecting-ip",
+  "true-client-ip",
+  "x-client-ip",
+  "x-envoy-external-address",
+  "forwarded",
+];
+
 Deno.serve(async (request) => {
   const forwardedFor = (request.headers.get("X-Forwarded-For") ?? "")
     .split(",")
     .map((entry) => entry.trim())
     .filter(Boolean);
+  const clientHeaders = Object.fromEntries(
+    CLIENT_HEADERS.flatMap((name) => {
+      const value = request.headers.get(name);
+      return value === null ? [] : [[name, value.slice(0, 300)]];
+    }),
+  );
 
   // In parallel, so the timeouts of blocked targets do not add up.
   const results = await Promise.all(
@@ -37,6 +55,7 @@ Deno.serve(async (request) => {
 
   return Response.json({
     forwardedFor,
+    clientHeaders,
     createHttpClient: "createHttpClient" in Deno,
     results,
   });
