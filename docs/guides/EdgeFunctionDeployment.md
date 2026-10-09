@@ -60,7 +60,7 @@ Secret 只在 Supabase Dashboard 设置：Project → Edge Functions → Secrets
 
 `admin-read` 另有前置条件：`AdminDashboardRunbook.md` 的“Phase 1.18.2 开始门禁”全部满足，包括已初始化明确的测试管理员。
 
-`rss-proxy` 的前置条件和上线后验证：migration 022 已 apply 且检查 024 通过；部署后按 `docs/implementation/phase-2/Phase2_2_RssWidgetDesign.md` 的“上线前验证限流键”做 61 次请求检查，没有被限流就立即运行 `delete`。
+`rss-proxy` 的前置条件和上线后验证：migration 022 已 apply 且检查 024 通过；部署后立即手动运行 `RSS Proxy Smoke Check`（`.github/workflows/rss-proxy-smoke.yml`，同样需要批准 `supabase-production`）：它先做一次真实读取，再带不同的伪造 `CF-Connecting-IP`/`X-Forwarded-For` 发满 61 次请求，第 61 次必须被限流（对应设计文档“上线前验证限流键”）。检查失败就立即运行 `delete`。
 
 ## 回滚
 
