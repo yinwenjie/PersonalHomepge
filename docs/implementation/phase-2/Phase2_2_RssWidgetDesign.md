@@ -148,7 +148,8 @@ interface RssFeedWidgetConfig {
 ### 解析和清洗
 
 - 支持 RSS 2.0、RSS 1.0（RDF）和 Atom 1.0。
-- 用 XML 解析库并关闭实体展开；文档里有 `<!DOCTYPE` 带 `<!ENTITY` 的一律拒绝，防实体炸弹。
+- 只用纯 JavaScript、不会自己发网络请求或读文件的 XML 解析库，并关闭实体展开。
+- 解析前处理 `<!DOCTYPE`：带内部子集（`[` … `]`，可能声明实体）的一律拒绝；不带内部子集的（老的 RSS 0.91 feed 会有）直接删掉再解析，绝不去加载它指向的外部 DTD，防止实体炸弹和借 DTD 地址绕过抓取检查。
 - 标题去标签、解码实体、合并空白，最多 200 字符；摘要同样处理，最多 240 字符。
 - 链接相对地址按 feed 地址补全，只保留 `http`/`https`，其他协议（比如 `javascript:`）整条丢弃。
 - 时间统一转成 ISO 字符串，解析不了就留空，排序时放最后。
@@ -191,7 +192,7 @@ interface RssFeedWidgetConfig {
 
 ### 日志
 
-每个请求只记一行 JSON：请求 id、`mode`、feed 数量、各 feed 的 `url_hash` 前 12 位、是否命中缓存、错误码、耗时。不记 URL、不记 IP。
+每个请求只记一行 JSON：请求 id、`mode`、feed 数量、命中缓存的数量、各 feed 的错误码、耗时。不记 URL、不记 IP，也不记任何按 feed 固定不变的标识（普通 SHA-256 前缀可以被人拿常见 feed 地址算出来对上）。
 
 ## 5. 埋点和错误监控
 
@@ -217,7 +218,7 @@ interface RssFeedWidgetConfig {
 
 ## 8. 测试计划
 
-- Deno 单元测试：URL 规范化和地址拦截（各种 IP 写法、IPv6、重定向到内网）、三种 feed 格式和残缺 feed 的解析、实体炸弹、超大响应、清洗规则（`javascript:` 链接、HTML 标题）。
+- Deno 单元测试：URL 规范化和地址拦截（各种 IP 写法、IPv6、重定向到内网）、三种 feed 格式和残缺 feed 的解析、实体炸弹、带外部 DTD 地址的 feed（确认不会发出请求）、超大响应、清洗规则（`javascript:` 链接、HTML 标题）。
 - Deno handler 测试：用假的 `fetch` 和假的存储覆盖缓存命中、过期重抓、失败回退旧数据、退避、限流、CORS、请求校验，以及同一 feed 并发过期时只有一个请求去抓。
 - pgTAP：`rss_consume_rate` 的计数和窗口、`rss_claim_refresh` 的租约（两次连续调用只有第一次成功，租约过期后可以再拿）、表和函数的权限（`anon`、`authenticated` 不能访问）。
 - 上线前验证：第 4 节的出口网络验证，结果写进运行手册。
