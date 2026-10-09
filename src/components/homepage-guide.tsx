@@ -147,9 +147,15 @@ export function HomepageGuideButton() {
     return null;
   }
 
+  function openGuide() {
+    // Whoever has seen the guide here should not be asked again by the home tip.
+    writeGuideState({ ...readGuideState(), dismissed: true });
+    setDialogOpen(true);
+  }
+
   return (
     <>
-      <button className="utility-button" type="button" onClick={() => setDialogOpen(true)}>
+      <button className="utility-button" type="button" onClick={openGuide}>
         {t("homepageGuide.settingsButton")}
       </button>
       {dialogOpen ? <HomepageGuideDialog source="settings" onClose={() => setDialogOpen(false)} /> : null}
