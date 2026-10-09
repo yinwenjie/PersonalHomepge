@@ -115,7 +115,12 @@ function fakeStore(
         metadata: { snapshotSource: "cloud-baseline", snapshotSaved: true, url: "https://x" },
         created_at: "2026-03-01T00:00:00+00:00",
       };
-      return Promise.resolve([row]);
+      return Promise.resolve([row, {
+        ...row,
+        id: "99999999-9999-4999-8999-999999999998",
+        event_type: "sync.account_managed_push",
+        metadata: { source: "after-cloud-push" },
+      }]);
     },
     listAdminAuditEvents: (filters, page) => {
       calls.adminFilters.push(filters);
@@ -349,6 +354,8 @@ Deno.test("home audit events pass only known event types and whitelisted metadat
   assertEquals(result.status, 200);
   const [event] = result.body.data.events;
   assertEquals(event.eventType, "other");
+  assertEquals(result.body.data.events[1].eventType, "sync.account_managed_push");
+  assertEquals(result.body.data.events[1].metadata, { snapshotSource: "after-cloud-push" });
   assertEquals(event.metadata, { snapshotSource: "cloud-baseline", snapshotSaved: true });
   assertEquals(event.summaryBefore, null);
   assertEquals(event.summaryAfter.siteCount, 12);
@@ -384,6 +391,8 @@ Deno.test("admin audit list validates filters and binds the cursor to them", asy
       { createdFrom: "2026-02-31T00:00:00Z" },
       { createdTo: "2026-10-09T24:00:00Z" },
       { createdTo: "2026-10-09T00:00:00+25:00" },
+      { createdTo: "2026-10-09T00:00:00+16:00" },
+      { createdTo: "2026-10-09T00:00:00-16:00" },
       { adminUserId: USER_ID },
       { reason: "anything" },
     ]

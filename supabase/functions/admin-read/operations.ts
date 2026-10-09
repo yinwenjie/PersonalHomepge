@@ -111,23 +111,16 @@ const SNAPSHOT_SOURCES = new Set([
 ]);
 
 // home_space_audit_events.event_type has no database constraint (the browser inserts
-// some rows), so only known values pass through.
+// some rows), so only the values its producers write pass through: the 013 RPCs and
+// src/infrastructure/cloud-home-snapshot-repository.ts.
 const HOME_AUDIT_EVENT_TYPES = new Set([
   "account_managed.created",
   "account_managed.migrated",
   "cloud_snapshot.baseline_created",
-  "cloud_snapshot.restore_failed",
   "cloud_snapshot.restored_to_local",
-  "home_space.account_managed_created",
-  "home_space.account_managed_restored",
-  "home_space.account_managed_template_created",
-  "home_space.activate",
-  "home_space.claimed",
-  "home_space.managed_migrate",
-  "home_space.managed_restore",
-  "home_space.removed",
-  "home_space.sync_code_activated",
-  "home_space.sync_code_migrated",
+  "sync.account_managed_force_push",
+  "sync.account_managed_push",
+  "sync.account_managed_push_conflict",
 ]);
 
 const ADMIN_AUDIT_ACTIONS = new Set<string>(
@@ -442,7 +435,8 @@ async function toSnapshot(row: SnapshotRow): Promise<SnapshotDto> {
 function toHomeAuditEvent(row: HomeAuditRow): HomeAuditEventDto {
   const metadata: HomeAuditEventDto["metadata"] = {};
   if (isPlainObject(row.metadata)) {
-    const source = row.metadata.snapshotSource;
+    // RPC rows use snapshotSource; browser-written rows use source.
+    const source = row.metadata.snapshotSource ?? row.metadata.source;
     if (typeof source === "string" && SNAPSHOT_SOURCES.has(source)) {
       metadata.snapshotSource = source;
     }
