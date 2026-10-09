@@ -73,7 +73,11 @@ async function runnerAddress() {
  */
 function verdict(result) {
   const outcome = String(result.outcome);
-  if (outcome.startsWith("response") || /refused|reset|os error (104|111)\b/i.test(outcome)) {
+  // A TLS failure means the TCP connection was made, so the target is reachable.
+  if (
+    outcome.startsWith("response")
+    || /refused|reset|os error (104|111)\b|certificate|tls|ssl|handshake/i.test(outcome)
+  ) {
     return "reachable";
   }
   if (outcome === "timeout"

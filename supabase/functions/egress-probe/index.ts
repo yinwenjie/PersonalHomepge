@@ -11,8 +11,7 @@ interface Target {
   unresolvableIsBlocked?: boolean;
 }
 
-export const TARGETS: Target[] = [
-  { name: "public control", url: "https://example.com/", control: true },
+const BLOCKED_TARGETS: Target[] = [
   { name: "cloud metadata IPv4", url: "http://169.254.169.254/latest/meta-data/" },
   { name: "cloud metadata IPv6", url: "http://[fd00:ec2::254]/latest/meta-data/" },
   {
@@ -29,6 +28,15 @@ export const TARGETS: Target[] = [
   { name: "loopback IPv6", url: "http://[::1]/" },
 ];
 
+// rss-proxy fetches both schemes, so every blocked target is tried on port 80 and port 443.
+export const TARGETS: Target[] = [
+  { name: "public control", url: "https://example.com/", control: true },
+  ...BLOCKED_TARGETS.flatMap((target) => [
+    target,
+    { ...target, name: `${target.name} (HTTPS)`, url: target.url.replace(/^http:/, "https:") },
+  ]),
+];
+
 async function attempt(url: string): Promise<string> {
   try {
     const response = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(3000) });
@@ -40,7 +48,8 @@ async function attempt(url: string): Promise<string> {
     }
     const name = error instanceof Error ? error.name : "Error";
     const message = error instanceof Error ? error.message : String(error);
-    // The cause tells "connection refused" (reachable) apart from "unreachable" or DNS errors.
+    // The cause tells "connection refused" or a TLS failure (reachable) apart from
+    // "unreachable" or DNS errors.
     const cause = error instanceof Error && error.cause instanceof Error
       ? ` (${error.cause.message})`
       : "";
@@ -54,10 +63,10 @@ Deno.serve(async (request) => {
     .map((entry) => entry.trim())
     .filter(Boolean);
 
-  const results = [];
-  for (const target of TARGETS) {
-    results.push({ ...target, outcome: await attempt(target.url) });
-  }
+  // In parallel, so the timeouts of blocked targets do not add up.
+  const results = await Promise.all(
+    TARGETS.map(async (target) => ({ ...target, outcome: await attempt(target.url) })),
+  );
 
   return Response.json({
     forwardedFor,
