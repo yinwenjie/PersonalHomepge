@@ -169,10 +169,11 @@ function assertSecretsPresent(projectRef, required) {
   }
 
   const output = captureCommand("supabase", ["secrets", "list", "--project-ref", projectRef]);
+  // The table separates columns with "|" or the box-drawing "│", depending on the CLI build.
   const names = new Set(
     output
       .split("\n")
-      .map((line) => line.split("|")[0].trim())
+      .map((line) => line.split(/[|\u2502]/).map((cell) => cell.trim()).find(Boolean) ?? "")
       .filter((cell) => /^[A-Z][A-Z0-9_]*$/.test(cell))
   );
 
