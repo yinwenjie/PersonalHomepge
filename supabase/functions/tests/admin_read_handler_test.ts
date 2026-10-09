@@ -200,6 +200,36 @@ Deno.test("strict body parsing rejects unknown fields, operations and bad bodies
   }
 });
 
+Deno.test("streamed bodies over the limit are cancelled without a Content-Length", async () => {
+  const { deps, audits } = harness();
+  let pulls = 0;
+  let cancelled = false;
+  const chunk = new TextEncoder().encode("x".repeat(4096));
+  const body = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      pulls += 1;
+      controller.enqueue(chunk);
+    },
+    cancel() {
+      cancelled = true;
+    },
+  });
+  const request = new Request("http://localhost/admin-read", {
+    method: "POST",
+    headers: {
+      Origin: ORIGIN,
+      Authorization: "Bearer valid.jwt.token",
+      "Content-Type": "application/json",
+    },
+    body,
+  });
+
+  await expectError(await handleAdminRead(request, deps), 400, "invalid_request");
+  assert(cancelled);
+  assert(pulls <= 4, `read ${pulls} chunks`);
+  assertEquals(audits.length, 0);
+});
+
 Deno.test("non-JSON content type is invalid_request", async () => {
   const { deps } = harness();
   const request = new Request("http://localhost/admin-read", {

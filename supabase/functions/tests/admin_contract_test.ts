@@ -50,6 +50,14 @@ Deno.test("reason is trimmed before validation", () => {
     AdminRequestError,
   );
   assertThrows(() => parseAdminReadRequest({ operation: "resolve-user" }), AdminRequestError);
+  assertThrows(
+    () =>
+      parseAdminReadRequest({
+        operation: "resolve-user",
+        reason: " System administrator context check. ",
+      }),
+    AdminRequestError,
+  );
 });
 
 Deno.test("role matrix limits snapshot preview and admin audit to owner/admin", () => {
