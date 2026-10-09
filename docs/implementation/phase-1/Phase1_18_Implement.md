@@ -320,7 +320,7 @@ cursor: 可选的不透明分页游标
   - 按存储顺序排列的分组和网站，只有名称、URL 文本和 mark；
   - 组件的类型、标题和折叠状态，以及按类型白名单取出的内容：日历的周起始日，倒计时的事件、日期和模式，便签文本，待办标题和完成状态，世界时钟的标签和时区。
 - 不返回：documentId、各项 id 和时间戳、keywords、syncMeta、billing、图片路径和 URL、未知组件的配置。
-- 文本和列表超出上限时截断并返回 `truncated: true`；投影文本总量有约 160 KB 的预算，保证响应低于 256 KB 上限。非 version 2 的文档返回 `status: "unsupported"`，超大文档返回 `status: "too_large"`，两者都不带内容。
+- 文本和列表超出上限时截断并返回 `truncated: true`；分组和组件按序列化后的 JSON 大小（含转义和结构）计入约 160 KB 的预算，保证响应低于 256 KB 上限。非 version 2 的文档返回 `status: "unsupported"`，超大文档返回 `status: "too_large"`，两者都不带内容。
 - 审计：每次预览单独写 `admin.snapshot.preview`，severity 为 `warning`，记录目标用户、空间、同步空间和快照 id，审计写入失败则不返回内容。support 角色在调用 operation 之前就被拒绝。
 - 线上部署后由 `supabase/checks/026_admin_snapshot_preview_verify.sql` 验证，它也是部署 `admin-read` 前的预检之一。
 

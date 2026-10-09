@@ -265,3 +265,27 @@ Deno.test("preview stays under the response limit for the largest documents", ()
   const bytes = new TextEncoder().encode(JSON.stringify(result)).length;
   assert(bytes < MAX_RESPONSE_BYTES - 16 * 1024, `preview is ${bytes} bytes`);
 });
+
+Deno.test("preview budget counts JSON escaping and per-item structure", () => {
+  const assertBounded = (source: unknown) => {
+    const result = projectSnapshotPreview(source);
+    assertEquals(result.status, "ok");
+    assertEquals(result.truncated, true);
+    const bytes = new TextEncoder().encode(JSON.stringify(result)).length;
+    assert(bytes < MAX_RESPONSE_BYTES - 16 * 1024, `preview is ${bytes} bytes`);
+  };
+  const documentWith = (site: Record<string, unknown>) => ({
+    version: 2,
+    documentTitle: "",
+    groups: Array.from({ length: 100 }, (_, g) => ({
+      title: "",
+      order: g,
+      sites: Array.from({ length: 200 }, (_, s) => ({ ...site, order: s })),
+    })),
+    widgets: [],
+  });
+  // Quotes and control characters double or sextuple when serialized.
+  assertBounded(documentWith({ name: '"'.repeat(80), url: "\u0001".repeat(2048), mark: "\\" }));
+  // Empty sites carry no text but still serialize to a JSON object each.
+  assertBounded(documentWith({}));
+});

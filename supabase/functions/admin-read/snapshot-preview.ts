@@ -7,7 +7,7 @@
 export const SNAPSHOT_PREVIEW_VERSION = 1;
 /** Stored documents larger than this are not loaded at all (migration 024). */
 export const MAX_PREVIEW_DOCUMENT_BYTES = 1024 * 1024;
-/** Approximate UTF-8 budget for the projected text, well under MAX_RESPONSE_BYTES. */
+/** UTF-8 budget for the serialized groups and widgets, well under MAX_RESPONSE_BYTES. */
 export const PREVIEW_TEXT_BUDGET_BYTES = 160 * 1024;
 
 const LIMITS = {
@@ -137,9 +137,12 @@ class Projector {
     return value;
   }
 
-  /** Charges `values` against the budget; false (and truncated) once it is spent. */
-  fits(...values: string[]): boolean {
-    const bytes = values.reduce((sum, value) => sum + this.encoder.encode(value).length, 0);
+  /**
+   * Charges `value` as it will be serialized (escaping, keys and a separator included);
+   * false (and truncated) once the budget is spent.
+   */
+  fits(value: unknown): boolean {
+    const bytes = this.encoder.encode(JSON.stringify(value)).length + 1;
     if (bytes > this.remaining) {
       this.truncated = true;
       return false;
@@ -175,7 +178,7 @@ export function projectSnapshotPreview(source: unknown): SnapshotPreviewResult {
   const groups: PreviewGroup[] = [];
   for (const group of p.list(source.groups, LIMITS.groups)) {
     const title = p.text(group.title, LIMITS.groupTitle);
-    if (!p.fits(title)) {
+    if (!p.fits({ title, sites: [] })) {
       break;
     }
     const sites: PreviewSite[] = [];
@@ -185,7 +188,7 @@ export function projectSnapshotPreview(source: unknown): SnapshotPreviewResult {
         url: p.text(site.url, LIMITS.siteUrl),
         mark: p.text(site.mark, LIMITS.siteMark),
       };
-      if (!p.fits(projected.name, projected.url, projected.mark)) {
+      if (!p.fits(projected)) {
         break;
       }
       sites.push(projected);
@@ -196,7 +199,7 @@ export function projectSnapshotPreview(source: unknown): SnapshotPreviewResult {
   const widgets: PreviewWidget[] = [];
   for (const widget of p.list(source.widgets, LIMITS.widgets)) {
     const projected = projectWidget(widget, p);
-    if (!p.fits(JSON.stringify(projected))) {
+    if (!p.fits(projected)) {
       break;
     }
     widgets.push(projected);
