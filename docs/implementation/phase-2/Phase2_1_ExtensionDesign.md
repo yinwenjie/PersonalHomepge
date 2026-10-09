@@ -48,7 +48,7 @@ Phase 2.1 让用户把 MyLinker 直接设为 Chrome / Edge 的新标签页，对
 ### 运行时差异
 
 - 新增 `isExtensionRuntime()`（`location.protocol === "chrome-extension:"`），只用于：登录方式切换、隐藏“设为首页”引导、分享链接始终生成 `https://mylinker.net/share/...`。
-- `/edit/` 等内部跳转使用相对路径；外部链接保持 `target`/普通跳转，不需要 `tabs` 权限。
+- `chrome-extension://` 协议不会把目录解析成 `index.html`（`/edit/` 刷新会得到 `ERR_FILE_NOT_FOUND`），所以扩展构建里所有内部链接和 history URL 必须显式指向 `index.html`、`edit/index.html`；客户端路由首次跳转看似正常不代表刷新可用。外部链接保持普通跳转，不需要 `tabs` 权限。
 - analytics 与错误监控照常上报，但 `release`/来源字段增加 `surface: "extension"`，便于区分留存。字段须先加入现有白名单，并通过 `verify:privacy`。
 
 ### 登录
@@ -84,6 +84,7 @@ Phase 2.1 让用户把 MyLinker 直接设为 Chrome / Edge 的新标签页，对
 
 ## 验收
 
+- 在扩展中打开编辑页后刷新，页面仍能正常加载（验证显式 `edit/index.html` 路径）。
 - 产物中没有内联脚本；扩展在 Chrome 和 Edge 中以默认 MV3 CSP 打开新标签页无控制台 CSP 报错。
 - 断网时新标签页能显示本地首页，编辑与本地保存可用；恢复联网后账号托管同步正常。
 - 未登录用户首次打开看到迁移引导；三条迁移路径各有一条端到端用例。
