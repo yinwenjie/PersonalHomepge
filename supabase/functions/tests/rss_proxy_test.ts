@@ -7,6 +7,7 @@ import {
 } from "../rss-proxy/feed-store.ts";
 import type { FetchLike } from "../rss-proxy/fetcher.ts";
 import {
+  clientAddress,
   handleRssProxy,
   isRssOriginAllowed,
   type RssLogEntry,
@@ -230,6 +231,19 @@ async function call(h: Harness, body: unknown, origin?: string | null) {
   const response = await handleRssProxy(post(body, origin), h.deps);
   return { status: response.status, headers: response.headers, body: await response.json() };
 }
+
+Deno.test("client address: only the gateway-appended X-Forwarded-For entry counts", () => {
+  const withForwarded = (value: string | null) =>
+    new Request("https://project.supabase.co/functions/v1/rss-proxy", {
+      headers: value === null ? {} : { "X-Forwarded-For": value },
+    });
+  assertEquals(clientAddress(withForwarded("203.0.113.9")), "203.0.113.9");
+  assertEquals(clientAddress(withForwarded("1.2.3.4, 203.0.113.9")), "203.0.113.9");
+  assertEquals(clientAddress(withForwarded("9.9.9.9,8.8.8.8, 2001:DB8::1")), "2001:db8::1");
+  assertEquals(clientAddress(withForwarded("203.0.113.9, not-an-ip")), "unknown");
+  assertEquals(clientAddress(withForwarded("")), "unknown");
+  assertEquals(clientAddress(withForwarded(null)), "unknown");
+});
 
 Deno.test("origin allowlist: product site, local dev and Pages previews only", () => {
   for (

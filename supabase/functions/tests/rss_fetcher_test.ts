@@ -1,4 +1,4 @@
-import { assertEquals, assertRejects } from "jsr:@std/assert@1.0.14";
+import { assert, assertEquals, assertRejects } from "jsr:@std/assert@1.0.14";
 import { FeedError } from "../rss-proxy/contract.ts";
 import {
   discoverFeedLink,
@@ -54,6 +54,10 @@ Deno.test("fetches with the fetcher user agent, manual redirects and validators"
   assertEquals(headers["User-Agent"], "MyLinkerFeedFetcher/1.0 (+https://mylinker.net)");
   assertEquals(headers["If-None-Match"], '"v1"');
   assertEquals(seen[0].init.redirect, "manual");
+  for (const type of ["application/rdf+xml", "application/x-rss+xml", "application/feed+xml"]) {
+    assert(headers["Accept"].includes(type), `Accept should advertise ${type}`);
+  }
+  assert(!headers["Accept"].includes("text/html"), "feed fetches should not ask for HTML");
 });
 
 Deno.test("returns not_modified on 304 to a conditional request", async () => {

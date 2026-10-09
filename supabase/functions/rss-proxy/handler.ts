@@ -17,6 +17,7 @@ import {
   type RssServiceDeps,
   type ServiceOutcome,
 } from "./service.ts";
+import { ipLiteral } from "./url-guard.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 export interface RssLogEntry {
@@ -51,6 +52,18 @@ const PREVIEW_ORIGIN = /^https:\/\/[a-z0-9-]{1,63}\.personalhomepge\.pages\.dev$
 /** The product site, its Cloudflare Pages alias and previews, and local dev. Not GitHub Pages. */
 export function isRssOriginAllowed(origin: string | null): origin is string {
   return origin !== null && (PRODUCTION_ORIGINS.has(origin) || PREVIEW_ORIGIN.test(origin));
+}
+
+/**
+ * The address the rate limits key on. A client can send its own X-Forwarded-For, and the
+ * Supabase gateway appends the address it saw, so only the last entry is trusted. Anything
+ * that is not an IP literal shares one strict "unknown" bucket. Go-live verifies this with
+ * spoofed headers (Phase2_2_RssWidgetDesign.md, go-live checks).
+ */
+export function clientAddress(request: Request): string {
+  const entries = (request.headers.get("X-Forwarded-For") ?? "").split(",");
+  const last = entries[entries.length - 1].trim();
+  return ipLiteral(last) ? last.toLowerCase() : "unknown";
 }
 
 export async function handleRssProxy(request: Request, deps: RssProxyDeps): Promise<Response> {

@@ -2,7 +2,7 @@
 // verify_jwt stays on in supabase/config.toml; the public anon key is enough to call it.
 import { createClient } from "npm:@supabase/supabase-js@2.117.3";
 import { createSupabaseFeedStore } from "./feed-store.ts";
-import { handleRssProxy, isRssOriginAllowed, type RssLogEntry } from "./handler.ts";
+import { clientAddress, handleRssProxy, isRssOriginAllowed, type RssLogEntry } from "./handler.ts";
 import { sha256Hex } from "./service.ts";
 import { denoResolver } from "./url-guard.ts";
 
@@ -32,13 +32,7 @@ const deps = {
     resolve: denoResolver,
   },
   isAllowedOrigin: isRssOriginAllowed,
-  // The platform appends the real client address to X-Forwarded-For; the first entry is the
-  // client. Confirm against the Supabase docs before go-live (runbook step).
-  clientKey: (request: Request) => {
-    const forwarded = request.headers.get("X-Forwarded-For") ?? "";
-    const ip = forwarded.split(",")[0].trim() || "unknown";
-    return sha256Hex(`${rateLimitSalt}:${ip}`);
-  },
+  clientKey: (request: Request) => sha256Hex(`${rateLimitSalt}:${clientAddress(request)}`),
   log: (entry: RssLogEntry) => {
     console.info(JSON.stringify({ fn: "rss-proxy", ...entry }));
   },

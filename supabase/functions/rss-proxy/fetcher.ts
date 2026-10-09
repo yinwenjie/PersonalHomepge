@@ -64,6 +64,11 @@ const XML_TYPES = new Set([
   "application/feed+xml",
 ]);
 const HTML_TYPES = new Set(["text/html", "application/xhtml+xml"]);
+// Advertise every type the response check accepts, so strict content negotiation still works.
+const FEED_ACCEPT = [...XML_TYPES].join(", ");
+const DISCOVERY_ACCEPT = `${FEED_ACCEPT}, ${
+  [...HTML_TYPES].map((type) => `${type};q=0.8`).join(", ")
+}`;
 
 export function newFetchBudget(): FetchBudget {
   return { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS), hops: 0 };
@@ -86,9 +91,7 @@ export async function fetchDocument(
 
     const headers: Record<string, string> = {
       "User-Agent": USER_AGENT,
-      "Accept": options.allowHtml
-        ? "application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.9, text/html;q=0.8"
-        : "application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.9",
+      "Accept": options.allowHtml ? DISCOVERY_ACCEPT : FEED_ACCEPT,
     };
     if (conditional && options.etag) {
       headers["If-None-Match"] = options.etag;
