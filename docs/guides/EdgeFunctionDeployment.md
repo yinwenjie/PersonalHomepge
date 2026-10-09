@@ -45,6 +45,8 @@ Secret 只在 Supabase Dashboard 设置：Project → Edge Functions → Secrets
 | 函数 | Secret | 说明 |
 | --- | --- | --- |
 | `admin-read` | `ADMIN_ALLOWED_ORIGINS`（可选） | 逗号分隔的额外 HTTPS origin；不设置时只允许内置的生产后台 origin 和本地开发 origin。 |
+| `rss-proxy` | `RSS_RATE_LIMIT_SALT` | 限流键的随机盐，至少 32 个随机字符（例如 `openssl rand -hex 32` 的输出）。换盐会让现有限流计数失效，不影响缓存。 |
+| `rss-proxy` | `RSS_EGRESS_VERIFIED` | 固定为 `true`，表示设计文档第 4 节的出口网络验证已评审（2026-10-09 已完成并接受剩余风险）。不设置时函数拒绝启动。 |
 
 新增函数时，在本表和 `requiredSecrets` 中同时登记。
 
@@ -57,6 +59,8 @@ Secret 只在 Supabase Dashboard 设置：Project → Edge Functions → Secrets
 5. 按函数自己的 runbook 做端到端验证（例如 `AdminDashboardRunbook.md`）。
 
 `admin-read` 另有前置条件：`AdminDashboardRunbook.md` 的“Phase 1.18.2 开始门禁”全部满足，包括已初始化明确的测试管理员。
+
+`rss-proxy` 的前置条件和上线后验证：migration 022 已 apply 且检查 024 通过；部署后按 `docs/implementation/phase-2/Phase2_2_RssWidgetDesign.md` 的“上线前验证限流键”做 61 次请求检查，没有被限流就立即运行 `delete`。
 
 ## 回滚
 

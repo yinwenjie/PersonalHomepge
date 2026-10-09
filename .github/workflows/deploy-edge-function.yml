@@ -9,6 +9,7 @@ on:
         type: choice
         options:
           - admin-read
+          - rss-proxy
       mode:
         description: check is read-only; deploy and delete change the live project
         required: true

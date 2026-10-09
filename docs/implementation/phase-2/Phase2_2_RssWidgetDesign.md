@@ -139,6 +139,12 @@ interface RssFeedWidgetConfig {
   1. 运行时能把连接钉在检查过的 IP 上，同时保留原主机名的 Host 头和 TLS 校验（例如 `Deno.createHttpClient` 支持自定义解析）。
   2. Supabase Edge 的出口网络本身就到不了私网和云元数据地址：在测试项目里部署一个临时函数，用一个会解析到 `169.254.169.254` 和私网地址的测试域名去请求，确认连不上，结果写进运行手册。
   3. 改用 Cloudflare Worker 做抓取（见第 10 节），并同样做第 2 条的验证。
+- **验证结果（2026-10-09，[线上运行 37954336194](https://github.com/yinwenjie/PersonalHomepge/actions/runs/37954336194)，`rss-egress-probe` 工作流）**：三条都没有完全满足。
+  - 云元数据地址（`169.254.169.254`、`fd00:ec2::254`，以及解析到它的公网域名）被平台直接拒绝，连接报 `EINVAL`。
+  - 回环地址的 80/443 立刻返回“连接被拒绝”，说明网络上能到，但那里没有服务。rss-proxy 只允许默认端口。
+  - 私网三段（10/8、172.16/12、192.168/16，以及解析到私网的公网域名）都是 3 秒超时，证明不了通或不通。
+  - `Deno.createHttpClient` 存在，但没有自定义解析的入口，第 1 条做不到。
+- **决定（2026-10-09，Gerald）**：接受剩余的 DNS 重绑定风险，不加固就上线。理由是：每一跳都先解析并拒绝私网、回环、元数据地址；只允许 80/443；元数据已被平台拦截；回环 80/443 没有服务；就算重绑定成功，响应也必须能解析成 RSS/Atom，而且只回传清洗后的标题、链接和摘要。以后如果平台加了能锁定连接 IP 的接口，再按第 1 条加固。函数靠 `RSS_EGRESS_VERIFIED=true` 这个密钥确认这一步已经评审过，没设就拒绝启动。
 - 重定向手动跟随，最多 3 次，每一跳都重新检查地址。网页自动发现 feed 也算一跳。
 - 总超时 8 秒，响应体边读边计数，超过 1 MB 立即中断。
 - 只接受 XML 和 feed 类型的响应（`check` 模式额外接受 HTML 用于自动发现）。
@@ -169,9 +175,10 @@ interface RssFeedWidgetConfig {
 | `status`、`error_code`、`failure_count` | 最近一次抓取结果 |
 | `fetched_at`、`next_fetch_at`、`last_requested_at` | 缓存控制和清理 |
 | `refresh_lease_until` | 刷新租约，保证同一时间只有一个请求在抓 |
+| `refresh_lease_token` | 当前租约持有者的令牌；只有持有者能写回结果或释放租约 |
 
 - 新鲜期 30 分钟。过期后第一个请求触发重新抓取，失败时返回旧数据（`stale`），旧数据最多保留 7 天。
-- 同一个 feed 同时只允许一个请求去抓：抓取前先调用 `rss_claim_refresh(url_hash)`，它在一条 `update … where refresh_lease_until is null or refresh_lease_until < now()` 里原子地拿到 60 秒的租约（新 feed 先 `insert … on conflict do nothing` 建占位行）。拿到租约的请求去抓，抓完写结果并清掉租约；没拿到的直接返回现有缓存。新 feed 还没有缓存时，没拿到租约的请求每 500 毫秒重读一次，最多等 8 秒，仍然没有就返回 `pending`，前端 5 秒后重试一次。表里因此多一个 `refresh_lease_until` 字段。
+- 同一个 feed 同时只允许一个请求去抓：抓取前先调用 `rss_claim_refresh(url_hash)`，它在一条 `update … where refresh_lease_until is null or refresh_lease_until < now()` 里原子地拿到 60 秒的租约（新 feed 先 `insert … on conflict do nothing` 建占位行）。拿到租约的请求得到一个令牌，抓完按令牌写结果并清掉租约；如果它超过 60 秒才回来、租约已被别人接手，令牌对不上，它的结果直接作废，不会覆盖新结果。没拿到的直接返回现有缓存。新 feed 还没有缓存时，没拿到租约的请求每 500 毫秒重读一次，最多等 8 秒，仍然没有就返回 `pending`，前端 5 秒后重试一次。表里因此多 `refresh_lease_until` 和 `refresh_lease_token` 两个字段。
 - 连续失败会拉长下次抓取的间隔（30 分钟、1 小时、2 小时，最长 6 小时），避免反复打一个挂掉的站。
 - 缓存按 feed 共享、不关联任何用户：同一个 feed 不管多少人订阅，30 分钟内只抓一次。
 - 30 天没人请求的行会被删除：函数每次调用有 1% 概率顺带清理一批，另外提供 `delete_stale_rss_feed_cache()` 供手动执行，和埋点清理函数的做法一致。
@@ -179,7 +186,7 @@ interface RssFeedWidgetConfig {
 
 ### 限流（migration 022）
 
-表 `public.rss_rate_limits(bucket_key, window_start, request_count)`，加一个 `security definer` 函数 `rss_consume_rate(p_key, p_window_seconds, p_limit)`，原子地加一并返回是否超限，只授权给 `service_role`。
+表 `public.rss_rate_limits(bucket_key, window_start, request_count)`，加一个函数 `rss_consume_rate(p_key, p_window_seconds, p_limit)`，原子地加一并返回是否超限，只授权给 `service_role`（以调用者权限运行，不需要 `security definer`）。
 
 | 限制 | 默认值 | 超限时 |
 |---|---|---|
@@ -187,7 +194,10 @@ interface RssFeedWidgetConfig {
 | 每个 IP 的 `check` 次数 | 10 分钟 20 次 | 返回 `rate_limited` |
 | 全局真实抓取次数（不含命中缓存） | 每分钟 300 次 | 有缓存就返回 `stale`，没有返回 `rate_limited` |
 
-- IP 不落库：`bucket_key` 是 `SHA-256(IP + 服务端密钥 RSS_RATE_LIMIT_SALT)`。客户端 IP 从平台转发头里取，取哪一个头要在开工时对照 Supabase 文档确认。
+- IP 不落库：`bucket_key` 是 `SHA-256(IP + 服务端密钥 RSS_RATE_LIMIT_SALT)`。IP 只取 `CF-Connecting-IP`；不是合法 IP 时归入同一个严格的 `unknown` 桶。依据是 2026-10-09 的线上探针（[运行 37955393204](https://github.com/yinwenjie/PersonalHomepge/actions/runs/37955393204)，伪造了 `X-Forwarded-For`、`X-Real-IP`、`X-Client-IP`）：
+  - `CF-Connecting-IP` 正好是调用方的真实地址，由 Supabase 前面的 Cloudflare 设置。
+  - `X-Forwarded-For` 里伪造的值被丢掉了，但最后一项是网关自己的一跳，而且每次不同（`3.2.54.118`、`99.82.172.149`），所以不能用。最初设计“只取最后一项”是错的，会让所有人共用一个限流额度。
+  - `X-Client-IP` 会原样透传伪造值，`X-Real-IP` 被去掉了。
 - 一天前的限流行顺带清理。
 
 ### 日志
@@ -222,6 +232,7 @@ interface RssFeedWidgetConfig {
 - Deno handler 测试：用假的 `fetch` 和假的存储覆盖缓存命中、过期重抓、失败回退旧数据、退避、限流、CORS、请求校验，以及同一 feed 并发过期时只有一个请求去抓。
 - pgTAP：`rss_consume_rate` 的计数和窗口、`rss_claim_refresh` 的租约（两次连续调用只有第一次成功，租约过期后可以再拿）、表和函数的权限（`anon`、`authenticated` 不能访问）。
 - 上线前验证：第 4 节的出口网络验证，结果写进运行手册。
+- 上线前验证限流键：部署后从同一台机器连续发 61 个 `read` 请求，每个都带不同的伪造 `CF-Connecting-IP` 和 `X-Forwarded-For`，第 61 个必须返回 `rate_limited`（Cloudflare 直接拒绝带伪造 `CF-Connecting-IP` 的请求也算通过）。如果没有被限流，说明这个头能被伪造，先停用函数再改取地址的方式。
 - 前端：配置归一化、本机缓存淘汰、合并排序；Playwright 用假的函数响应跑一遍添加订阅、刷新、部分失败和离线。
 
 ## 9. v1 不做
