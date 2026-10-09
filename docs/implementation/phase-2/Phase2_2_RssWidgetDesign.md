@@ -124,7 +124,7 @@ interface RssFeedWidgetConfig {
 }
 ```
 
-`status` 取值：`ok`、`stale`（这次抓取失败，返回的是旧缓存）、`error`。`error` 和 `stale` 带 `errorCode`：`invalid_url`、`blocked_address`、`not_feed`、`fetch_failed`、`timeout`、`too_large`、`rate_limited`。
+`status` 取值：`ok`、`stale`（这次抓取失败或正在被别的请求刷新，返回的是旧缓存）、`pending`（新 feed 正在被别的请求首次抓取）、`error`。`error` 和 `stale` 带 `errorCode`：`invalid_url`、`blocked_address`、`not_feed`、`fetch_failed`、`timeout`、`too_large`、`rate_limited`。
 
 ### CORS
 
@@ -134,7 +134,11 @@ interface RssFeedWidgetConfig {
 
 - 只允许 `http`/`https`，端口只能是默认端口，URL 里不能带用户名密码。
 - 拒绝 `localhost`、`*.local`、`*.internal`、`*.localhost` 这类主机名，拒绝私网、回环、链路本地、组播、云元数据地址，包括 IPv6、IPv4 映射 IPv6，以及十进制、八进制等写法的 IP。
-- 解析 DNS 后检查所有 A/AAAA 记录，有一个不合规就拒绝。v1 开工前先确认 Supabase Edge 运行时支持 `Deno.resolveDns`。如果不支持，只能检查 IP 字面量和保留主机名，这一点要在上线前写进运行手册。
+- 解析 DNS 后检查所有 A/AAAA 记录，有一个不合规就拒绝。
+- 只检查一次 DNS 不够：之后 `fetch` 会再解析一次，攻击者可以让第二次解析指向内网（DNS rebinding）。所以真正连接的必须是检查过的那个 IP，或者由网络层挡住内网。v1 开工的第一步是做一个验证，三选一，**都做不到就不上线，不能退回“只检查 IP 字面量”**：
+  1. 运行时能把连接钉在检查过的 IP 上，同时保留原主机名的 Host 头和 TLS 校验（例如 `Deno.createHttpClient` 支持自定义解析）。
+  2. Supabase Edge 的出口网络本身就到不了私网和云元数据地址：在测试项目里部署一个临时函数，用一个会解析到 `169.254.169.254` 和私网地址的测试域名去请求，确认连不上，结果写进运行手册。
+  3. 改用 Cloudflare Worker 做抓取（见第 10 节），并同样做第 2 条的验证。
 - 重定向手动跟随，最多 3 次，每一跳都重新检查地址。网页自动发现 feed 也算一跳。
 - 总超时 8 秒，响应体边读边计数，超过 1 MB 立即中断。
 - 只接受 XML 和 feed 类型的响应（`check` 模式额外接受 HTML 用于自动发现）。
@@ -163,8 +167,10 @@ interface RssFeedWidgetConfig {
 | `etag`、`last_modified` | 条件请求用 |
 | `status`、`error_code`、`failure_count` | 最近一次抓取结果 |
 | `fetched_at`、`next_fetch_at`、`last_requested_at` | 缓存控制和清理 |
+| `refresh_lease_until` | 刷新租约，保证同一时间只有一个请求在抓 |
 
 - 新鲜期 30 分钟。过期后第一个请求触发重新抓取，失败时返回旧数据（`stale`），旧数据最多保留 7 天。
+- 同一个 feed 同时只允许一个请求去抓：抓取前先调用 `rss_claim_refresh(url_hash)`，它在一条 `update … where refresh_lease_until is null or refresh_lease_until < now()` 里原子地拿到 60 秒的租约（新 feed 先 `insert … on conflict do nothing` 建占位行）。拿到租约的请求去抓，抓完写结果并清掉租约；没拿到的直接返回现有缓存。新 feed 还没有缓存时，没拿到租约的请求每 500 毫秒重读一次，最多等 8 秒，仍然没有就返回 `pending`，前端 5 秒后重试一次。表里因此多一个 `refresh_lease_until` 字段。
 - 连续失败会拉长下次抓取的间隔（30 分钟、1 小时、2 小时，最长 6 小时），避免反复打一个挂掉的站。
 - 缓存按 feed 共享、不关联任何用户：同一个 feed 不管多少人订阅，30 分钟内只抓一次。
 - 30 天没人请求的行会被删除：函数每次调用有 1% 概率顺带清理一批，另外提供 `delete_stale_rss_feed_cache()` 供手动执行，和埋点清理函数的做法一致。
@@ -202,7 +208,8 @@ interface RssFeedWidgetConfig {
 
 ## 7. 上线步骤
 
-1. migration 022：缓存表、限流表和函数、埋点白名单（`rss.feed_checked`、`discovered`）、验证脚本 `supabase/checks/024_rss_proxy_verify.sql`（`requiresRollback: true`）。
+0. 完成第 4 节的出口网络验证，三条路都不通就停在这里。
+1. migration 022：缓存表、限流表和函数、刷新租约函数、埋点白名单（`rss.feed_checked`、`discovered`）、验证脚本 `supabase/checks/024_rss_proxy_verify.sql`（`requiresRollback: true`）。
 2. 设置服务端密钥 `RSS_RATE_LIMIT_SALT`，部署 `rss-proxy`。目前的远程部署流程只处理 migration，不部署 Edge Function，所以要在运行手册里补上函数的部署和回滚步骤。
 3. 前端合入后照常发布。函数还没上线时，组件会在“检查”这一步失败并提示“服务暂不可用”，不会影响其他功能。
 
@@ -211,8 +218,9 @@ interface RssFeedWidgetConfig {
 ## 8. 测试计划
 
 - Deno 单元测试：URL 规范化和地址拦截（各种 IP 写法、IPv6、重定向到内网）、三种 feed 格式和残缺 feed 的解析、实体炸弹、超大响应、清洗规则（`javascript:` 链接、HTML 标题）。
-- Deno handler 测试：用假的 `fetch` 和假的存储覆盖缓存命中、过期重抓、失败回退旧数据、退避、限流、CORS、请求校验。
-- pgTAP：`rss_consume_rate` 的计数和窗口、表和函数的权限（`anon`、`authenticated` 不能访问）。
+- Deno handler 测试：用假的 `fetch` 和假的存储覆盖缓存命中、过期重抓、失败回退旧数据、退避、限流、CORS、请求校验，以及同一 feed 并发过期时只有一个请求去抓。
+- pgTAP：`rss_consume_rate` 的计数和窗口、`rss_claim_refresh` 的租约（两次连续调用只有第一次成功，租约过期后可以再拿）、表和函数的权限（`anon`、`authenticated` 不能访问）。
+- 上线前验证：第 4 节的出口网络验证，结果写进运行手册。
 - 前端：配置归一化、本机缓存淘汰、合并排序；Playwright 用假的函数响应跑一遍添加订阅、刷新、部分失败和离线。
 
 ## 9. v1 不做
@@ -226,7 +234,7 @@ interface RssFeedWidgetConfig {
 
 - **浏览器直接抓取**：大多数 feed 不带 CORS 头，抓不到。
 - **公共 RSS 转 JSON 服务**：省事，但把用户的订阅交给第三方，而且有额度和稳定性问题。
-- **Cloudflare Worker**：`mylinker.net` 已经在 Cloudflare 上，Worker 自带边缘缓存，免费额度也宽松。但要多一个部署面和一套密钥管理，和“基于 Edge Function 基座”的计划不一致。v1 仍用 Supabase，接口保持简单，以后换成 Worker 时前端只需要改调用地址。
+- **Cloudflare Worker**：`mylinker.net` 已经在 Cloudflare 上，Worker 自带边缘缓存，免费额度也宽松。但要多一个部署面和一套密钥管理，和“基于 Edge Function 基座”的计划不一致。v1 仍用 Supabase，接口保持简单，以后换成 Worker 时前端只需要改调用地址。如果第 4 节的出口网络验证在 Supabase 上不通过，Worker 就是备选。
 
 ## 11. 成本估算
 
