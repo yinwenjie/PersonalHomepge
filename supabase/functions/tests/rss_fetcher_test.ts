@@ -222,6 +222,16 @@ Deno.test("discoverFeedLink finds RSS or Atom alternates and ignores others", ()
     )?.href,
     "https://example.com/real.xml",
   );
+  assertEquals(
+    discoverFeedLink(
+      `<title>Use <link rel="alternate" type="application/rss+xml" href="/doc.xml"></title>
+       <textarea><link rel="alternate" type="application/rss+xml" href="/ta.xml"></textarea>
+       <base href="https://cdn.example.net/feed/">
+       <link rel="alternate" type="application/rss+xml" href="rss.xml">`,
+      page,
+    )?.href,
+    "https://cdn.example.net/feed/rss.xml",
+  );
 });
 
 Deno.test("a stalled DNS lookup ends at the fetch deadline", async () => {

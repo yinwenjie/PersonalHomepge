@@ -265,11 +265,27 @@ function fetchFailure(error: unknown, signal: AbortSignal): FeedError {
 
 /** Finds the first RSS or Atom alternate link in an HTML page. */
 export function discoverFeedLink(html: string, pageUrl: URL): URL | null {
-  // Links inside comments, scripts or styles are not part of the page's head.
+  // Links inside comments or raw-text elements are text, not document links.
   const markup = html
     .slice(0, 512 * 1024)
     .replace(/<!--[\s\S]*?(?:-->|$)/g, " ")
-    .replace(/<(script|style|template|noscript)\b[\s\S]*?(?:<\/\1\s*>|$)/gi, " ");
+    .replace(
+      /<(script|style|template|noscript|textarea|title|xmp|iframe|noembed|noframes)\b[\s\S]*?(?:<\/\1\s*>|$)/gi,
+      " ",
+    );
+
+  // The first <base href> sets the URL that relative links resolve against.
+  let base = pageUrl.href;
+  const baseTag = /<base\b[^>]*>/i.exec(markup);
+  const baseHref = baseTag ? parseAttributes(baseTag[0]).get("href") : undefined;
+  if (baseHref) {
+    try {
+      base = new URL(decodeAttribute(baseHref), pageUrl.href).href;
+    } catch {
+      // An unusable base is ignored, as browsers do.
+    }
+  }
+
   for (const match of markup.matchAll(/<link\b[^>]*>/gi)) {
     const attributes = parseAttributes(match[0]);
     const rel = (attributes.get("rel") ?? "").toLowerCase().split(/\s+/);
@@ -283,7 +299,7 @@ export function discoverFeedLink(html: string, pageUrl: URL): URL | null {
       continue;
     }
     try {
-      return normalizeFeedUrl(decodeAttribute(href), pageUrl.href);
+      return normalizeFeedUrl(decodeAttribute(href), base);
     } catch {
       continue;
     }
