@@ -14,7 +14,7 @@ import {
   type StoredFeedErrorCode,
 } from "./contract.ts";
 import { parseFeed } from "./feed-parser.ts";
-import type { CachedFeed, FeedStore, FeedUpdate } from "./feed-store.ts";
+import { type CachedFeed, type FeedStore, FeedStoreError, type FeedUpdate } from "./feed-store.ts";
 import {
   discoverFeedLink,
   type FetchBudget,
@@ -210,14 +210,17 @@ async function refresh(
       title: parsed.title,
       siteUrl: parsed.siteUrl,
       items: parsed.items,
-      etag: document.etag,
-      lastModified: document.lastModified,
+      // Validators belong to the URL that answered; after a redirect they would be sent to
+      // the wrong URL next time, so keep them only when the feed answered directly.
+      etag: document.url.href === url.href ? document.etag : null,
+      lastModified: document.url.href === url.href ? document.lastModified : null,
       failureCount: 0,
       fetchedAt: now,
       nextFetchAt: now + FRESH_MS,
     };
   } catch (error) {
-    if (error instanceof FetchRateLimited) {
+    // Our own outages (rate RPC, store) say nothing about the feed's health.
+    if (error instanceof FetchRateLimited || error instanceof FeedStoreError) {
       throw error;
     }
     const failureCount = (row?.failureCount ?? 0) + 1;
@@ -290,6 +293,9 @@ export async function checkFeed(raw: string, deps: RssServiceDeps): Promise<Serv
       nextFetchAt: fetchedAt + FRESH_MS,
     };
   } catch (error) {
+    if (error instanceof FeedStoreError) {
+      throw error;
+    }
     if (error instanceof FetchRateLimited) {
       return { feeds: [checkError(raw, "rate_limited")], cacheHits: 0 };
     }

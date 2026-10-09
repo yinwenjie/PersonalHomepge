@@ -57,6 +57,15 @@ export function prepareXml(text: string): string {
 }
 
 export async function parseFeed(text: string, feedUrl: URL): Promise<ParsedFeed> {
+  try {
+    return await parseFeedUnchecked(text, feedUrl);
+  } catch (error) {
+    // Odd but well-formed documents must fail as this feed's problem, never as a crash.
+    throw error instanceof FeedError ? error : new FeedError("not_feed");
+  }
+}
+
+async function parseFeedUnchecked(text: string, feedUrl: URL): Promise<ParsedFeed> {
   let document: Element;
   try {
     document = parser.parse(prepareXml(text)) as Element;

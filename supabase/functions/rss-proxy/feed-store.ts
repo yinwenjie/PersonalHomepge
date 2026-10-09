@@ -29,8 +29,8 @@ export interface FeedStore {
   finishRefresh(urlHash: string, update: FeedUpdate): Promise<void>;
   releaseLease(urlHash: string): Promise<void>;
   /**
-   * check mode: inserts or replaces the row for a feed found by checking a pasted URL.
-   * Never touches an existing refresh lease.
+   * check mode: caches a feed found by checking a pasted URL, only if it has no row yet.
+   * An existing row is left to read-mode refreshes.
    */
   saveChecked(urlHash: string, feedUrl: string, update: FeedUpdate): Promise<void>;
   /** Bumps last_requested_at, at most once a day per feed, so cleanup keeps used feeds. */
@@ -117,11 +117,11 @@ export function createSupabaseFeedStore(client: SupabaseClient): FeedStore {
           url_hash: urlHash,
           feed_url: feedUrl,
           ...toRow(update),
-          // refresh_lease_until is left out on purpose: a read-mode refresh that holds the
-          // lease keeps it, and a new row starts with none.
           last_requested_at: new Date().toISOString(),
         },
-        { onConflict: "url_hash" },
+        // Insert only: an existing row belongs to read-mode refreshes and their lease, and a
+        // check must never race one of them.
+        { onConflict: "url_hash", ignoreDuplicates: true },
       );
       if (error) {
         throw new FeedStoreError("save");

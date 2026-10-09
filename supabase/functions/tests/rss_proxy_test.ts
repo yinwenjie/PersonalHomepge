@@ -1,5 +1,10 @@
 import { assert, assertEquals } from "jsr:@std/assert@1.0.14";
-import type { CachedFeed, FeedStore, FeedUpdate } from "../rss-proxy/feed-store.ts";
+import {
+  type CachedFeed,
+  type FeedStore,
+  FeedStoreError,
+  type FeedUpdate,
+} from "../rss-proxy/feed-store.ts";
 import type { FetchLike } from "../rss-proxy/fetcher.ts";
 import {
   handleRssProxy,
@@ -32,6 +37,8 @@ class MemoryStore implements FeedStore {
   rates = new Map<string, number>();
   rateLimits: Record<string, number> = {};
   failRate = false;
+  /** Fail only the per-request global charge, after the client checks have passed. */
+  failGlobalCharge = false;
   cleanups = 0;
   calls: string[] = [];
 
@@ -93,13 +100,15 @@ class MemoryStore implements FeedStore {
 
   saveChecked(hash: string, feedUrl: string, update: FeedUpdate) {
     this.calls.push("save");
-    this.rows.set(hash, {
-      urlHash: hash,
-      feedUrl,
-      ...update,
-      leaseUntil: this.rows.get(hash)?.leaseUntil ?? null,
-      lastRequestedAt: this.clock.now,
-    });
+    if (!this.rows.has(hash)) {
+      this.rows.set(hash, {
+        urlHash: hash,
+        feedUrl,
+        ...update,
+        leaseUntil: null,
+        lastRequestedAt: this.clock.now,
+      });
+    }
     return Promise.resolve();
   }
 
@@ -114,8 +123,8 @@ class MemoryStore implements FeedStore {
   }
 
   consumeRate(key: string, _windowSeconds: number, limit: number) {
-    if (this.failRate) {
-      return Promise.reject(new Error("db down"));
+    if (this.failRate || (this.failGlobalCharge && key === "global-fetch")) {
+      return Promise.reject(new FeedStoreError("rate"));
     }
     const bucket = key.split(":")[0];
     const count = (this.rates.get(key) ?? 0) + 1;
@@ -591,7 +600,48 @@ Deno.test("check: saving a checked feed keeps a read refresh's lease", async () 
 
   const hash = await sha256Hex(FEED);
   assert(h.store.rows.get(hash)!.leaseUntil !== null, "the check must not clear the lease");
+  assertEquals(
+    h.store.rows.get(hash)!.items[0].title,
+    "v1",
+    "the check must not overwrite the row",
+  );
   release();
   await reader;
+  assertEquals(h.store.rows.get(hash)!.items[0].title, "v2");
   assertEquals(h.store.rows.get(hash)!.leaseUntil, null);
+});
+
+Deno.test("a store outage during a fetch is a 503 and leaves the feed's health alone", async () => {
+  const h = harness();
+  h.setRoute(FEED, feedResponse("v1"));
+  await call(h, { mode: "read", feeds: [FEED] });
+  h.clock.advance(31 * MINUTE);
+  h.store.failGlobalCharge = true;
+
+  const read = await call(h, { mode: "read", feeds: [FEED] });
+  assertEquals(read.status, 503);
+  const check = await call(h, { mode: "check", feeds: ["https://other.example.com/feed"] });
+  assertEquals(check.status, 503);
+
+  const row = h.store.rows.get(await sha256Hex(FEED))!;
+  assertEquals(row.status, "ok");
+  assertEquals(row.failureCount, 0);
+  assertEquals(h.fetches.length, 1);
+});
+
+Deno.test("validators from a redirected feed are not stored for the original URL", async () => {
+  const h = harness();
+  h.setRoute(
+    FEED,
+    () =>
+      new Response(null, {
+        status: 301,
+        headers: { Location: "https://cdn.example.com/feed.xml" },
+      }),
+  );
+  h.setRoute("https://cdn.example.com/feed.xml", feedResponse("moved", { ETag: '"cdn"' }));
+  await call(h, { mode: "read", feeds: [FEED] });
+  const row = h.store.rows.get(await sha256Hex(FEED))!;
+  assertEquals(row.items[0].title, "moved");
+  assertEquals(row.etag, null);
 });
