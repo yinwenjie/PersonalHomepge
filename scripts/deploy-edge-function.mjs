@@ -169,11 +169,14 @@ function assertSecretsPresent(projectRef, required) {
   }
 
   const output = captureCommand("supabase", ["secrets", "list", "--project-ref", projectRef]);
-  // The table separates columns with "|" or the box-drawing "│", depending on the CLI build.
+  // The table separates columns with "|" or the box-drawing "│", depending on the CLI build,
+  // and starts with a NAME | DIGEST header row that is not a secret.
   const names = new Set(
     output
       .split("\n")
-      .map((line) => line.split(/[|\u2502]/).map((cell) => cell.trim()).find(Boolean) ?? "")
+      .map((line) => line.split(/[|\u2502]/).map((cell) => cell.trim()).filter(Boolean))
+      .filter((cells) => cells.length >= 2 && cells[1] !== "DIGEST")
+      .map((cells) => cells[0])
       .filter((cell) => /^[A-Z][A-Z0-9_]*$/.test(cell))
   );
 
