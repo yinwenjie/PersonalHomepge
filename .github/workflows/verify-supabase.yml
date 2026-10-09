@@ -3,9 +3,11 @@ name: Verify Supabase
 on:
   pull_request:
     paths:
+      - ".github/workflows/deploy-edge-function.yml"
       - ".github/workflows/deploy-supabase.yml"
       - ".github/workflows/verify-supabase.yml"
       - "package.json"
+      - "scripts/deploy-edge-function.mjs"
       - "scripts/deploy-supabase-remote.mjs"
       - "scripts/verify-supabase-preparation.mjs"
       - "supabase/**"
@@ -15,9 +17,11 @@ on:
       - master
       - production
     paths:
+      - ".github/workflows/deploy-edge-function.yml"
       - ".github/workflows/deploy-supabase.yml"
       - ".github/workflows/verify-supabase.yml"
       - "package.json"
+      - "scripts/deploy-edge-function.mjs"
       - "scripts/deploy-supabase-remote.mjs"
       - "scripts/verify-supabase-preparation.mjs"
       - "supabase/**"
@@ -47,6 +51,9 @@ jobs:
 
       - name: Validate remote deployment allowlist
         run: npm run verify:supabase-remote-config
+
+      - name: Validate Edge Function deployment allowlist
+        run: npm run verify:edge-function-config
 
       - name: Start local database
         run: supabase db start
