@@ -187,7 +187,12 @@ created_at timestamptz not null
 
 ## 1.18.2：受控 Edge Function 基座
 
-状态：待实施。
+状态：2026-10-09 代码与单元测试已完成，尚未部署 Function，也未用真实 JWT 和测试管理员做端到端联调（需先按运行手册初始化测试管理员）。
+
+- `admin-read/handler.ts` 按下文 9 步顺序实现请求流程；Auth、`admin_users` 查询和审计写入通过端口注入，`index.ts` 只负责用服务端 env 组装 service role client。
+- 1.18.2 只开放 `get-admin-context`；其余 operation 在 1.18.3 补齐 handler 前一律返回 `invalid_request`。
+- 响应先序列化并检查总字节上限，再写审计；审计写入失败返回 `audit_failed`，不返回数据。
+- `tests/admin_read_handler_test.ts` 与 `tests/admin_contract_test.ts` 覆盖 origin、preflight、方法、token、非管理员、Auth 故障、严格 body、角色矩阵、审计 fail-closed、响应上限和日志内容。
 
 ### 文件范围
 
