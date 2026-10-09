@@ -14,9 +14,9 @@ if (!supabaseUrl || !serviceRoleKey || !rateLimitSalt || rateLimitSalt.length < 
 }
 
 // fetch() resolves DNS again after checkFetchTarget, and Deno cannot pin the connection to
-// the checked address, so DNS rebinding is only stopped if the egress network itself cannot
-// reach private and metadata addresses. Go-live step 0 verifies that; until it has passed and
-// this is set, the function refuses to start.
+// the checked address, so a DNS rebinding window remains. Go-live step 0 probed the hosted
+// egress network and the residual risk was reviewed and accepted (Phase2_2_RssWidgetDesign.md,
+// section 4); until that is recorded with this secret, the function refuses to start.
 if (Deno.env.get("RSS_EGRESS_VERIFIED") !== "true") {
   throw new Error("rss-proxy egress verification has not been recorded.");
 }
