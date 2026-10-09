@@ -30,6 +30,7 @@
 - `implementation/phase-1/Phase1_16_Implement.md`：Phase 1.16，低成本组件扩展；记录 Notes、Countdown、World Clock 的纯前端组件边界、数据模型、隐私约束和实施顺序。
 - `implementation/phase-1/Phase1_17_Implement.md`：Phase 1.17，只读渲染与公开快照分享；记录公开投影、token/hash 合约、分享管理、`/share/` 静态入口、权限边界和上线回归。
 - `implementation/phase-1/Phase1_18_Implement.md`：Phase 1.18，受控服务端与只读后台 Dashboard v1；记录 Edge Function、管理员身份、管理员审计、跨用户只读查询、私有独立 Admin Pages、Cloudflare Access、快照预览、部署和回滚边界。
+- `implementation/phase-2/Phase2_2_RssWidgetDesign.md`：Phase 2.2，RSS 组件设计；记录 `rss.feed` 组件交互、配置与数据边界、`rss-proxy` Edge Function 的抓取限制、共享缓存、限流、埋点和上线步骤（待确认，未实现）。
 
 ## Tech Stack
 

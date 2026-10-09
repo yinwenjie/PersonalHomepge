@@ -57,7 +57,7 @@ Phase 1.12.6 只做候选设计和排序，不新增 `HomeWidgetType`，不修�
 1. Notes v1：最贴近首页轻量工作台，纯前端可做，但必须加长度限制和隐私边界。
 2. Countdown v1：实现成本低，适合工作、学习、发布、生活场景，也适合模板默认组合候选。
 3. World Clock v1：对开发者和跨时区工作有明确价值，纯前端实现，配置体积小。
-4. RSS design only：等服务端/Edge Function 策略稳定后再决定是否实现。
+4. RSS design only：等服务端/Edge Function 策略稳定后再决定是否实现。设计稿见 `implementation/phase-2/Phase2_2_RssWidgetDesign.md`。
 5. Weather design only：先确认 API key、缓存、城市选择和隐私策略，再实现。
 6. GitHub public repo design：仅考虑 public repo，不碰 OAuth 和 private repo，等开发者用户需求更明确后再实现。
 
