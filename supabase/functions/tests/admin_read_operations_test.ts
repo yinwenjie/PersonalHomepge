@@ -31,7 +31,6 @@ const SYNC_SPACE_ID = "77777777-7777-4777-8777-777777777777";
 
 const PROFILE: ProfileRow = {
   id: USER_ID,
-  email: "person@example.com",
   display_name: "Person",
   created_at: "2026-01-01T00:00:00+00:00",
 };
@@ -99,7 +98,7 @@ function fakeStore(
         id: "88888888-8888-4888-8888-888888888888",
         revision: 7,
         snapshot_source: "after-cloud-push",
-        content_fingerprint: '{"documentTitle":"My private title","groups":[]}',
+        fingerprint_digest: "0123456789ab",
         summary: FULL_SUMMARY,
         created_at: "2026-03-01T00:00:00+00:00",
       };
@@ -196,7 +195,9 @@ Deno.test("resolve-user finds an exact, normalized email and audits the target",
 
 Deno.test("resolve-user takes emails from Auth, never the editable profile copy", async () => {
   const { store } = fakeStore({
-    findProfileById: () => Promise.resolve({ ...PROFILE, email: "edited@example.com" }),
+    // A stray profile email column must never reach the DTO.
+    findProfileById: () =>
+      Promise.resolve({ ...PROFILE, email: "edited@example.com" } as ProfileRow),
   });
   const byId = await call(store, {
     operation: "resolve-user",
@@ -348,7 +349,7 @@ Deno.test("snapshot list returns a fingerprint digest and summary counts, never 
 
   assertEquals(result.status, 200);
   const [snapshot] = result.body.data.snapshots;
-  assert(/^[0-9a-f]{12}$/.test(snapshot.fingerprintDigest));
+  assertEquals(snapshot.fingerprintDigest, "0123456789ab");
   assertEquals(snapshot.summary, {
     groupCount: 3,
     siteCount: 12,
@@ -553,6 +554,10 @@ function recordingClient(): { client: SupabaseClient; log: unknown[][] } {
       log.push(["from", table]);
       return builder;
     },
+    rpc(name: string, args: unknown) {
+      log.push(["rpc", name, args]);
+      return builder;
+    },
   };
   return { client: client as unknown as SupabaseClient, log };
 }
@@ -575,19 +580,21 @@ Deno.test("Auth rate limits during email checks stay rate_limited", async () => 
   assertEquals(await createSupabaseAdminReadStore(fakeClient(404)).getAuthEmail(USER_ID), null);
 });
 
-Deno.test("supabase store selects fixed columns and pages by created_at then id", async () => {
+Deno.test("supabase store pages home spaces by created_at then id over fixed columns", async () => {
   const { client, log } = recordingClient();
   const store = createSupabaseAdminReadStore(client);
-  await store.listSnapshots(USER_ID, SPACE_ID, {
+  await store.listHomeSpaces(USER_ID, {
     limit: 21,
     after: { createdAt: "2026-02-01T00:00:00.123456+00:00", id: SPACE_ID },
   });
 
   assertEquals(log, [
-    ["from", "home_space_snapshots"],
-    ["select", "id, revision, snapshot_source, content_fingerprint, summary, created_at"],
+    ["from", "home_spaces"],
+    [
+      "select",
+      "id, user_id, sync_space_id, name, access_mode, is_default, created_at, updated_at, last_used_at",
+    ],
     ["eq", "user_id", USER_ID],
-    ["eq", "home_space_id", SPACE_ID],
     [
       "or",
       `created_at.lt."2026-02-01T00:00:00.123456+00:00",and(created_at.eq."2026-02-01T00:00:00.123456+00:00",id.lt.${SPACE_ID})`,
@@ -596,5 +603,33 @@ Deno.test("supabase store selects fixed columns and pages by created_at then id"
     ["order", "id", { ascending: false }],
     ["limit", 21],
   ]);
+});
+
+Deno.test("supabase store reads user-writable columns only through the bounded functions", async () => {
+  const { client, log } = recordingClient();
+  const store = createSupabaseAdminReadStore(client);
+  const after = { createdAt: "2026-02-01T00:00:00.123456+00:00", id: SPACE_ID };
+  await store.findProfileById(USER_ID);
+  await store.listSnapshots(USER_ID, SPACE_ID, { limit: 21, after });
+  await store.listHomeAuditEvents(USER_ID, null, { limit: 51, after: null });
+
+  assertEquals(log, [
+    ["rpc", "admin_read_profile", { p_user_id: USER_ID }],
+    ["rpc", "admin_list_snapshots", {
+      p_user_id: USER_ID,
+      p_home_space_id: SPACE_ID,
+      p_after_created_at: after.createdAt,
+      p_after_id: after.id,
+      p_limit: 21,
+    }],
+    ["rpc", "admin_list_home_audit_events", {
+      p_user_id: USER_ID,
+      p_home_space_id: null,
+      p_after_created_at: null,
+      p_after_id: null,
+      p_limit: 51,
+    }],
+  ]);
   assert(!JSON.stringify(log).includes("document_json"));
+  assert(!JSON.stringify(log).includes("content_fingerprint"));
 });

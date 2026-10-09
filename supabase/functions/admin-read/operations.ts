@@ -69,7 +69,10 @@ export interface SnapshotDto {
   revision: number;
   source: string;
   summary: SnapshotSummaryDto;
-  /** First 12 hex characters of SHA-256 over the stored fingerprint, never the fingerprint itself. */
+  /**
+   * First 12 hex characters of SHA-256 over the stored fingerprint, never the fingerprint
+   * itself; computed in the database by migration 023.
+   */
   fingerprintDigest: string;
   createdAt: string;
 }
@@ -234,7 +237,7 @@ async function listSnapshots(
   });
   const { items, nextCursor } = paginate(rows, page.size, scope);
   return {
-    data: { snapshots: await Promise.all(items.map(toSnapshot)) },
+    data: { snapshots: items.map(toSnapshot) },
     nextCursor,
     audit: {
       severity: "info",
@@ -443,13 +446,15 @@ function toHomeSpace(row: HomeSpaceRow): HomeSpaceDto {
   };
 }
 
-async function toSnapshot(row: SnapshotRow): Promise<SnapshotDto> {
+function toSnapshot(row: SnapshotRow): SnapshotDto {
   return {
     id: row.id,
     revision: row.revision,
     source: SNAPSHOT_SOURCES.has(row.snapshot_source) ? row.snapshot_source : "other",
     summary: toSummary(row.summary) ?? emptySummary(),
-    fingerprintDigest: await digestFingerprint(row.content_fingerprint),
+    fingerprintDigest: FINGERPRINT_DIGEST_PATTERN.test(row.fingerprint_digest)
+      ? row.fingerprint_digest
+      : "",
     createdAt: row.created_at,
   };
 }
@@ -501,6 +506,7 @@ function toAdminAuditEvent(row: AdminAuditRow): AdminAuditEventDto {
 }
 
 const THEME_PRESET_PATTERN = /^[a-z0-9-]{1,40}$/;
+const FINGERPRINT_DIGEST_PATTERN = /^[0-9a-f]{12}$/;
 
 function toSummary(value: unknown): SnapshotSummaryDto | null {
   if (!isPlainObject(value)) {
@@ -531,10 +537,6 @@ function emptySummary(): SnapshotSummaryDto {
     hasBanner: null,
     hasBackground: null,
   };
-}
-
-function digestFingerprint(fingerprint: string): Promise<string> {
-  return sha256Hex(fingerprint, 6);
 }
 
 async function sha256Hex(value: string, bytes: number): Promise<string> {
