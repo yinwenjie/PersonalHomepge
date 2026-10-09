@@ -87,7 +87,7 @@ values
     '{}'::jsonb,
     jsonb_build_object(
       'documentTitle', repeat('t', 100000),
-      'groupCount', 3,
+      'groupCount', ('3.' || repeat('0', 16000))::numeric,
       'siteCount', 1e100,
       'widgetCount', 1.5,
       'themePresetId', repeat('x', 1000),
@@ -172,8 +172,8 @@ select is(
     )
     where id = '00000000-0000-0000-0000-000000001235'
   ),
-  '{"groupCount": 3, "siteCount": null, "widgetCount": 1.5, "themePresetId": null, "hasBanner": true, "hasBackground": null}'::jsonb,
-  'snapshot summaries should keep only the six fields, dropping over-long or out-of-range values'
+  '{"groupCount": 3, "siteCount": null, "widgetCount": null, "themePresetId": null, "hasBanner": true, "hasBackground": null}'::jsonb,
+  'snapshot summaries should keep only the six fields, rebuild counts as integers and drop over-long, fractional or out-of-range values'
 );
 
 select is(

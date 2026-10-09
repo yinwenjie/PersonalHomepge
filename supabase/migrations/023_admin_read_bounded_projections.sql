@@ -13,7 +13,8 @@ begin;
 -- longer grant them by default), and admin-read should not need any. home_spaces gets an
 -- explicit column grant for the metadata admin-read lists.
 
--- Keeps the six summary fields admin-read shows, each only in its expected shape.
+-- Keeps the six summary fields admin-read shows, each only in its expected shape. Counts
+-- are rebuilt as integers: a stored numeric can carry thousands of fractional digits.
 create or replace function public.admin_project_snapshot_summary(p_summary jsonb)
 returns jsonb
 language sql
@@ -25,18 +26,21 @@ as $$
     else jsonb_build_object(
       'groupCount', case
         when jsonb_typeof(p_summary -> 'groupCount') = 'number'
-          and (p_summary ->> 'groupCount')::numeric between 0 and 1000000
-          then p_summary -> 'groupCount'
+          and (p_summary -> 'groupCount')::numeric between 0 and 1000000
+          and (p_summary -> 'groupCount')::numeric = trunc((p_summary -> 'groupCount')::numeric)
+          then to_jsonb((p_summary -> 'groupCount')::numeric::integer)
       end,
       'siteCount', case
         when jsonb_typeof(p_summary -> 'siteCount') = 'number'
-          and (p_summary ->> 'siteCount')::numeric between 0 and 1000000
-          then p_summary -> 'siteCount'
+          and (p_summary -> 'siteCount')::numeric between 0 and 1000000
+          and (p_summary -> 'siteCount')::numeric = trunc((p_summary -> 'siteCount')::numeric)
+          then to_jsonb((p_summary -> 'siteCount')::numeric::integer)
       end,
       'widgetCount', case
         when jsonb_typeof(p_summary -> 'widgetCount') = 'number'
-          and (p_summary ->> 'widgetCount')::numeric between 0 and 1000000
-          then p_summary -> 'widgetCount'
+          and (p_summary -> 'widgetCount')::numeric between 0 and 1000000
+          and (p_summary -> 'widgetCount')::numeric = trunc((p_summary -> 'widgetCount')::numeric)
+          then to_jsonb((p_summary -> 'widgetCount')::numeric::integer)
       end,
       'themePresetId', case
         when jsonb_typeof(p_summary -> 'themePresetId') = 'string'

@@ -76,6 +76,7 @@ values (
   '00000000-0000-0000-0000-000000001233', '00000000-0000-0000-0000-000000001232',
   1, 'after-cloud-push', 'user-data', repeat('f', 2000000), '{}'::jsonb,
   jsonb_build_object('documentTitle', repeat('t', 100000), 'groupCount', 3,
+    'siteCount', ('5.' || repeat('0', 16000))::numeric,
     'themePresetId', repeat('x', 1000), 'padding', repeat('p', 1000000))
 );
 
@@ -105,7 +106,8 @@ begin
   from public.admin_list_snapshots(
     '00000000-0000-0000-0000-000000001231', '00000000-0000-0000-0000-000000001233', null, null, 51
   ) as s;
-  if v_size is null or v_size >= 1000 or v_text like '%documentTitle%' then
+  if v_size is null or v_size >= 1000 or v_text like '%documentTitle%'
+    or v_text not like '%"siteCount": 5,%' then
     raise exception 'snapshot rows are not bounded (size %)', v_size;
   end if;
 
