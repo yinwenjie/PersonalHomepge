@@ -234,7 +234,8 @@ if (!/^[a-z0-9]{20}$/.test(projectRef)) {
 if (!String(process.env.SUPABASE_ACCESS_TOKEN ?? "").trim()) {
   fail("SUPABASE_ACCESS_TOKEN is required and must be provided through the environment.");
 }
-if (!process.env.SUPABASE_DB_PASSWORD) {
+// Only check and deploy query the database; deletion goes through the Management API.
+if (mode !== "delete" && !process.env.SUPABASE_DB_PASSWORD) {
   fail("SUPABASE_DB_PASSWORD is required and must be provided through the environment.");
 }
 if (mode !== "check" && confirmation !== projectRef) {
