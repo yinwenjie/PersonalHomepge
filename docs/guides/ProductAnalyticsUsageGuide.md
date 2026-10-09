@@ -185,12 +185,171 @@ order by opened_installs desc;
 
 首页提示被关闭的次数看 `homepage_guide.tip_dismissed`。`address_copied` 只说明用户复制了网址，不代表已经设置成功；浏览器不会告诉网页它是不是首页。
 
+## 北极星指标
+
+短期北极星是“用户把 MyLinker 设为首页并留存 30 天”。下面的查询只用现有的 `home.viewed` 等事件，不需要新的埋点或权限，在 Supabase SQL Editor 里直接执行即可。
+
+口径约定：
+
+- **安装**：一个 `anonymous_id`，即一个浏览器里的一份本机数据，不等于一个人或一个账号。
+- **新安装日**：这个安装第一次上报 `home.viewed` 的日期。埋点上线前就在用的老用户，会被算成埋点上线后第一次打开那天的新安装，所以最早几周的留存偏高。
+- **活跃**：当天至少上报过一次 `home.viewed`。日期统一按 UTC 切分。
+- **未满期的不计入**：例如新安装才 5 天，它的 D7 还没到，就不进 D7 的分母，避免把“还没发生”算成“没回来”。
+
+### 1. 新安装留存（D1 / D7 / D30）
+
+按新安装所在的周分组，看第 1、7、30 天当天是否回来打开首页。
+
+```sql
+with views as (
+  select anonymous_id, (created_at at time zone 'UTC')::date as day
+  from public.product_analytics_events
+  where event_name = 'home.viewed'
+  group by 1, 2
+),
+cohorts as (
+  select anonymous_id, min(day) as cohort_day
+  from views
+  group by 1
+),
+flags as (
+  select
+    c.anonymous_id,
+    c.cohort_day,
+    -- null = the day has not fully passed yet, so this install does not count either way
+    case when c.cohort_day + 1 < current_date then exists (
+      select 1 from views v where v.anonymous_id = c.anonymous_id and v.day = c.cohort_day + 1
+    ) end as d1,
+    case when c.cohort_day + 7 < current_date then exists (
+      select 1 from views v where v.anonymous_id = c.anonymous_id and v.day = c.cohort_day + 7
+    ) end as d7,
+    case when c.cohort_day + 30 < current_date then exists (
+      select 1 from views v where v.anonymous_id = c.anonymous_id and v.day = c.cohort_day + 30
+    ) end as d30
+  from cohorts c
+  where c.cohort_day >= current_date - 90
+)
+select
+  date_trunc('week', cohort_day)::date as cohort_week,
+  count(*) as new_installs,
+  round(100.0 * count(*) filter (where d1) / nullif(count(d1), 0), 1) as d1_pct,
+  round(100.0 * count(*) filter (where d7) / nullif(count(d7), 0), 1) as d7_pct,
+  round(100.0 * count(*) filter (where d30) / nullif(count(d30), 0), 1) as d30_pct
+from flags
+group by 1
+order by 1 desc;
+```
+
+### 2. 周留存（第 2 周 / 第 5 周）
+
+样本小的时候 D7/D30 波动很大，按“那一周里有没有回来过”看更稳。`week1_pct` 是新安装后第 7–13 天回来过的比例，`week4_pct` 是第 28–34 天。
+
+```sql
+with views as (
+  select anonymous_id, (created_at at time zone 'UTC')::date as day
+  from public.product_analytics_events
+  where event_name = 'home.viewed'
+  group by 1, 2
+),
+cohorts as (
+  select anonymous_id, min(day) as cohort_day
+  from views
+  group by 1
+),
+flags as (
+  select
+    c.anonymous_id,
+    c.cohort_day,
+    case when c.cohort_day + 13 < current_date then exists (
+      select 1 from views v
+      where v.anonymous_id = c.anonymous_id and v.day between c.cohort_day + 7 and c.cohort_day + 13
+    ) end as week1,
+    case when c.cohort_day + 34 < current_date then exists (
+      select 1 from views v
+      where v.anonymous_id = c.anonymous_id and v.day between c.cohort_day + 28 and c.cohort_day + 34
+    ) end as week4
+  from cohorts c
+  where c.cohort_day >= current_date - 90
+)
+select
+  date_trunc('week', cohort_day)::date as cohort_week,
+  count(*) as new_installs,
+  round(100.0 * count(*) filter (where week1) / nullif(count(week1), 0), 1) as week1_pct,
+  round(100.0 * count(*) filter (where week4) / nullif(count(week4), 0), 1) as week4_pct
+from flags
+group by 1
+order by 1 desc;
+```
+
+### 3. 日均打开次数
+
+一个活跃安装在活跃的那一天打开首页的次数。真正设为启动页或主页的人一天会打开很多次，所以“每天打开 3 次以上的活跃天比例”可以作为“已经设为首页”的间接信号。从设置页返回首页也会再记一次 `home.viewed`，所以次数会略偏高。
+
+```sql
+with install_days as (
+  select
+    anonymous_id,
+    (created_at at time zone 'UTC')::date as day,
+    count(*) as opens
+  from public.product_analytics_events
+  where event_name = 'home.viewed'
+    and created_at >= now() - interval '28 days'
+  group by 1, 2
+)
+select
+  date_trunc('week', day)::date as week,
+  count(distinct anonymous_id) as active_installs,
+  round(avg(opens), 2) as avg_opens_per_active_day,
+  percentile_cont(0.5) within group (order by opens) as median_opens_per_active_day,
+  round(100.0 * count(*) filter (where opens >= 3) / count(*), 1) as pct_active_days_with_3plus_opens
+from install_days
+group by 1
+order by 1 desc;
+```
+
+### 4. 新安装第一周是否把首页变成自己的
+
+默认首页自带 20 多个示例网站，所以“链接数 ≥10”没有区分度。这里改看第一周内有没有把首页变成自己的：添加网站、分组或组件，套用模板，导入书签，恢复数据包，绑定同步码，创建账号托管空间，或者首页已经是本机保存的文档（`hasStoredDocument = true`）。只统计满 7 天、且在 60 天内的新安装。
+
+```sql
+with first_seen as (
+  select anonymous_id, min(created_at) as first_seen_at
+  from public.product_analytics_events
+  where event_name = 'home.viewed'
+  group by 1
+  having min(created_at) >= now() - interval '60 days'
+     and min(created_at) < now() - interval '7 days'
+),
+first_week as (
+  select e.anonymous_id, e.event_name, e.properties
+  from public.product_analytics_events e
+  join first_seen f on f.anonymous_id = e.anonymous_id
+  where e.created_at >= f.first_seen_at
+    and e.created_at < f.first_seen_at + interval '7 days'
+)
+select
+  count(distinct f.anonymous_id) as new_installs,
+  round(100.0 * count(distinct w.anonymous_id) filter (
+    where w.event_name in ('site.added', 'group.added', 'widget.added', 'template.applied', 'bookmark_import.completed', 'data_package.restored', 'sync.code_bound', 'home_space.account_managed_created')
+       or (w.event_name = 'home.viewed' and w.properties ->> 'hasStoredDocument' = 'true')
+  ) / nullif(count(distinct f.anonymous_id), 0), 1) as customized_in_7d_pct,
+  round(100.0 * count(distinct w.anonymous_id) filter (
+    where w.event_name = 'bookmark_import.completed'
+  ) / nullif(count(distinct f.anonymous_id), 0), 1) as imported_bookmarks_in_7d_pct
+from first_seen f
+left join first_week w on w.anonymous_id = f.anonymous_id;
+```
+
+“设为首页”引导本身的转化见上面的“设为首页”引导漏斗。
+
 ## 解读规则
 
 - 事件数不是用户数；同一浏览器可触发多次同类事件。
 - `anonymous_id` 是当前浏览器本机标识，清空浏览器数据、换设备、隐私模式都会变化。
 - `user_state = signed-in` 只代表上报时有登录 session，不代表可以识别具体账号。
 - 小样本只用于发现方向，不能直接证明功能成败。
+- 关闭了“产品改进”开关的用户不上报任何事件，留存和打开次数只代表开着开关的用户。
+- 清空浏览器数据或换设备会产生新的 `anonymous_id`，同一个人会被算成流失加一个新安装，所以留存会被低估。
 - 导入、恢复、同步类事件只记录数量级和结果，不记录具体内容；无法从埋点数据还原用户首页。
 
 ## 排障用法
