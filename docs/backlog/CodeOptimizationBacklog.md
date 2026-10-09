@@ -23,7 +23,7 @@ Phase 1.5.3 已新增全局 Supabase Auth Provider，`useSupabaseAuth` 改为读
 
 ## 优先级：中
 
-### 2. `SyncPanel visible={false}` 意图不清晰
+### 2. `SyncPanel visible={false}` 意图不清晰（2026-10-09 已处理）
 
 **问题：**
 `sync-panel.tsx:462` 的 `if (!visible) return null` 在所有 hooks 之后执行，所以当 `visible=false` 时（`HomeDashboard` 中的用法），整个组件仍然初始化了约 10 个 state、4 个 useEffect、多个 useCallback，只是不渲染 JSX。
@@ -36,6 +36,9 @@ Phase 1.5.3 已新增全局 Supabase Auth Provider，`useSupabaseAuth` 改为读
 这样 `visible=false` 时直接不渲染 `<SyncPanel>`，同步引擎仍正常运行，意图也更清晰。
 
 **影响：** 可维护性。
+
+**处理记录：**
+2026-10-09 自动同步逻辑已提取到 `src/hooks/use-sync-engine.ts`；`HomeDashboard` 直接调用 `useSyncEngine`，不再挂载隐藏的 `<SyncPanel>`，`SyncPanel` 只负责同步码 UI。
 
 ---
 
