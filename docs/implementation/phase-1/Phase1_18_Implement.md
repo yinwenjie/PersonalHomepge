@@ -240,7 +240,7 @@ cursor: 可选的不透明分页游标
 
 ## 1.18.3：只读查询 API
 
-状态：2026-10-09 代码与单元测试已完成，尚未部署，也未连真实数据库联调。`preview-snapshot` 的服务端投影属于 1.18.5，在此之前该 operation 仍返回 `invalid_request`。
+状态：2026-10-09 代码与单元测试已完成，尚未部署，也未连真实数据库联调。`preview-snapshot` 的服务端投影已在 1.18.5 服务端部分实现。
 
 - `_shared/admin-read-store.ts` 固定表名、列名和排序（`created_at desc, id desc` keyset 分页），不查询 `document_json`；`admin-read/operations.ts` 校验各 operation 的严格 filters 并投影 DTO。
 - 分页游标绑定 operation 和目标（管理员审计绑定完整 filter 组合），换目标重放会被拒绝。
@@ -309,7 +309,20 @@ cursor: 可选的不透明分页游标
 
 ## 1.18.5：受控快照预览
 
-状态：待实施。
+状态：服务端部分已于 2026-10-09 完成（migration 024 + `preview-snapshot`），未部署；预览页面在私有 Admin 仓库实施，尚未开始。
+
+服务端实施结果：
+
+- 读取：`024_admin_snapshot_preview.sql` 的 `admin_read_snapshot_document` 只授权 `service_role`，在数据库里同时校验快照、空间、用户三者的关联，并要求空间当前是 account-managed。超过 1 MiB 的文档只返回大小，不返回内容。
+- 投影：`admin-read/snapshot-preview.ts` 把文档投影为 `AdminSnapshotPreviewDocument`（`previewVersion: 1`）。投影包含以下内容：
+  - 标题、主题 preset 和 accent；
+  - Banner 和背景，只给出是否配置、来源和图片类型；
+  - 按存储顺序排列的分组和网站，只有名称、URL 文本和 mark；
+  - 组件的类型、标题和折叠状态，以及按类型白名单取出的内容：日历的周起始日，倒计时的事件、日期和模式，便签文本，待办标题和完成状态，世界时钟的标签和时区。
+- 不返回：documentId、各项 id 和时间戳、keywords、syncMeta、billing、图片路径和 URL、未知组件的配置。
+- 文本和列表超出上限时截断并返回 `truncated: true`；投影文本总量有约 160 KB 的预算，保证响应低于 256 KB 上限。非 version 2 的文档返回 `status: "unsupported"`，超大文档返回 `status: "too_large"`，两者都不带内容。
+- 审计：每次预览单独写 `admin.snapshot.preview`，severity 为 `warning`，记录目标用户、空间、同步空间和快照 id，审计写入失败则不返回内容。support 角色在调用 operation 之前就被拒绝。
+- 线上部署后由 `supabase/checks/026_admin_snapshot_preview_verify.sql` 验证，它也是部署 `admin-read` 前的预检之一。
 
 ### 预览模型
 

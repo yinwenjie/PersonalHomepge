@@ -59,6 +59,19 @@ const FULL_SUMMARY = {
   syncStatus: "synced",
 };
 
+const SNAPSHOT_ID = "88888888-8888-4888-8888-888888888888";
+
+const STORED_DOCUMENT = {
+  version: 2,
+  documentId: "doc-secret-id",
+  documentTitle: "Team home",
+  groups: [{ id: "g1", title: "Work", order: 1, sites: [] }],
+  widgets: [],
+  theme: { presetId: "classic", accent: "#246BFE" },
+  syncMeta: { spaceId: SYNC_SPACE_ID, status: "synced" },
+  billing: { plan: "free" },
+};
+
 function spaceRow(index: number): HomeSpaceRow {
   return {
     ...SPACE,
@@ -71,12 +84,13 @@ interface Calls {
   pages: PageQuery[];
   emails: string[];
   adminFilters: unknown[];
+  documentReads: number[];
 }
 
 function fakeStore(
   overrides: Partial<AdminReadStore> = {},
 ): { store: AdminReadStore; calls: Calls } {
-  const calls: Calls = { pages: [], emails: [], adminFilters: [] };
+  const calls: Calls = { pages: [], emails: [], adminFilters: [], documentReads: [] };
   const store: AdminReadStore = {
     findProfileById: (id) => Promise.resolve(id === USER_ID ? PROFILE : null),
     findAuthUserIdsByEmail: (email) => {
@@ -103,6 +117,20 @@ function fakeStore(
         created_at: "2026-03-01T00:00:00+00:00",
       };
       return Promise.resolve([row]);
+    },
+    readSnapshotDocument: (userId, spaceId, snapshotId, maxBytes) => {
+      calls.documentReads.push(maxBytes);
+      if (userId !== USER_ID || spaceId !== SPACE_ID || snapshotId !== SNAPSHOT_ID) {
+        return Promise.resolve(null);
+      }
+      return Promise.resolve({
+        id: SNAPSHOT_ID,
+        revision: 7,
+        snapshot_source: "after-cloud-push",
+        created_at: "2026-03-01T00:00:00+00:00",
+        document_bytes: 512,
+        document_json: STORED_DOCUMENT,
+      });
     },
     listHomeAuditEvents: (_userId, _spaceId, page) => {
       calls.pages.push(page);
@@ -514,14 +542,139 @@ Deno.test("fully filtered admin audit cursors round-trip under the cursor limit"
   assertEquals(otherFilters.status, 400);
 });
 
-Deno.test("preview-snapshot stays unavailable until 1.18.5", async () => {
-  const { store } = fakeStore();
+Deno.test("preview-snapshot returns the projected document and audits it as a warning", async () => {
+  const { store, calls } = fakeStore();
   const result = await call(store, {
     operation: "preview-snapshot",
     reason: REASON,
-    filters: { userId: USER_ID, homeSpaceId: SPACE_ID },
+    filters: { userId: USER_ID, homeSpaceId: SPACE_ID, snapshotId: SNAPSHOT_ID },
   });
-  assertEquals(result.status, 400);
+
+  assertEquals(result.status, 200);
+  assertEquals(result.body.data.snapshot, {
+    id: SNAPSHOT_ID,
+    revision: 7,
+    source: "after-cloud-push",
+    createdAt: "2026-03-01T00:00:00+00:00",
+  });
+  assertEquals(result.body.data.status, "ok");
+  assertEquals(result.body.data.document.documentTitle, "Team home");
+  assertEquals(result.body.data.document.theme.accent, "#246bfe");
+  const raw = JSON.stringify(result.body);
+  assert(!raw.includes("doc-secret-id"));
+  assert(!raw.includes("syncMeta"));
+  assert(!raw.includes(SYNC_SPACE_ID));
+  assertEquals(calls.documentReads, [1024 * 1024]);
+  assertEquals(result.audits.length, 1);
+  assertEquals(result.audits[0].action, "admin.snapshot.preview");
+  assertEquals(result.audits[0].severity, "warning");
+  assertEquals(result.audits[0].targetSnapshotId, SNAPSHOT_ID);
+  assertEquals(result.audits[0].targetSyncSpaceId, SYNC_SPACE_ID);
+  assertEquals(result.audits[0].resultCount, 1);
+});
+
+Deno.test("preview-snapshot needs every id, no cursor, and a matching chain", async () => {
+  const { store } = fakeStore();
+  for (
+    const body of [
+      { filters: { userId: USER_ID, homeSpaceId: SPACE_ID } },
+      { filters: { userId: USER_ID, homeSpaceId: SPACE_ID, snapshotId: "not-a-uuid" } },
+      {
+        filters: { userId: USER_ID, homeSpaceId: SPACE_ID, snapshotId: SNAPSHOT_ID, x: 1 },
+      },
+      {
+        filters: { userId: USER_ID, homeSpaceId: SPACE_ID, snapshotId: SNAPSHOT_ID },
+        cursor: "abc",
+      },
+    ]
+  ) {
+    const result = await call(store, { operation: "preview-snapshot", reason: REASON, ...body });
+    assertEquals(result.status, 400);
+  }
+
+  for (
+    const filters of [
+      { userId: OTHER_USER_ID, homeSpaceId: SPACE_ID, snapshotId: SNAPSHOT_ID },
+      { userId: USER_ID, homeSpaceId: SPACE_ID, snapshotId: OTHER_USER_ID },
+    ]
+  ) {
+    const result = await call(store, { operation: "preview-snapshot", reason: REASON, filters });
+    assertEquals(result.status, 404);
+    assertEquals(result.audits.length, 0);
+  }
+
+  const syncCode = fakeStore({
+    findHomeSpace: () => Promise.resolve({ ...SPACE, access_mode: "sync-code" }),
+  });
+  const refused = await call(syncCode.store, {
+    operation: "preview-snapshot",
+    reason: REASON,
+    filters: { userId: USER_ID, homeSpaceId: SPACE_ID, snapshotId: SNAPSHOT_ID },
+  });
+  assertEquals(refused.status, 404);
+  assertEquals(syncCode.calls.documentReads, []);
+});
+
+Deno.test("preview-snapshot reports oversized and unsupported documents without content", async () => {
+  const tooLarge = fakeStore({
+    readSnapshotDocument: () =>
+      Promise.resolve({
+        id: SNAPSHOT_ID,
+        revision: 7,
+        snapshot_source: "cloud-baseline",
+        created_at: "2026-03-01T00:00:00+00:00",
+        document_bytes: 5_000_000,
+        document_json: null,
+      }),
+  });
+  const large = await call(tooLarge.store, {
+    operation: "preview-snapshot",
+    reason: REASON,
+    filters: { userId: USER_ID, homeSpaceId: SPACE_ID, snapshotId: SNAPSHOT_ID },
+  });
+  assertEquals(large.status, 200);
+  assertEquals(large.body.data.status, "too_large");
+  assertEquals(large.body.data.document, null);
+  assertEquals(large.audits[0].resultCount, 0);
+  assertEquals(large.audits[0].metadata, {
+    access_mode: "account-managed",
+    result_status: "empty",
+  });
+
+  const legacy = fakeStore({
+    readSnapshotDocument: () =>
+      Promise.resolve({
+        id: SNAPSHOT_ID,
+        revision: 1,
+        snapshot_source: "cloud-baseline",
+        created_at: "2026-03-01T00:00:00+00:00",
+        document_bytes: 40,
+        document_json: { version: 1, sites: [] },
+      }),
+  });
+  const unsupported = await call(legacy.store, {
+    operation: "preview-snapshot",
+    reason: REASON,
+    filters: { userId: USER_ID, homeSpaceId: SPACE_ID, snapshotId: SNAPSHOT_ID },
+  });
+  assertEquals(unsupported.body.data.status, "unsupported");
+  assertEquals(unsupported.body.data.document, null);
+});
+
+Deno.test("support cannot preview snapshots even with valid filters", async () => {
+  const { store, calls } = fakeStore();
+  const result = await call(
+    store,
+    {
+      operation: "preview-snapshot",
+      reason: REASON,
+      filters: { userId: USER_ID, homeSpaceId: SPACE_ID, snapshotId: SNAPSHOT_ID },
+    },
+    { ...OWNER, role: "support" },
+  );
+  assertEquals(result.status, 403);
+  assertEquals(calls.documentReads, []);
+  assertEquals(result.audits.length, 0);
 });
 
 Deno.test("store failures surface only as service_unavailable", async () => {
@@ -605,13 +758,14 @@ Deno.test("supabase store pages home spaces by created_at then id over fixed col
   ]);
 });
 
-Deno.test("supabase store reads user-writable columns only through the bounded functions", async () => {
+Deno.test("supabase store reads user-writable columns only through the database functions", async () => {
   const { client, log } = recordingClient();
   const store = createSupabaseAdminReadStore(client);
   const after = { createdAt: "2026-02-01T00:00:00.123456+00:00", id: SPACE_ID };
   await store.findProfileById(USER_ID);
   await store.listSnapshots(USER_ID, SPACE_ID, { limit: 21, after });
   await store.listHomeAuditEvents(USER_ID, null, { limit: 51, after: null });
+  await store.readSnapshotDocument(USER_ID, SPACE_ID, SNAPSHOT_ID, 1024);
 
   assertEquals(log, [
     ["rpc", "admin_read_profile", { p_user_id: USER_ID }],
@@ -629,7 +783,12 @@ Deno.test("supabase store reads user-writable columns only through the bounded f
       p_after_id: null,
       p_limit: 51,
     }],
+    ["rpc", "admin_read_snapshot_document", {
+      p_user_id: USER_ID,
+      p_home_space_id: SPACE_ID,
+      p_snapshot_id: SNAPSHOT_ID,
+      p_max_bytes: 1024,
+    }],
   ]);
-  assert(!JSON.stringify(log).includes("document_json"));
   assert(!JSON.stringify(log).includes("content_fingerprint"));
 });

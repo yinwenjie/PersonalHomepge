@@ -1,6 +1,7 @@
 // Read-only admin-read operations (Phase 1.18.3). Every handler validates its own
 // strict filters, reads through the fixed AdminReadStore, and projects rows into
-// whitelisted DTOs. preview-snapshot is intentionally absent until 1.18.5.
+// whitelisted DTOs. preview-snapshot projects one stored document through
+// snapshot-preview.ts (Phase 1.18.5).
 import type { AdminAuditMetadata } from "../_shared/admin-audit.ts";
 import {
   ADMIN_OPERATIONS,
@@ -29,6 +30,12 @@ import type {
   SnapshotRow,
 } from "../_shared/admin-read-store.ts";
 import type { OperationContext, OperationHandler, OperationResult } from "./handler.ts";
+import {
+  type AdminSnapshotPreviewDocument,
+  MAX_PREVIEW_DOCUMENT_BYTES,
+  projectSnapshotPreview,
+  type SnapshotPreviewResult,
+} from "./snapshot-preview.ts";
 
 export const MAX_RESOLVED_USERS = 20;
 const MAX_EMAIL_LENGTH = 320;
@@ -75,6 +82,15 @@ export interface SnapshotDto {
    */
   fingerprintDigest: string;
   createdAt: string;
+}
+
+export interface SnapshotPreviewDto {
+  snapshot: { id: string; revision: number; source: string; createdAt: string };
+  /** ok: document is set. unsupported: not a version 2 document. too_large: not loaded. */
+  status: SnapshotPreviewResult["status"];
+  /** Some text, items or groups were cut to the preview limits. */
+  truncated: boolean;
+  document: AdminSnapshotPreviewDocument | null;
 }
 
 export interface HomeAuditEventDto {
@@ -138,6 +154,7 @@ export function createReadOperations(
     "resolve-user": (context) => resolveUser(store, context),
     "list-home-spaces": (context) => listHomeSpaces(store, context),
     "list-snapshots": (context) => listSnapshots(store, context),
+    "preview-snapshot": (context) => previewSnapshot(store, context),
     "list-home-audit-events": (context) => listHomeAuditEvents(store, context),
     "list-admin-audit-events": (context) => listAdminAuditEvents(store, context),
   };
@@ -246,6 +263,69 @@ async function listSnapshots(
       targetSyncSpaceId: space.sync_space_id,
       resultCount: items.length,
       metadata: { ...pageMetadata(page.after, items.length), access_mode: "account-managed" },
+    },
+  };
+}
+
+async function previewSnapshot(
+  store: AdminReadStore,
+  { request }: OperationContext,
+): Promise<OperationResult> {
+  const filters = readFilters(
+    request.filters,
+    ["userId", "homeSpaceId", "snapshotId"],
+    ["userId", "homeSpaceId", "snapshotId"],
+  );
+  if (request.cursor !== null) {
+    throw new AdminRequestError("invalid_request");
+  }
+  const userId = parseUuid(filters.userId);
+  const homeSpaceId = parseUuid(filters.homeSpaceId);
+  const snapshotId = parseUuid(filters.snapshotId);
+
+  // Re-verify the whole chain on the server; the client's earlier list result proves nothing.
+  const space = await store.findHomeSpace(homeSpaceId);
+  if (!space || space.user_id !== userId || space.access_mode !== "account-managed") {
+    throw new AdminRequestError("not_found");
+  }
+  const row = await store.readSnapshotDocument(
+    userId,
+    homeSpaceId,
+    snapshotId,
+    MAX_PREVIEW_DOCUMENT_BYTES,
+  );
+  if (!row) {
+    throw new AdminRequestError("not_found");
+  }
+
+  const preview: SnapshotPreviewResult = row.document_json === null
+    ? { status: "too_large", truncated: false, document: null }
+    : projectSnapshotPreview(row.document_json);
+  const data: SnapshotPreviewDto = {
+    snapshot: {
+      id: row.id,
+      revision: row.revision,
+      source: SNAPSHOT_SOURCES.has(row.snapshot_source) ? row.snapshot_source : "other",
+      createdAt: row.created_at,
+    },
+    status: preview.status,
+    truncated: preview.truncated,
+    document: preview.document,
+  };
+  return {
+    data,
+    audit: {
+      // Reading a user's full home content is the most sensitive admin action.
+      severity: "warning",
+      targetUserId: userId,
+      targetHomeSpaceId: homeSpaceId,
+      targetSyncSpaceId: space.sync_space_id,
+      targetSnapshotId: snapshotId,
+      resultCount: preview.document ? 1 : 0,
+      metadata: {
+        access_mode: "account-managed",
+        result_status: preview.document ? "ok" : "empty",
+      },
     },
   };
 }
