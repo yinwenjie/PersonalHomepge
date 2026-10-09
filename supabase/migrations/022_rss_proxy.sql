@@ -152,8 +152,10 @@ begin
     raise exception 'invalid retention' using errcode = '22023';
   end if;
 
+  -- A row whose refresh is in flight belongs to a returning reader; keep it.
   delete from public.rss_feed_cache
-  where last_requested_at < now() - make_interval(days => p_unused_days);
+  where last_requested_at < now() - make_interval(days => p_unused_days)
+    and (refresh_lease_until is null or refresh_lease_until < now());
   get diagnostics v_deleted = row_count;
 
   delete from public.rss_rate_limits

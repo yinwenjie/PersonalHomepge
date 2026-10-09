@@ -7,7 +7,7 @@ import {
   MAX_RESPONSE_BODY_BYTES,
   USER_AGENT,
 } from "./contract.ts";
-import { checkFetchTarget, type DnsResolver, normalizeFeedUrl } from "./url-guard.ts";
+import { checkFetchTarget, type DnsResolver, normalizeFeedUrl, withDeadline } from "./url-guard.ts";
 
 export type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
 
@@ -79,7 +79,7 @@ export async function fetchDocument(
 
   while (true) {
     await checkFetchTarget(url, deps.resolve, budget.signal);
-    if (budget.charge && !(await budget.charge())) {
+    if (budget.charge && !(await withDeadline(budget.charge(), budget.signal))) {
       throw new FetchRateLimited();
     }
 

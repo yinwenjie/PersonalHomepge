@@ -256,3 +256,17 @@ Deno.test("every outbound request is charged, including redirects", async () => 
     "https://example.com/b",
   ]);
 });
+
+Deno.test("a stalled rate-limit charge ends at the fetch deadline", async () => {
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(new DOMException("time is up", "TimeoutError")), 10);
+  assertEquals(
+    await failure(fetchDocument(
+      normalizeFeedUrl("https://example.com/feed"),
+      { allowHtml: false },
+      { signal: controller.signal, hops: 0, charge: () => new Promise(() => {}) },
+      deps({ "https://example.com/feed": xml() }),
+    )),
+    "timeout",
+  );
+});

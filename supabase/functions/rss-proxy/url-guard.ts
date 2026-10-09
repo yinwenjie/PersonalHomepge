@@ -99,8 +99,8 @@ export async function checkFetchTarget(
   }
 }
 
-/** A stalled DNS lookup must not outlive the fetch deadline. */
-function withDeadline<T>(promise: Promise<T>, signal: AbortSignal | undefined): Promise<T> {
+/** A stalled lookup or RPC must not outlive the fetch deadline; rejects with timeout. */
+export function withDeadline<T>(promise: Promise<T>, signal: AbortSignal | undefined): Promise<T> {
   if (!signal) {
     return promise;
   }

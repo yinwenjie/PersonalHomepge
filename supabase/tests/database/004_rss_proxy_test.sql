@@ -1,6 +1,6 @@
 begin;
 
-select plan(16);
+select plan(17);
 
 select ok(
   (select relrowsecurity from pg_class where oid = 'public.rss_feed_cache'::regclass)
@@ -88,10 +88,21 @@ select ok(
 insert into public.rss_feed_cache (url_hash, feed_url, last_requested_at)
 values (repeat('c', 64), 'https://example.com/old.xml', now() - interval '31 days');
 
+insert into public.rss_feed_cache (url_hash, feed_url, last_requested_at, refresh_lease_until)
+values (
+  repeat('d', 64), 'https://example.com/returning.xml', now() - interval '31 days',
+  now() + interval '60 seconds'
+);
+
 select is(
   public.delete_stale_rss_feed_cache(30),
   1,
   'cleanup should delete exactly the unused feed'
+);
+
+select ok(
+  exists (select 1 from public.rss_feed_cache where url_hash = repeat('d', 64)),
+  'cleanup should keep an old feed whose refresh is in flight'
 );
 
 reset role;
