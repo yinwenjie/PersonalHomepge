@@ -267,6 +267,13 @@ export function useSyncEngine({
 
       setSyncMetaFromBinding(activeBinding, "syncing", t("settings.sync.pulling"));
       const pulled = await getSyncRepository().pull(activeBinding);
+      if ((options.source === "auto" || options.source === "startup") && hasPendingDialog()) {
+        // A confirm opened while the request was in flight: never replace the document behind it.
+        // The binding is left unchanged, so the next auto check pulls this revision again.
+        setSyncMetaFromBinding(activeBinding, localDocument.syncMeta.status, "");
+        return;
+      }
+
       const hasRemoteChanges = hasRemoteSnapshotChanged(pulled.revision, pulled.updatedAt, activeBinding);
       const hasPendingLocalChanges = hasLocalDocumentChanges(localDocument, activeBinding);
 
@@ -435,7 +442,7 @@ export function useSyncEngine({
       spaceId: activeBinding.spaceId
     });
 
-    if (shouldPull && bindingRef.current) {
+    if (shouldPull && bindingRef.current && !hasPendingDialog()) {
       await performPull({ forceApply: false, source: "auto" });
     }
   }, [getSyncRepository, performPull, persistBinding, runSyncAction, setSyncMetaFromBinding, t]);
