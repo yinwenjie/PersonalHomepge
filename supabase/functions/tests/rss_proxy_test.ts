@@ -97,7 +97,7 @@ class MemoryStore implements FeedStore {
       urlHash: hash,
       feedUrl,
       ...update,
-      leaseUntil: null,
+      leaseUntil: this.rows.get(hash)?.leaseUntil ?? null,
       lastRequestedAt: this.clock.now,
     });
     return Promise.resolve();
@@ -560,4 +560,38 @@ Deno.test("check: discovery charges the global limit for each request it makes",
   assertEquals(result.body.feeds[0].errorCode, "rate_limited");
   assertEquals(h.fetches, ["https://example.com/"]);
   assertEquals(h.store.rates.get("global-fetch"), 2);
+});
+
+Deno.test("check: saving a checked feed keeps a read refresh's lease", async () => {
+  const h = harness();
+  h.setRoute(FEED, feedResponse("v1"));
+  await call(h, { mode: "read", feeds: [FEED] });
+  h.clock.advance(31 * MINUTE);
+
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => (release = resolve));
+  h.setRoute(FEED, async () => {
+    await gate;
+    return feedResponse("v2")();
+  });
+  const reader = call(h, { mode: "read", feeds: [FEED] });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  // The reader is now blocked inside its fetch, holding the lease; the check answers at once.
+  h.setRoute(FEED, feedResponse("checked"));
+  h.setRoute(
+    "https://example.com/",
+    () =>
+      new Response(`<link rel="alternate" type="application/rss+xml" href="/feed.xml">`, {
+        headers: { "Content-Type": "text/html" },
+      }),
+  );
+  const checked = await call(h, { mode: "check", feeds: ["https://example.com/"] });
+  assertEquals(checked.body.feeds[0].items[0].title, "checked");
+
+  const hash = await sha256Hex(FEED);
+  assert(h.store.rows.get(hash)!.leaseUntil !== null, "the check must not clear the lease");
+  release();
+  await reader;
+  assertEquals(h.store.rows.get(hash)!.leaseUntil, null);
 });
