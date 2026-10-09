@@ -11,6 +11,7 @@
 import { spawnSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { TARGETS } from "../supabase/functions/egress-probe/targets.ts";
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const functionName = "egress-probe";
@@ -67,9 +68,9 @@ async function runnerAddress() {
 }
 
 /**
- * Classifies one internal target. Only positive evidence of blocking passes: an answer or a
- * refused/reset connection proves the address is routable, and anything unrecognised (for
- * example a DNS failure on a name that should resolve) leaves the target untested.
+ * Classifies one internal target. Only positive evidence of blocking passes: an answer, a
+ * refused/reset connection or a TLS failure proves the address is routable, and anything
+ * else (a timeout, or a DNS failure on a name that should resolve) leaves it untested.
  */
 function verdict(result) {
   const outcome = String(result.outcome);
@@ -80,8 +81,8 @@ function verdict(result) {
   ) {
     return "reachable";
   }
-  if (outcome === "timeout"
-    || /unreachable|no route|not permitted|permission denied|os error (1|13|101|113)\b/i.test(outcome)) {
+  // A timeout is not evidence: a reachable host that drops packets looks the same.
+  if (/unreachable|no route|not permitted|permission denied|os error (1|13|101|113)\b/i.test(outcome)) {
     return "blocked";
   }
   if (/dns|lookup|resolve|name or service|nodename/i.test(outcome)) {
@@ -93,9 +94,23 @@ function verdict(result) {
 function judge(report, runnerIp) {
   const problems = [];
 
+  // Judge the expected inventory, not whatever came back: a stale or partial report (for
+  // example an older version still being served) must not pass by omission.
+  const reported = Array.isArray(report?.results) ? report.results : [];
+  const byName = new Map(reported.map((result) => [result?.name, result]));
+  if (reported.length !== TARGETS.length || byName.size !== TARGETS.length) {
+    problems.push(`the report has ${reported.length} results, expected ${TARGETS.length} distinct targets`);
+  }
+
   console.log("\nEgress results:");
-  for (const result of report.results ?? []) {
-    if (result.control) {
+  for (const target of TARGETS) {
+    const result = byName.get(target.name);
+    if (!result || result.url !== target.url) {
+      console.log(`  FAIL ${target.name}: missing from the report`);
+      problems.push(`${target.name} is missing from the report`);
+      continue;
+    }
+    if (target.control) {
       const ok = String(result.outcome).startsWith("response");
       console.log(`  ${ok ? "ok  " : "FAIL"} ${result.name}: ${result.outcome}`);
       if (!ok) {
@@ -103,7 +118,7 @@ function judge(report, runnerIp) {
       }
       continue;
     }
-    const status = verdict(result);
+    const status = verdict({ ...result, unresolvableIsBlocked: target.unresolvableIsBlocked });
     console.log(`  ${status === "blocked" ? "ok  " : "FAIL"} ${result.name}: ${status} (${result.outcome})`);
     if (status !== "blocked") {
       problems.push(`${result.name} is ${status}: ${result.outcome}`);
