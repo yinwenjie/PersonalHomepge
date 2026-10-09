@@ -240,7 +240,13 @@ cursor: 可选的不透明分页游标
 
 ## 1.18.3：只读查询 API
 
-状态：待实施。
+状态：2026-10-09 代码与单元测试已完成，尚未部署，也未连真实数据库联调。`preview-snapshot` 的服务端投影属于 1.18.5，在此之前该 operation 仍返回 `invalid_request`。
+
+- `_shared/admin-read-store.ts` 固定表名、列名和排序（`created_at desc, id desc` keyset 分页），不查询 `document_json`；`admin-read/operations.ts` 校验各 operation 的严格 filters 并投影 DTO。
+- 分页游标绑定 operation 和目标（管理员审计绑定完整 filter 组合），换目标重放会被拒绝。
+- `content_fingerprint` 实际是文档内容的稳定序列化（含标题、站点 URL 和组件配置），所以快照 DTO 只返回其 SHA-256 前 12 位 `fingerprintDigest`。
+- 快照 summary 只保留分组/站点/组件数量、主题 preset 和 banner/背景布尔值，不返回 `documentTitle`。
+- `home_space_audit_events.event_type` 没有数据库约束，未知值统一投影为 `other`；metadata 只保留 `snapshotSource` 和 `snapshotSaved`。
 
 ### Operation 与角色矩阵
 

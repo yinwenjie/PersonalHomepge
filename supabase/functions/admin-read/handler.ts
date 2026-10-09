@@ -49,7 +49,7 @@ export interface AdminReadDeps {
   log?: (entry: { requestId: string; operation: string | null; outcome: string }) => void;
 }
 
-/** Operations available in 1.18.2. 1.18.3 adds the read-only queries. */
+/** Operations that need no data store. operations.ts adds the read-only queries. */
 export const BASE_OPERATIONS: Partial<Record<AdminOperation, OperationHandler>> = {
   "get-admin-context": getAdminContext,
 };
