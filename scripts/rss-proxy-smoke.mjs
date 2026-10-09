@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 
 // Post-deploy check for rss-proxy (Phase2_2_RssWidgetDesign.md, go-live checks):
-// 1. One real read returns feeds, so the function, its secrets and the database work.
+// 1. One real read of several feeds on different hosts. Each feed's status and error code is
+//    printed; the check fails unless at least one comes back with items, so the function, its
+//    secrets, the database and outbound fetching all work.
 // 2. The per-IP limit holds against forged client-address headers: 61 requests from this
 //    runner, each with a different forged CF-Connecting-IP and X-Forwarded-For, must end
 //    with the 61st rate limited. Requests 2-61 send an invalid body, which the limit counts
@@ -16,7 +18,14 @@ import { fileURLToPath } from "node:url";
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ORIGIN = "https://mylinker.net";
-const SAMPLE_FEED = "https://github.blog/feed/";
+const SAMPLE_FEEDS = [
+  "https://github.blog/feed/",
+  "https://blog.cloudflare.com/rss/",
+  "https://hnrss.org/frontpage",
+  "https://www.ruanyifeng.com/blog/atom.xml",
+  "https://deno.com/feed"
+];
+const READ_BODY = JSON.stringify({ mode: "read", feeds: SAMPLE_FEEDS });
 const REQUESTS = 61;
 
 function fail(message) {
@@ -70,6 +79,21 @@ async function call(url, key, body, extraHeaders = {}) {
   return { status: response.status, json };
 }
 
+/** Prints one line per feed and returns how many came back with items. */
+function reportFeeds(label, result) {
+  console.log(`${label}: HTTP ${result.status}${result.json?.error ? ` ${result.json.error}` : ""}`);
+  let withItems = 0;
+  for (const feed of result.json?.feeds ?? []) {
+    const items = Array.isArray(feed?.items) ? feed.items.length : 0;
+    console.log(`  ${feed?.url ?? "?"}: status ${feed?.status ?? "-"}, `
+      + `errorCode ${feed?.errorCode ?? "-"}, items ${items}`);
+    if (items > 0) {
+      withItems += 1;
+    }
+  }
+  return withItems;
+}
+
 /** True when the response came from rss-proxy itself, not the gateway or Cloudflare. */
 function fromFunction(result) {
   return result.json !== null && typeof result.json === "object"
@@ -92,33 +116,26 @@ try {
   const key = anonKey(projectRef);
 
   // 1. A real read.
-  const read = await call(url, key, JSON.stringify({ mode: "read", feeds: [SAMPLE_FEED] }), {
+  let read = await call(url, key, READ_BODY, {
     "CF-Connecting-IP": "198.51.100.1",
     "X-Forwarded-For": "203.0.113.1"
   });
-  const feed = read.json?.feeds?.[0];
-  console.log(`Read ${SAMPLE_FEED}: HTTP ${read.status}, status ${feed?.status ?? "-"}, `
-    + `errorCode ${feed?.errorCode ?? "-"}, items ${feed?.items?.length ?? 0}`);
-  let forgeCf = fromFunction(read);
-  if (!fromFunction(read)) {
+  const forgeCf = fromFunction(read);
+  if (!forgeCf) {
     // Cloudflare may refuse a forged CF-Connecting-IP outright, which also means it cannot be
     // forged. Retry the read without it so the rest of the check still runs.
-    console.log("The request with a forged CF-Connecting-IP did not reach the function; "
-      + "continuing without forging that header.");
-    const retry = await call(url, key, JSON.stringify({ mode: "read", feeds: [SAMPLE_FEED] }), {
-      "X-Forwarded-For": "203.0.113.1"
-    });
-    if (!fromFunction(retry)) {
-      throw new Error(`the function did not answer a read (HTTP ${retry.status}).`);
+    console.log(`The request with a forged CF-Connecting-IP did not reach the function `
+      + `(HTTP ${read.status}); continuing without forging that header.`);
+    read = await call(url, key, READ_BODY, { "X-Forwarded-For": "203.0.113.1" });
+    if (!fromFunction(read)) {
+      throw new Error(`the function did not answer a read (HTTP ${read.status}).`);
     }
-    const retried = retry.json?.feeds?.[0];
-    console.log(`Read retry: HTTP ${retry.status}, status ${retried?.status ?? "-"}, `
-      + `items ${retried?.items?.length ?? 0}`);
-    if (retry.status !== 200) {
-      problems.push(`the read returned HTTP ${retry.status} (${retry.json?.error ?? "?"})`);
-    }
-  } else if (read.status !== 200) {
+  }
+  const withItems = reportFeeds("Read", read);
+  if (read.status !== 200) {
     problems.push(`the read returned HTTP ${read.status} (${read.json?.error ?? "?"})`);
+  } else if (withItems === 0) {
+    problems.push("no sample feed returned items, so outbound fetching is not working");
   }
 
   // 2. Requests 2..61 with a different forged address each.
@@ -168,7 +185,8 @@ if (problems.length > 0) {
   for (const problem of problems) {
     console.error(`  - ${problem}`);
   }
-  console.error("If the rate limit failed, run the deploy workflow in delete mode now.");
+  console.error("If the rate limit failed, run the deploy workflow in delete mode now. "
+    + "A failed read alone does not need a rollback: nothing calls the function yet.");
   process.exit(1);
 }
-console.log("\nrss-proxy smoke check passed: reads work and forged headers do not escape the rate limit.");
+console.log("\nrss-proxy smoke check passed: feeds are fetched and forged headers do not escape the rate limit.");
