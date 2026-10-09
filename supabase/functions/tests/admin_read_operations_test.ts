@@ -1,7 +1,8 @@
-import { assert, assertEquals, assertNotEquals } from "jsr:@std/assert@1.0.14";
+import { assert, assertEquals, assertNotEquals, assertRejects } from "jsr:@std/assert@1.0.14";
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.117.3";
 import type { AdminAuditEntry } from "../_shared/admin-audit.ts";
 import { AdminBackendError, type AuthenticatedAdmin } from "../_shared/admin-auth.ts";
+import { AdminRequestError } from "../_shared/admin-contract.ts";
 import { encodeCursor } from "../_shared/admin-cursor.ts";
 import {
   type AdminReadStore,
@@ -557,6 +558,24 @@ function recordingClient(): { client: SupabaseClient; log: unknown[][] } {
   };
   return { client: client as unknown as SupabaseClient, log };
 }
+
+Deno.test("Auth rate limits during email checks stay rate_limited", async () => {
+  const fakeClient = (status: number) =>
+    ({
+      auth: {
+        admin: {
+          getUserById: () => Promise.resolve({ data: { user: null }, error: { status } }),
+        },
+      },
+    }) as unknown as SupabaseClient;
+
+  await assertRejects(
+    () => createSupabaseAdminReadStore(fakeClient(429)).getAuthEmail(USER_ID),
+    AdminRequestError,
+    "rate_limited",
+  );
+  assertEquals(await createSupabaseAdminReadStore(fakeClient(404)).getAuthEmail(USER_ID), null);
+});
 
 Deno.test("supabase store selects fixed columns and pages by created_at then id", async () => {
   const { client, log } = recordingClient();

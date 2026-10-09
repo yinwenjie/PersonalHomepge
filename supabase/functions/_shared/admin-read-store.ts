@@ -3,7 +3,7 @@
 // choose them. document_json is never selected.
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.117.3";
 import { AdminBackendError } from "./admin-auth.ts";
-import type { AdminAuditAction } from "./admin-contract.ts";
+import { type AdminAuditAction, AdminRequestError } from "./admin-contract.ts";
 import type { PagePosition } from "./admin-cursor.ts";
 
 export interface PageQuery {
@@ -161,6 +161,9 @@ export function createSupabaseAdminReadStore(client: SupabaseClient): AdminReadS
       if (error) {
         if (error.status === 404) {
           return null;
+        }
+        if (error.status === 429) {
+          throw new AdminRequestError("rate_limited");
         }
         throw new AdminBackendError("query");
       }
