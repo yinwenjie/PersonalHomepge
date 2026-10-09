@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { requestConfirm } from "@/components/confirm-dialog";
 import type { HomeSpace } from "@/domain/account";
 import { HomeDocumentV2, HomeSyncMeta } from "@/domain/home-document";
 import {
@@ -37,7 +38,7 @@ interface SyncPanelProps {
   onBindingChange?: (binding: StoredSyncBinding | null) => void;
   hasResetBackup?: boolean;
   currentAccountHomeSpace?: HomeSpace | null;
-  onRestoreResetBackup?: () => void;
+  onRestoreResetBackup?: () => Promise<boolean>;
 }
 
 
@@ -181,7 +182,7 @@ export function SyncPanel({
       const parsed = parseSyncCode(inputCode);
       const pulled = await getSyncRepository().pull(parsed);
 
-      if (!window.confirm(getBindConfirmMessage(isAdvanced, t))) {
+      if (!(await requestConfirm(getBindConfirmMessage(isAdvanced, t)))) {
         return;
       }
 
@@ -235,8 +236,8 @@ export function SyncPanel({
     }
   }
 
-  function unbindLocal() {
-    if (!window.confirm(getUnbindConfirmMessage(currentAccountHomeSpace, t))) {
+  async function unbindLocal() {
+    if (!(await requestConfirm(getUnbindConfirmMessage(currentAccountHomeSpace, t)))) {
       return;
     }
 
@@ -260,12 +261,11 @@ export function SyncPanel({
     });
   }
 
-  function restoreResetBackupFromPause() {
-    if (!onRestoreResetBackup) {
+  async function restoreResetBackupFromPause() {
+    if (!onRestoreResetBackup || !(await onRestoreResetBackup())) {
       return;
     }
 
-    onRestoreResetBackup();
     setMessage(t("settings.sync.resetBackupRestored"));
     setError("");
   }
@@ -282,7 +282,7 @@ export function SyncPanel({
       return;
     }
 
-    if (!window.confirm(getRevokeConfirmMessage(currentAccountHomeSpace, t))) {
+    if (!(await requestConfirm({ message: getRevokeConfirmMessage(currentAccountHomeSpace, t), tone: "danger" }))) {
       return;
     }
 

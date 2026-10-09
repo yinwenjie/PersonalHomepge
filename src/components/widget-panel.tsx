@@ -20,6 +20,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { requestConfirm } from "@/components/confirm-dialog";
 import {
   type HomeDocumentV2,
   type HomeWidget,
@@ -185,13 +186,17 @@ export function WidgetPanel({ documentValue, updatedLabel, onCommitDocument }: W
     ), t("widgetPanel.layoutUpdated"));
   }
 
-  function deleteWidget(widgetId: string) {
+  async function deleteWidget(widgetId: string) {
     const widget = widgets.find((item) => item.id === widgetId);
     if (!widget) {
       return;
     }
 
-    if (!window.confirm(t("widgetPanel.deleteConfirm", { widget: formatHomeWidgetDisplayTitle(widget, t) }))) {
+    if (!(await requestConfirm({
+      message: t("widgetPanel.deleteConfirm", { widget: formatHomeWidgetDisplayTitle(widget, t) }),
+      confirmLabel: t("common.delete"),
+      tone: "danger"
+    }))) {
       return;
     }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { hasPendingDialog, requestConfirm, showAlert, waitForDialogsClosed } from "@/components/confirm-dialog";
 import type { HomeDocumentV2, HomeSyncMeta } from "@/domain/home-document";
 import { getErrorMessage } from "@/domain/errors";
 import {
@@ -26,7 +27,7 @@ export interface SyncEngineOptions {
   storageReady: boolean;
   /**
    * Whether a sync panel shows this engine's status. When false, failures that
-   * block an overwrite fall back to window.alert so they are not lost.
+   * block an overwrite fall back to an alert dialog so they are not lost.
    */
   visible: boolean;
   onBeforeCloudOverwrite: (documentValue: HomeDocumentV2, source: LocalHomeSnapshotSource) => boolean;
@@ -111,7 +112,7 @@ export function useSyncEngine({
     setError(failureMessage);
     setMessage("");
     if (!visible) {
-      window.alert(failureMessage);
+      void showAlert(failureMessage);
     }
     return false;
   }, [onBeforeOverwrite, visible]);
@@ -266,6 +267,13 @@ export function useSyncEngine({
 
       setSyncMetaFromBinding(activeBinding, "syncing", t("settings.sync.pulling"));
       const pulled = await getSyncRepository().pull(activeBinding);
+      if ((options.source === "auto" || options.source === "startup") && hasPendingDialog()) {
+        // A confirm opened while the request was in flight: never replace the document behind it.
+        // The binding is left unchanged, so the next auto check pulls this revision again.
+        setSyncMetaFromBinding(activeBinding, localDocument.syncMeta.status, "");
+        return;
+      }
+
       const hasRemoteChanges = hasRemoteSnapshotChanged(pulled.revision, pulled.updatedAt, activeBinding);
       const hasPendingLocalChanges = hasLocalDocumentChanges(localDocument, activeBinding);
 
@@ -350,7 +358,7 @@ export function useSyncEngine({
       const snapshotSource = options.source === "resolve" && localDocument.syncMeta.status === "conflict"
         ? "before-conflict-cloud-resolve"
         : "before-cloud-pull";
-      if (shouldConfirmCloudPull(options.source) && !window.confirm(getCloudPullConfirmMessage(options.source, t))) {
+      if (shouldConfirmCloudPull(options.source) && !(await requestConfirm(getCloudPullConfirmMessage(options.source, t)))) {
         setSyncMetaFromBinding(activeBinding, getCancelSyncStatus(localDocument), t("settings.sync.pullCancelled"));
         setMessage(t("settings.sync.pullCancelledLocalUnchanged"));
         return;
@@ -403,6 +411,7 @@ export function useSyncEngine({
       || documentRef.current.syncMeta.status === "conflict"
       || isSyncPausedForBinding(documentRef.current, activeBinding)
       || editorOpenRef.current
+      || hasPendingDialog()
     ) {
       return;
     }
@@ -433,7 +442,7 @@ export function useSyncEngine({
       spaceId: activeBinding.spaceId
     });
 
-    if (shouldPull && bindingRef.current) {
+    if (shouldPull && bindingRef.current && !hasPendingDialog()) {
       await performPull({ forceApply: false, source: "auto" });
     }
   }, [getSyncRepository, performPull, persistBinding, runSyncAction, setSyncMetaFromBinding, t]);
@@ -457,7 +466,7 @@ export function useSyncEngine({
     }
 
     const localClassification = classifyHomeDocument(localDocument);
-    if (options.source !== "auto" && !window.confirm(getCloudOverwriteConfirmMessage(localClassification, options.force, t))) {
+    if (options.source !== "auto" && !(await requestConfirm(getCloudOverwriteConfirmMessage(localClassification, options.force, t)))) {
       setMessage(t("settings.sync.uploadCancelledCloudUnchanged"));
       setError("");
       recordLocalAuditEvent({
@@ -691,11 +700,31 @@ export function useSyncEngine({
       clearTimeout(autoPushTimerRef.current);
     }
 
-    autoPushTimerRef.current = setTimeout(() => {
-      performPush({ force: false, source: "auto" });
-    }, AUTO_PUSH_DEBOUNCE_MS);
+    let cancelled = false;
+    const schedulePush = () => {
+      autoPushTimerRef.current = setTimeout(() => {
+        if (cancelled) {
+          return;
+        }
+
+        // A confirmed dialog action may still change the document (and cancel this effect),
+        // so restart the full debounce once the dialog closes instead of pushing right away.
+        if (hasPendingDialog()) {
+          void waitForDialogsClosed().then(() => {
+            if (!cancelled) {
+              schedulePush();
+            }
+          });
+          return;
+        }
+
+        performPush({ force: false, source: "auto" });
+      }, AUTO_PUSH_DEBOUNCE_MS);
+    };
+    schedulePush();
 
     return () => {
+      cancelled = true;
       if (autoPushTimerRef.current) {
         clearTimeout(autoPushTimerRef.current);
       }

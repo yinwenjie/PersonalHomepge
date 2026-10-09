@@ -72,7 +72,7 @@ Phase 1.5.3 已新增全局 Supabase Auth Provider，`useSupabaseAuth` 改为读
 
 ---
 
-### 5. `window.confirm` / `window.alert` 散落各处
+### 5. `window.confirm` / `window.alert` 散落各处（2026-10-09 已处理）
 
 **问题：**
 以下位置直接调用 `window.confirm` 或 `window.alert`：
@@ -92,6 +92,9 @@ Phase 1.5.3 已新增全局 Supabase Auth Provider，`useSupabaseAuth` 改为读
 Phase 1.6 之前可以接受，作为 backlog 项记录。后续用统一的内联确认组件（如自定义 `<ConfirmDialog>`）替换，消除直接的浏览器原生对话框依赖。
 
 **影响：** 用户体验（尤其移动端）、可测试性。
+
+**处理记录：**
+2026-10-09 新增 `src/components/confirm-dialog.tsx`（`requestConfirm` / `showAlert` + 全局 `ConfirmDialogHost`，基于原生 `<dialog>`），`src/` 下 41 处 `window.confirm` / `window.alert` 已全部替换。确认框打开期间同步引擎暂停自动拉取、推迟自动上传。
 
 ---
 

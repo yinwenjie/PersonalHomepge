@@ -1,7 +1,8 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { requestConfirm } from "@/components/confirm-dialog";
 import {
   createId,
   generateMark,
@@ -52,6 +53,11 @@ export function useHomeDocumentEditor({ homeDocument, commitHomeDocument }: UseH
   const [formValues, setFormValues] = useState<FormValues>(EMPTY_FORM_VALUES);
   const [formError, setFormError] = useState("");
   const { t, format } = useI18n();
+  const homeDocumentRef = useRef(homeDocument);
+
+  useEffect(() => {
+    homeDocumentRef.current = homeDocument;
+  }, [homeDocument]);
 
   function openGroupEditor(groupId?: string) {
     const group = groupId ? findGroup(homeDocument, groupId) : undefined;
@@ -95,32 +101,43 @@ export function useHomeDocumentEditor({ homeDocument, commitHomeDocument }: UseH
     setFormValues((current) => ({ ...current, [field]: value }));
   }
 
-  function deleteGroup(groupId: string) {
+  async function deleteGroup(groupId: string) {
     const group = findGroup(homeDocument, groupId);
-    if (!group || !window.confirm(t("editor.deleteGroupConfirm", {
-      group: group.title,
-      count: format.number(group.sites.length)
+    if (!group || !(await requestConfirm({
+      message: t("editor.deleteGroupConfirm", {
+        group: group.title,
+        count: format.number(group.sites.length)
+      }),
+      confirmLabel: t("common.delete"),
+      tone: "danger"
     }))) {
       return;
     }
 
+    // The dialog is asynchronous, so apply the deletion to the latest document.
+    const latestDocument = homeDocumentRef.current;
     commitHomeDocument({
-      ...homeDocument,
-      groups: renumberGroups(homeDocument.groups.filter((item) => item.id !== groupId))
+      ...latestDocument,
+      groups: renumberGroups(latestDocument.groups.filter((item) => item.id !== groupId))
     }, t("editor.groupDeleted"));
   }
 
-  function deleteSite(groupId: string, siteId: string) {
+  async function deleteSite(groupId: string, siteId: string): Promise<boolean> {
     const group = findGroup(homeDocument, groupId);
     const site = findSite(group, siteId);
-    if (!group || !site || !window.confirm(t("editor.deleteSiteConfirm", { site: site.name }))) {
+    if (!group || !site || !(await requestConfirm({
+      message: t("editor.deleteSiteConfirm", { site: site.name }),
+      confirmLabel: t("common.delete"),
+      tone: "danger"
+    }))) {
       return false;
     }
 
-    const groups = homeDocument.groups.map((item) => item.id === groupId
+    const latestDocument = homeDocumentRef.current;
+    const groups = latestDocument.groups.map((item) => item.id === groupId
       ? { ...item, sites: renumberSites(item.sites.filter((candidate) => candidate.id !== siteId)) }
       : item);
-    commitHomeDocument({ ...homeDocument, groups: renumberGroups(groups) }, t("editor.siteDeleted"));
+    commitHomeDocument({ ...latestDocument, groups: renumberGroups(groups) }, t("editor.siteDeleted"));
     return true;
   }
 

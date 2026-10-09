@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { requestConfirm } from "@/components/confirm-dialog";
 import { StatusMessage, type StatusTone } from "@/components/status-message";
 import type { HomeSpace } from "@/domain/account";
 import {
@@ -175,12 +176,12 @@ export function DataRecoveryCenterPanel({
     setMessage(t("settings.recovery.localRefreshed"));
   }
 
-  function restoreSnapshot(snapshot: LocalHomeSnapshot) {
+  async function restoreSnapshot(snapshot: LocalHomeSnapshot) {
     const confirmMessage = hasSyncBinding
       ? t("settings.recovery.localConfirmBound")
       : t("settings.recovery.localConfirm");
 
-    if (!window.confirm(confirmMessage)) {
+    if (!(await requestConfirm(confirmMessage))) {
       return;
     }
 
@@ -201,7 +202,7 @@ export function DataRecoveryCenterPanel({
   }
 
   async function restoreCloudSnapshot(snapshot: CloudHomeSnapshot) {
-    if (!window.confirm(t("settings.recovery.cloudConfirm"))) {
+    if (!(await requestConfirm(t("settings.recovery.cloudConfirm")))) {
       return;
     }
 
