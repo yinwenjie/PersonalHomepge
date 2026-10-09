@@ -23,11 +23,15 @@ export type FeedUpdate = Omit<CachedFeed, "urlHash" | "feedUrl">;
 
 export interface FeedStore {
   getFeeds(urlHashes: string[]): Promise<Map<string, CachedFeed>>;
-  /** rss_claim_refresh: true only for the one caller allowed to fetch a due feed now. */
-  claimRefresh(urlHash: string, feedUrl: string): Promise<boolean>;
-  /** Writes a fetch result and clears the lease. */
-  finishRefresh(urlHash: string, update: FeedUpdate): Promise<void>;
-  releaseLease(urlHash: string): Promise<void>;
+  /**
+   * rss_claim_refresh: a lease token only for the one caller allowed to fetch a due feed
+   * now, otherwise null.
+   */
+  claimRefresh(urlHash: string, feedUrl: string): Promise<string | null>;
+  /** Writes a fetch result and clears the lease, only while `token` still holds it. */
+  finishRefresh(urlHash: string, token: string, update: FeedUpdate): Promise<void>;
+  /** Clears the lease, only while `token` still holds it. */
+  releaseLease(urlHash: string, token: string): Promise<void>;
   /**
    * check mode: caches a feed found by checking a pasted URL when it has no row yet, or
    * replaces a failed row nobody is refreshing. Healthy or leased rows are left alone.
@@ -92,20 +96,25 @@ export function createSupabaseFeedStore(client: SupabaseClient): FeedStore {
       if (error) {
         throw new FeedStoreError("claim");
       }
-      return data === true;
+      return typeof data === "string" ? data : null;
     },
 
-    async finishRefresh(urlHash, update) {
+    async finishRefresh(urlHash, token, update) {
+      // A holder whose lease expired and was taken over matches no row and writes nothing.
       const { error } = await table()
-        .update({ ...toRow(update), refresh_lease_until: null })
-        .eq("url_hash", urlHash);
+        .update({ ...toRow(update), refresh_lease_until: null, refresh_lease_token: null })
+        .eq("url_hash", urlHash)
+        .eq("refresh_lease_token", token);
       if (error) {
         throw new FeedStoreError("finish");
       }
     },
 
-    async releaseLease(urlHash) {
-      const { error } = await table().update({ refresh_lease_until: null }).eq("url_hash", urlHash);
+    async releaseLease(urlHash, token) {
+      const { error } = await table()
+        .update({ refresh_lease_until: null, refresh_lease_token: null })
+        .eq("url_hash", urlHash)
+        .eq("refresh_lease_token", token);
       if (error) {
         throw new FeedStoreError("release");
       }
@@ -122,8 +131,9 @@ export function createSupabaseFeedStore(client: SupabaseClient): FeedStore {
       if (inserted.error) {
         throw new FeedStoreError("save");
       }
+      // Clearing the token also stops a holder whose lease expired from overwriting this.
       const replaced = await table()
-        .update(row)
+        .update({ ...row, refresh_lease_until: null, refresh_lease_token: null })
         .eq("url_hash", urlHash)
         .eq("status", "error")
         .or(`refresh_lease_until.is.null,refresh_lease_until.lt."${new Date().toISOString()}"`);

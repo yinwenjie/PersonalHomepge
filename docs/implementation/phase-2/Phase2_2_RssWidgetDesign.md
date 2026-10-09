@@ -169,9 +169,10 @@ interface RssFeedWidgetConfig {
 | `status`、`error_code`、`failure_count` | 最近一次抓取结果 |
 | `fetched_at`、`next_fetch_at`、`last_requested_at` | 缓存控制和清理 |
 | `refresh_lease_until` | 刷新租约，保证同一时间只有一个请求在抓 |
+| `refresh_lease_token` | 当前租约持有者的令牌；只有持有者能写回结果或释放租约 |
 
 - 新鲜期 30 分钟。过期后第一个请求触发重新抓取，失败时返回旧数据（`stale`），旧数据最多保留 7 天。
-- 同一个 feed 同时只允许一个请求去抓：抓取前先调用 `rss_claim_refresh(url_hash)`，它在一条 `update … where refresh_lease_until is null or refresh_lease_until < now()` 里原子地拿到 60 秒的租约（新 feed 先 `insert … on conflict do nothing` 建占位行）。拿到租约的请求去抓，抓完写结果并清掉租约；没拿到的直接返回现有缓存。新 feed 还没有缓存时，没拿到租约的请求每 500 毫秒重读一次，最多等 8 秒，仍然没有就返回 `pending`，前端 5 秒后重试一次。表里因此多一个 `refresh_lease_until` 字段。
+- 同一个 feed 同时只允许一个请求去抓：抓取前先调用 `rss_claim_refresh(url_hash)`，它在一条 `update … where refresh_lease_until is null or refresh_lease_until < now()` 里原子地拿到 60 秒的租约（新 feed 先 `insert … on conflict do nothing` 建占位行）。拿到租约的请求得到一个令牌，抓完按令牌写结果并清掉租约；如果它超过 60 秒才回来、租约已被别人接手，令牌对不上，它的结果直接作废，不会覆盖新结果。没拿到的直接返回现有缓存。新 feed 还没有缓存时，没拿到租约的请求每 500 毫秒重读一次，最多等 8 秒，仍然没有就返回 `pending`，前端 5 秒后重试一次。表里因此多 `refresh_lease_until` 和 `refresh_lease_token` 两个字段。
 - 连续失败会拉长下次抓取的间隔（30 分钟、1 小时、2 小时，最长 6 小时），避免反复打一个挂掉的站。
 - 缓存按 feed 共享、不关联任何用户：同一个 feed 不管多少人订阅，30 分钟内只抓一次。
 - 30 天没人请求的行会被删除：函数每次调用有 1% 概率顺带清理一批，另外提供 `delete_stale_rss_feed_cache()` 供手动执行，和埋点清理函数的做法一致。

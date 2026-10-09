@@ -33,7 +33,11 @@ class Clock {
 
 /** In-memory FeedStore with the same lease rules as rss_claim_refresh. */
 class MemoryStore implements FeedStore {
-  rows = new Map<string, CachedFeed & { leaseUntil: number | null; lastRequestedAt: number }>();
+  rows = new Map<
+    string,
+    CachedFeed & { leaseUntil: number | null; leaseToken: string | null; lastRequestedAt: number }
+  >();
+  private nextToken = 0;
   rates = new Map<string, number>();
   rateLimits: Record<string, number> = {};
   failRate = false;
@@ -71,6 +75,7 @@ class MemoryStore implements FeedStore {
         fetchedAt: null,
         nextFetchAt: this.clock.now,
         leaseUntil: null,
+        leaseToken: null,
         lastRequestedAt: this.clock.now,
       });
     }
@@ -80,21 +85,27 @@ class MemoryStore implements FeedStore {
       (row.leaseUntil === null || row.leaseUntil < this.clock.now)
     ) {
       row.leaseUntil = this.clock.now + 60_000;
-      return Promise.resolve(true);
+      row.leaseToken = `lease-${++this.nextToken}`;
+      return Promise.resolve<string | null>(row.leaseToken);
     }
-    return Promise.resolve(false);
+    return Promise.resolve<string | null>(null);
   }
 
-  finishRefresh(hash: string, update: FeedUpdate) {
+  finishRefresh(hash: string, token: string, update: FeedUpdate) {
     this.calls.push("finish");
     const row = this.rows.get(hash)!;
-    Object.assign(row, update, { leaseUntil: null });
+    if (row.leaseToken === token) {
+      Object.assign(row, update, { leaseUntil: null, leaseToken: null });
+    }
     return Promise.resolve();
   }
 
-  releaseLease(hash: string) {
+  releaseLease(hash: string, token: string) {
     this.calls.push("release");
-    this.rows.get(hash)!.leaseUntil = null;
+    const row = this.rows.get(hash)!;
+    if (row.leaseToken === token) {
+      Object.assign(row, { leaseUntil: null, leaseToken: null });
+    }
     return Promise.resolve();
   }
 
@@ -105,13 +116,18 @@ class MemoryStore implements FeedStore {
       existing && existing.status === "error" &&
       (existing.leaseUntil === null || existing.leaseUntil < this.clock.now)
     ) {
-      Object.assign(existing, update, { lastRequestedAt: this.clock.now });
+      Object.assign(existing, update, {
+        leaseUntil: null,
+        leaseToken: null,
+        lastRequestedAt: this.clock.now,
+      });
     } else if (!existing) {
       this.rows.set(hash, {
         urlHash: hash,
         feedUrl,
         ...update,
         leaseUntil: null,
+        leaseToken: null,
         lastRequestedAt: this.clock.now,
       });
     }
@@ -615,6 +631,34 @@ Deno.test("check: saving a checked feed keeps a read refresh's lease", async () 
   await reader;
   assertEquals(h.store.rows.get(hash)!.items[0].title, "v2");
   assertEquals(h.store.rows.get(hash)!.leaseUntil, null);
+});
+
+Deno.test("a refresh that outlives its lease cannot overwrite the next holder's result", async () => {
+  const h = harness();
+  h.setRoute(FEED, feedResponse("v1"));
+  await call(h, { mode: "read", feeds: [FEED] });
+  h.clock.advance(31 * MINUTE);
+
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => (release = resolve));
+  h.setRoute(FEED, async () => {
+    await gate;
+    return feedResponse("late")();
+  });
+  const slow = call(h, { mode: "read", feeds: [FEED] });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  // The slow reader's lease expires and a second reader takes over and finishes first.
+  h.clock.advance(61_000);
+  h.setRoute(FEED, feedResponse("v2"));
+  const next = await call(h, { mode: "read", feeds: [FEED] });
+  assertEquals(next.body.feeds[0].items[0].title, "v2");
+
+  release();
+  await slow;
+  const row = h.store.rows.get(await sha256Hex(FEED))!;
+  assertEquals(row.items[0].title, "v2");
+  assertEquals(row.leaseToken, null);
 });
 
 Deno.test("a store outage during a fetch is a 503 and leaves the feed's health alone", async () => {

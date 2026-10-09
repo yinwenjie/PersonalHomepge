@@ -19,6 +19,8 @@ create table public.rss_feed_cache (
   fetched_at timestamptz,
   next_fetch_at timestamptz not null default now(),
   refresh_lease_until timestamptz,
+  -- Identifies the current lease holder; only it may finish or release the refresh.
+  refresh_lease_token uuid,
   last_requested_at timestamptz not null default now(),
   created_at timestamptz not null default now(),
   constraint rss_feed_cache_url_hash_valid check (url_hash ~ '^[0-9a-f]{64}$'),
@@ -108,17 +110,19 @@ $$;
 
 -- Lets exactly one caller refresh a due feed: creates a pending row for a new feed, then
 -- takes a short lease only when the row is due and nobody else holds an unexpired lease.
+-- Returns the lease token, or null when the caller did not get the lease. Taking over an
+-- expired lease issues a new token, so a late former holder can no longer write.
 create or replace function public.rss_claim_refresh(
   p_url_hash text,
   p_feed_url text,
   p_lease_seconds integer default 60
 )
-returns boolean
+returns uuid
 language plpgsql
 set search_path = public
 as $$
 declare
-  v_claimed boolean;
+  v_token uuid;
 begin
   if p_lease_seconds is null or p_lease_seconds not between 1 and 300 then
     raise exception 'invalid lease' using errcode = '22023';
@@ -129,13 +133,14 @@ begin
   on conflict (url_hash) do nothing;
 
   update public.rss_feed_cache
-  set refresh_lease_until = now() + make_interval(secs => p_lease_seconds)
+  set refresh_lease_until = now() + make_interval(secs => p_lease_seconds),
+    refresh_lease_token = gen_random_uuid()
   where url_hash = p_url_hash
     and next_fetch_at <= now()
     and (refresh_lease_until is null or refresh_lease_until < now())
-  returning true into v_claimed;
+  returning refresh_lease_token into v_token;
 
-  return coalesce(v_claimed, false);
+  return v_token;
 end;
 $$;
 

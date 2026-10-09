@@ -53,11 +53,11 @@ begin
     raise exception 'rss_consume_rate does not enforce its limit';
   end if;
 
-  if not public.rss_claim_refresh(v_hash, 'https://example.com/feed.xml', 60) then
+  if public.rss_claim_refresh(v_hash, 'https://example.com/feed.xml', 60) is null then
     raise exception 'rss_claim_refresh did not grant the first lease';
   end if;
 
-  if public.rss_claim_refresh(v_hash, 'https://example.com/feed.xml', 60) then
+  if public.rss_claim_refresh(v_hash, 'https://example.com/feed.xml', 60) is not null then
     raise exception 'rss_claim_refresh granted a second concurrent lease';
   end if;
 

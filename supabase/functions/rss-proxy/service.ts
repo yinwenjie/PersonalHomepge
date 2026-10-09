@@ -132,7 +132,8 @@ async function readOne(
     return { result: present(row, now()), cacheHit: true };
   }
 
-  if (!(await deps.store.claimRefresh(hash, url.href))) {
+  const lease = await deps.store.claimRefresh(hash, url.href);
+  if (lease === null) {
     return { result: await waitForOtherRefresh(hash, deps), cacheHit: true };
   }
 
@@ -142,11 +143,11 @@ async function readOne(
   } catch (error) {
     if (!(error instanceof FetchRateLimited)) {
       // Free the lease so the next caller can retry once the store is back.
-      await deps.store.releaseLease(hash).catch(() => {});
+      await deps.store.releaseLease(hash, lease).catch(() => {});
       throw error;
     }
     // Over the global request budget: leave the row as it was so the next caller retries.
-    await deps.store.releaseLease(hash);
+    await deps.store.releaseLease(hash, lease);
     if (row && row.fetchedAt !== null && now() - row.fetchedAt <= STALE_LIMIT_MS) {
       return {
         result: { ...present(row, now()), status: "stale", errorCode: "rate_limited" },
@@ -156,9 +157,9 @@ async function readOne(
     return { result: errorView("rate_limited"), cacheHit: false };
   }
   try {
-    await deps.store.finishRefresh(hash, update);
+    await deps.store.finishRefresh(hash, lease, update);
   } catch (error) {
-    await deps.store.releaseLease(hash).catch(() => {});
+    await deps.store.releaseLease(hash, lease).catch(() => {});
     throw error;
   }
   return {

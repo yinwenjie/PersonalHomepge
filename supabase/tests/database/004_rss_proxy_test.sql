@@ -1,6 +1,6 @@
 begin;
 
-select plan(17);
+select plan(18);
 
 select ok(
   (select relrowsecurity from pg_class where oid = 'public.rss_feed_cache'::regclass)
@@ -51,8 +51,8 @@ select throws_ok(
 
 -- Refresh lease: one winner, then nobody until it expires or the feed is due again.
 select ok(
-  public.rss_claim_refresh(repeat('b', 64), 'https://example.com/feed.xml', 60),
-  'the first caller should get the lease on a new feed'
+  public.rss_claim_refresh(repeat('b', 64), 'https://example.com/feed.xml', 60) is not null,
+  'the first caller should get a lease token on a new feed'
 );
 
 select is(
@@ -62,17 +62,26 @@ select is(
 );
 
 select ok(
-  not public.rss_claim_refresh(repeat('b', 64), 'https://example.com/feed.xml', 60),
+  public.rss_claim_refresh(repeat('b', 64), 'https://example.com/feed.xml', 60) is null,
   'a second caller should not get a lease that is still held'
 );
+
+create temporary table expired_lease as
+select refresh_lease_token as token from public.rss_feed_cache where url_hash = repeat('b', 64);
 
 update public.rss_feed_cache
 set refresh_lease_until = now() - interval '1 second'
 where url_hash = repeat('b', 64);
 
 select ok(
-  public.rss_claim_refresh(repeat('b', 64), 'https://example.com/feed.xml', 60),
+  public.rss_claim_refresh(repeat('b', 64), 'https://example.com/feed.xml', 60) is not null,
   'an expired lease can be taken again'
+);
+
+select ok(
+  (select refresh_lease_token from public.rss_feed_cache where url_hash = repeat('b', 64))
+    is distinct from (select token from expired_lease),
+  'taking over an expired lease should issue a new token'
 );
 
 update public.rss_feed_cache
@@ -80,7 +89,7 @@ set refresh_lease_until = null, status = 'ok', next_fetch_at = now() + interval 
 where url_hash = repeat('b', 64);
 
 select ok(
-  not public.rss_claim_refresh(repeat('b', 64), 'https://example.com/feed.xml', 60),
+  public.rss_claim_refresh(repeat('b', 64), 'https://example.com/feed.xml', 60) is null,
   'a fresh feed that is not due should not be leased'
 );
 
