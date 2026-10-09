@@ -328,7 +328,7 @@ order by 1 desc;
 
 ### 4. 新安装第一周是否把首页变成自己的
 
-默认首页自带 20 多个示例网站，所以“链接数 ≥10”没有区分度。这里改看第一周内有没有把首页变成自己的：添加网站、分组或组件，换主题、Banner 或背景，套用模板，导入书签，恢复数据包，绑定同步码，创建账号托管空间，或者首页已经是本机保存的文档（`hasStoredDocument = true`）。只统计满 7 天、且在 60 天内的新安装。
+默认首页自带 20 多个示例网站，所以“链接数 ≥10”没有区分度。这里改看第一周内有没有把首页变成自己的：添加网站、分组或组件，换主题、Banner 或背景，套用模板，导入书签，导入 JSON、恢复数据包或备份、从恢复中心恢复，绑定同步码，创建或恢复账号托管空间，或者首页已经是本机保存的文档（`hasStoredDocument = true`）。只统计满 7 天、且在 60 天内的新安装。
 
 ```sql
 with data_start as (
@@ -354,7 +354,7 @@ first_week as (
 select
   count(distinct f.anonymous_id) as new_installs,
   round(100.0 * count(distinct w.anonymous_id) filter (
-    where w.event_name in ('site.added', 'group.added', 'widget.added', 'theme.changed', 'theme_image.changed', 'template.applied', 'bookmark_import.completed', 'data_package.restored', 'sync.code_bound', 'home_space.account_managed_created')
+    where w.event_name in ('site.added', 'group.added', 'widget.added', 'theme.changed', 'theme_image.changed', 'template.applied', 'bookmark_import.completed', 'data_package.restored', 'document.json_imported', 'document.reset_backup_restored', 'recovery.local_restored', 'recovery.cloud_restored', 'sync.code_bound', 'home_space.account_managed_created', 'home_space.account_managed_restored')
        or (w.event_name = 'home.viewed' and w.properties ->> 'hasStoredDocument' = 'true')
   ) / nullif(count(distinct f.anonymous_id), 0), 1) as customized_in_7d_pct,
   round(100.0 * count(distinct w.anonymous_id) filter (
