@@ -299,6 +299,10 @@ Dashboard 状态：
 - 整理 repository secrets、Actions variables、Supabase anon key、Cloudflare token 的权限边界。
 - 增加发布前检查：不发布 sourcemap、不提交 `.env`、不暴露 service role、管理员密钥或第三方 API key。
 
+已完成（2026-10-08）：
+
+- `npm run verify:export` 新增发布安全检查：`out/` 中不得出现 `.map` 文件、`sourceMappingURL` 引用或 `.env*` 文件；不得出现 `service_role` 字样、`sb_secret_` 密钥或 role 不是 `anon` 的 JWT。GitHub Pages 部署工作流已在构建后执行该检查。
+
 ### Phase 1.14.7：正式切流、回归和回滚演练
 
 状态：已完成。
