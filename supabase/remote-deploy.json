@@ -52,6 +52,11 @@
       "file": "supabase/checks/025_admin_read_bounded_projections_verify.sql",
       "purpose": "Verify the admin-read profile, snapshot and user audit readers are service-role only and return bounded rows however large the stored columns are.",
       "requiresRollback": true
+    },
+    {
+      "file": "supabase/checks/026_admin_snapshot_preview_verify.sql",
+      "purpose": "Verify the admin-read snapshot document reader is service-role only, refuses wrong users, wrong spaces and sync-code spaces, and withholds oversized documents.",
+      "requiresRollback": true
     }
   ],
   "edgeFunctions": [
@@ -61,7 +66,8 @@
       "preflightChecks": [
         "supabase/checks/021_admin_readonly_foundation_verify.sql",
         "supabase/checks/022_admin_auth_email_lookup_verify.sql",
-        "supabase/checks/025_admin_read_bounded_projections_verify.sql"
+        "supabase/checks/025_admin_read_bounded_projections_verify.sql",
+        "supabase/checks/026_admin_snapshot_preview_verify.sql"
       ],
       "requiredSecrets": []
     },

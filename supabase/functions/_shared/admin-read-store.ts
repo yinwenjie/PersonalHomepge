@@ -1,6 +1,7 @@
 // Fixed, column-whitelisted reads for admin-read. Server-only.
 // Table names, columns and ordering are constants here; nothing in a request can
-// choose them. document_json is never selected. Profiles, snapshots and user-side
+// choose them. document_json is read only by readSnapshotDocument, for preview-snapshot,
+// which projects it before anything is returned. Profiles, snapshots and user-side
 // audit events are read through the migration 023 functions, which bound every
 // user-writable column in the database before it reaches this function.
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.117.3";
@@ -42,6 +43,16 @@ export interface SnapshotRow {
   /** Already reduced to the six summary fields by admin_project_snapshot_summary. */
   summary: unknown;
   created_at: string;
+}
+
+export interface SnapshotDocumentRow {
+  id: string;
+  revision: number;
+  snapshot_source: string;
+  created_at: string;
+  document_bytes: number;
+  /** Null when the stored document is larger than the requested maximum (migration 024). */
+  document_json: unknown;
 }
 
 export interface HomeAuditRow {
@@ -96,6 +107,16 @@ export interface AdminReadStore {
   findHomeSpace(homeSpaceId: string): Promise<HomeSpaceRow | null>;
   listHomeSpaces(userId: string, page: PageQuery): Promise<HomeSpaceRow[]>;
   listSnapshots(userId: string, homeSpaceId: string, page: PageQuery): Promise<SnapshotRow[]>;
+  /**
+   * One account-managed snapshot of the given user and space, or null. The document is
+   * only loaded when it is at most maxBytes; the caller projects it and never returns it.
+   */
+  readSnapshotDocument(
+    userId: string,
+    homeSpaceId: string,
+    snapshotId: string,
+    maxBytes: number,
+  ): Promise<SnapshotDocumentRow | null>;
   listHomeAuditEvents(
     userId: string,
     homeSpaceId: string | null,
@@ -205,6 +226,18 @@ export function createSupabaseAdminReadStore(client: SupabaseClient): AdminReadS
           ...pageArgs(page),
         }),
       );
+    },
+
+    async readSnapshotDocument(userId, homeSpaceId, snapshotId, maxBytes) {
+      const rows = rowsOrThrow<SnapshotDocumentRow>(
+        await client.rpc("admin_read_snapshot_document", {
+          p_user_id: userId,
+          p_home_space_id: homeSpaceId,
+          p_snapshot_id: snapshotId,
+          p_max_bytes: maxBytes,
+        }),
+      );
+      return rows[0] ?? null;
     },
 
     async listHomeAuditEvents(userId, homeSpaceId, page) {
