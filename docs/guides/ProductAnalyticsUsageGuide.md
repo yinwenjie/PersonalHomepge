@@ -354,10 +354,10 @@ order by 1 desc;
 
 - 自己编辑：添加网站、分组或组件，换主题、Banner 或背景，套用模板（含账号托管空间从模板创建）
 - 带入已有内容：导入书签，导入 JSON，恢复数据包或重置前的备份，从恢复中心恢复
-- 同步和账号：绑定同步码，拉取云端首页，启用、认领或迁移同步码空间，创建或恢复账号托管空间
+- 同步和账号：绑定同步码，拉取云端首页，启用同步码空间，创建或恢复账号托管空间
 - 兜底：首页已经是本机保存的文档（`home.viewed` 带 `hasStoredDocument = true`）
 
-以后新增“把别的首页写进本机”的事件时，要一起加进下面的列表。
+认领同步码空间、迁移到账号托管不算：它们只是把现有首页挂到账号下，不改变首页内容，而且认领失败时也会上报。以后新增“把别的首页写进本机”的事件时，要一起加进下面的列表。
 
 ```sql
 with data_start as (
@@ -396,7 +396,7 @@ first_week as (
 select
   count(distinct f.anonymous_id) as new_installs,
   round(100.0 * count(distinct w.anonymous_id) filter (
-    where w.event_name in ('site.added', 'group.added', 'widget.added', 'theme.changed', 'theme_image.changed', 'template.applied', 'home_space.account_managed_template_created', 'bookmark_import.completed', 'data_package.restored', 'document.json_imported', 'document.reset_backup_restored', 'recovery.local_restored', 'recovery.cloud_restored', 'sync.code_bound', 'sync.pull_applied', 'home_space.sync_code_activated', 'home_space.claimed', 'home_space.sync_code_migrated', 'home_space.account_managed_created', 'home_space.account_managed_restored')
+    where w.event_name in ('site.added', 'group.added', 'widget.added', 'theme.changed', 'theme_image.changed', 'template.applied', 'home_space.account_managed_template_created', 'bookmark_import.completed', 'data_package.restored', 'document.json_imported', 'document.reset_backup_restored', 'recovery.local_restored', 'recovery.cloud_restored', 'sync.code_bound', 'sync.pull_applied', 'home_space.sync_code_activated', 'home_space.account_managed_created', 'home_space.account_managed_restored')
        or (w.event_name = 'home.viewed' and w.properties ->> 'hasStoredDocument' = 'true')
   ) / nullif(count(distinct f.anonymous_id), 0), 1) as customized_in_7d_pct,
   round(100.0 * count(distinct w.anonymous_id) filter (
