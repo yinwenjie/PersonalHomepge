@@ -694,14 +694,27 @@ export function useSyncEngine({
     }
 
     let cancelled = false;
-    autoPushTimerRef.current = setTimeout(() => {
-      // An open confirm dialog may still change the document; push once it is answered.
-      void waitForDialogsClosed().then(() => {
-        if (!cancelled) {
-          performPush({ force: false, source: "auto" });
+    const schedulePush = () => {
+      autoPushTimerRef.current = setTimeout(() => {
+        if (cancelled) {
+          return;
         }
-      });
-    }, AUTO_PUSH_DEBOUNCE_MS);
+
+        // A confirmed dialog action may still change the document (and cancel this effect),
+        // so restart the full debounce once the dialog closes instead of pushing right away.
+        if (hasPendingDialog()) {
+          void waitForDialogsClosed().then(() => {
+            if (!cancelled) {
+              schedulePush();
+            }
+          });
+          return;
+        }
+
+        performPush({ force: false, source: "auto" });
+      }, AUTO_PUSH_DEBOUNCE_MS);
+    };
+    schedulePush();
 
     return () => {
       cancelled = true;
