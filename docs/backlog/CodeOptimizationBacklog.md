@@ -42,7 +42,7 @@ Phase 1.5.3 已新增全局 Supabase Auth Provider，`useSupabaseAuth` 改为读
 
 ---
 
-### 3. `normalizeStoredSyncBinding` 的 round-trip 验证冗余
+### 3. `normalizeStoredSyncBinding` 的 round-trip 验证冗余（2026-10-09 已处理）
 
 **问题：**
 `src/domain/sync-code.ts:68-71` — `normalizeStoredSyncBinding` 先把字段 `String(value.spaceId ?? "")` 拼成参数，再调用 `formatSyncCode({...})` 生成字符串，再调用 `parseSyncCode(...)` 解析回来，仅为了复用验证逻辑。每次从 localStorage 恢复 binding 都走了一次完整的 format → parse 转换，存在不必要的中间 string 构造。
@@ -53,11 +53,14 @@ Phase 1.5.3 已新增全局 Supabase Auth Provider，`useSupabaseAuth` 改为读
 
 **影响：** 轻微冗余，可读性。
 
+**处理记录：**
+2026-10-09 `normalizeStoredSyncBinding` 改为直接调用 `assertValidSpaceId` / `assertValidSecret`，不再经过 `formatSyncCode → parseSyncCode`；对有效、大小写、空白、长度错误、缺字段和错误版本等输入，新旧实现输出一致。
+
 ---
 
 ## 优先级：低
 
-### 4. `createId` 降级路径与 `randomBase64Url` 行为不一致
+### 4. `createId` 降级路径与 `randomBase64Url` 行为不一致（2026-10-09 已处理）
 
 **问题：**
 `src/domain/home-document.ts:241` — `createId` 在 `globalThis.crypto?.getRandomValues` 不可用时降级到 `Math.random()`。而 `src/domain/sync-code.ts:91` 的 `randomBase64Url` 在同样情况下直接 throw。
@@ -69,6 +72,9 @@ Phase 1.5.3 已新增全局 Supabase Auth Provider，`useSupabaseAuth` 改为读
 让 `createId` 也 throw，或至少在降级路径加 `console.warn`。当前场景（浏览器 + GitHub Pages HTTPS）几乎不会命中降级路径，但一致性更好。
 
 **影响：** 健壮性。
+
+**处理记录：**
+2026-10-09 `createId` 与 `randomBase64Url` 保持一致：`crypto.getRandomValues` 不可用时直接抛错，不再降级到 `Math.random()`。埋点、错误监控、审计日志、设备和标签页 owner 等非文档 ID 仍保留降级，因为它们失败时不应阻断首页使用。
 
 ---
 
