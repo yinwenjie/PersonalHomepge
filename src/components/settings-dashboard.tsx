@@ -14,6 +14,7 @@ import { DataRecoveryCenterPanel } from "@/components/data-recovery-center-panel
 import { DeviceStatusPanel } from "@/components/device-status-panel";
 import { HomeSpacesPanel } from "@/components/home-spaces-panel";
 import { HomeThemeStyleBridge } from "@/components/home-theme-style-bridge";
+import { HomepageGuideButton } from "@/components/homepage-guide";
 import { LocalAuditLogPanel } from "@/components/local-audit-log-panel";
 import { ProductAnalyticsSettingsPanel } from "@/components/product-analytics-settings-panel";
 import { PublicHomeSharePanel } from "@/components/public-home-share-panel";
@@ -465,7 +466,10 @@ export function SettingsDashboard() {
           <p className="eyebrow">{t("settings.shell.eyebrow")}</p>
           <h1>{t("settings.shell.title")}</h1>
         </div>
-        <Link className="utility-button" href="/">{t("settings.shell.backHome")}</Link>
+        <div className="settings-page-header-actions">
+          <HomepageGuideButton />
+          <Link className="utility-button" href="/">{t("settings.shell.backHome")}</Link>
+        </div>
       </header>
 
       <div className="settings-stack">
