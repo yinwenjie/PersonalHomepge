@@ -34,6 +34,8 @@ concurrency:
 jobs:
   validate:
     name: Validate Edge Functions locally
+    # Emergency deletion must not depend on the code currently on master.
+    if: inputs.mode != 'delete'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -68,6 +70,9 @@ jobs:
   deploy:
     name: Run protected Edge Function operation
     needs: validate
+    if: >-
+      !cancelled() && (needs.validate.result == 'success'
+      || (inputs.mode == 'delete' && needs.validate.result == 'skipped'))
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment:

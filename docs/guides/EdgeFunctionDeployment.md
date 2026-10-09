@@ -36,7 +36,7 @@
 
 ### `delete`（紧急回滚）
 
-要求 `confirm_project_ref` 一致，然后 `supabase functions delete <name>`，并确认函数地址返回 `404`。这条路径故意不依赖数据库检查或 secret，故障时也能执行。删除只影响函数，不改数据库和 secret。
+要求 `confirm_project_ref` 一致，然后 `supabase functions delete <name>`，并确认函数地址返回 `404`。这条路径故意跳过本地 Deno 校验、数据库检查和 secret 检查，master 上的函数代码有问题或数据库故障时也能执行；只保留白名单校验、master 限制和 Environment 审批。删除只影响函数，不改数据库和 secret。
 
 ## Secret 设置
 
