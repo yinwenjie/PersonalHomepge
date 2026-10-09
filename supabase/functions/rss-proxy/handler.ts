@@ -41,12 +41,14 @@ export interface RssProxyDeps extends RssServiceDeps {
 const PRODUCTION_ORIGINS = new Set([
   "https://mylinker.net",
   "https://www.mylinker.net",
+  // The Cloudflare Pages production alias, also used as the documented fallback URL.
+  "https://personalhomepge.pages.dev",
   "http://localhost:3000",
   "http://127.0.0.1:3000",
 ]);
 const PREVIEW_ORIGIN = /^https:\/\/[a-z0-9-]{1,63}\.personalhomepge\.pages\.dev$/;
 
-/** The product site, local dev and Cloudflare Pages previews. Not the legacy GitHub Pages site. */
+/** The product site, its Cloudflare Pages alias and previews, and local dev. Not GitHub Pages. */
 export function isRssOriginAllowed(origin: string | null): origin is string {
   return origin !== null && (PRODUCTION_ORIGINS.has(origin) || PREVIEW_ORIGIN.test(origin));
 }

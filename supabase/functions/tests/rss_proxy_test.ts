@@ -238,6 +238,7 @@ Deno.test("origin allowlist: product site, local dev and Pages previews only", (
       "https://www.mylinker.net",
       "http://localhost:3000",
       "http://127.0.0.1:3000",
+      "https://personalhomepge.pages.dev",
       "https://feat-rss.personalhomepge.pages.dev",
     ]
   ) {
