@@ -1,6 +1,6 @@
 // Administrator authentication for admin-read. Server-only.
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.117.3";
-import { ADMIN_ROLES, type AdminRole } from "./admin-contract.ts";
+import { ADMIN_ROLES, AdminRequestError, type AdminRole } from "./admin-contract.ts";
 
 export interface AuthenticatedAdmin {
   /** admin_users.id */
@@ -36,7 +36,11 @@ export function createSupabaseAdminAuth(serviceClient: SupabaseClient): AdminAut
     async verifyAccessToken(accessToken) {
       const { data, error } = await serviceClient.auth.getUser(accessToken);
       if (error) {
-        // 4xx from Auth means the token itself is bad; anything else is an outage.
+        // A rate limit says nothing about the token, so it must not read as signed out.
+        if (error.status === 429) {
+          throw new AdminRequestError("rate_limited");
+        }
+        // Other 4xx from Auth means the token itself is bad; anything else is an outage.
         if (typeof error.status === "number" && error.status >= 400 && error.status < 500) {
           return null;
         }
