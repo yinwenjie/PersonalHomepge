@@ -3,8 +3,9 @@
 // rss-proxy go-live checks that need the hosted runtime (Phase2_2_RssWidgetDesign.md):
 // 1. Egress: the Edge runtime must not reach private, loopback or cloud metadata addresses,
 //    including through public names that resolve to them.
-// 2. Client address: with a spoofed X-Forwarded-For, the gateway must append the real caller
-//    address as the last entry, which is the only entry rss-proxy trusts.
+// 2. Client address: with spoofed client-address headers, some header must still carry
+//    exactly the real caller address, so rss-proxy can key its rate limit on it. The report
+//    lists every candidate.
 // Deploys the egress-probe function and calls it once. The workflow deletes it in a separate
 // always() step, so cleanup also happens when this process is cancelled or times out.
 
@@ -82,12 +83,13 @@ function verdict(result) {
   ) {
     return "reachable";
   }
-  // Blocked means the runtime refused the connection (EPERM/EACCES or Deno's own permission
-  // error) or has no route to the whole network (ENETUNREACH). A timeout, or "no route to
+  // Blocked means the runtime refused the connection (EPERM/EACCES, Deno's own permission
+  // error, or EINVAL, which the hosted sandbox returns for link-local addresses) or has no
+  // route to the whole network (ENETUNREACH). A timeout, or "no route to
   // host" (EHOSTUNREACH), can just mean nothing lives at the sampled address of a routable
   // range, so neither counts.
   if (
-    /not permitted|permission denied|PermissionDenied|requires net access|not allowed|network is unreachable|os error (1|13|101)\b/i
+    /not permitted|permission denied|PermissionDenied|requires net access|not allowed|network is unreachable|os error (1|13|22|101)\b/i
       .test(outcome)
   ) {
     return "blocked";
@@ -134,13 +136,27 @@ function judge(report, runnerIp) {
   console.log(`  Deno.createHttpClient available: ${report.createHttpClient === true}`);
 
   const forwarded = Array.isArray(report.forwardedFor) ? report.forwardedFor : [];
-  console.log(`\nX-Forwarded-For seen by the function: ${forwarded.join(", ") || "(none)"}`);
-  console.log(`Runner address: ${runnerIp}`);
-  if (forwarded[forwarded.length - 1] !== runnerIp) {
-    problems.push("the last X-Forwarded-For entry is not the caller's real address");
+  const headers = report.clientHeaders && typeof report.clientHeaders === "object"
+    ? report.clientHeaders
+    : {};
+  console.log(`\nRunner address: ${runnerIp} (X-Forwarded-For, X-Real-IP and X-Client-IP were spoofed as ${spoofedAddress})`);
+  console.log("Client-address headers seen by the function:");
+  for (const [name, value] of Object.entries(headers)) {
+    console.log(`  ${name}: ${value}`);
   }
-  if (forwarded.length > 0 && forwarded[forwarded.length - 1] === spoofedAddress) {
-    problems.push("the spoofed X-Forwarded-For value ended up as the trusted entry");
+  // A usable source carries exactly the caller's address and none of the forged value.
+  const candidates = Object.entries(headers)
+    .filter(([, value]) => String(value).trim() === runnerIp)
+    .map(([name]) => name);
+  if (forwarded[0] === runnerIp && !forwarded.includes(spoofedAddress)) {
+    candidates.push("x-forwarded-for (first entry)");
+  }
+  if (forwarded.at(-1) === runnerIp) {
+    candidates.push("x-forwarded-for (last entry)");
+  }
+  console.log(`Trustworthy client-address sources: ${candidates.join(", ") || "(none)"}`);
+  if (candidates.length === 0) {
+    problems.push("no header carries exactly the caller's real address");
   }
 
   return problems;
@@ -171,7 +187,11 @@ try {
       headers: {
         Authorization: `Bearer ${key}`,
         apikey: key,
-        "X-Forwarded-For": spoofedAddress
+        "X-Forwarded-For": spoofedAddress,
+        // Cloudflare-owned headers (CF-Connecting-IP, True-Client-IP) are not forged: the edge
+        // may reject such requests outright, and it sets them itself.
+        "X-Real-IP": spoofedAddress,
+        "X-Client-IP": spoofedAddress
       }
     });
     if (response.ok) {
@@ -197,4 +217,4 @@ if (problems.length > 0) {
   }
   process.exit(1);
 }
-console.log("\nGo-live checks passed: egress is blocked and the last X-Forwarded-For entry is the caller.");
+console.log("\nGo-live checks passed: egress is blocked and a client-address header is trustworthy.");
