@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
+    "verify:admin-isolation": "node scripts/verify-admin-isolation.mjs",
     "verify:export": "node scripts/verify-static-export.mjs",
     "verify:i18n": "node scripts/verify-i18n-messages.mjs",
     "verify:privacy": "node scripts/verify-observability-privacy.mjs",

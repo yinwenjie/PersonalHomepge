@@ -63,6 +63,11 @@ jobs:
           NEXT_PUBLIC_BASE_PATH: ${{ steps.base_path.outputs.value }}
         run: npm run verify:export
 
+      - name: Verify admin isolation
+        env:
+          NEXT_PUBLIC_BASE_PATH: ${{ steps.base_path.outputs.value }}
+        run: npm run verify:admin-isolation
+
       - name: Prepare Pages payload
         run: touch out/.nojekyll
 
