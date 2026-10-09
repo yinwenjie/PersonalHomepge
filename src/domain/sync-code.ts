@@ -78,14 +78,18 @@ export function normalizeStoredSyncBinding(input: unknown): StoredSyncBinding | 
       return null;
     }
 
-    const parts = parseSyncCode(formatSyncCode({
-      spaceId: String(value.spaceId ?? ""),
-      accessToken: String(value.accessToken ?? ""),
-      encryptionKey: String(value.encryptionKey ?? "")
-    }));
+    const spaceId = String(value.spaceId ?? "");
+    const accessToken = String(value.accessToken ?? "");
+    const encryptionKey = String(value.encryptionKey ?? "");
+    assertValidSpaceId(spaceId);
+    assertValidSecret(accessToken, "accessToken");
+    assertValidSecret(encryptionKey, "encryptionKey");
 
     return {
-      ...parts,
+      version: SYNC_CODE_VERSION,
+      spaceId,
+      accessToken,
+      encryptionKey,
       accessMode: normalizeStoredSyncAccessMode(value.accessMode),
       remoteRevision: normalizeRevision(value.remoteRevision),
       lastSyncedAt: typeof value.lastSyncedAt === "string" ? value.lastSyncedAt : null,

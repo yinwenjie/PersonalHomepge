@@ -287,9 +287,12 @@ export function clone<T>(value: T): T {
 
 export function createId(prefix: string): string {
   const cryptoApi = globalThis.crypto;
-  const randomPart = cryptoApi?.getRandomValues
-    ? Array.from(cryptoApi.getRandomValues(new Uint32Array(2)), (value) => value.toString(36)).join("")
-    : Math.random().toString(36).slice(2);
+  if (!cryptoApi?.getRandomValues) {
+    // Same rule as randomBase64Url: never fall back to predictable Math.random() IDs.
+    throw new Error("当前浏览器环境不支持安全随机数生成，无法创建 ID。请使用现代浏览器后再试。");
+  }
+
+  const randomPart = Array.from(cryptoApi.getRandomValues(new Uint32Array(2)), (value) => value.toString(36)).join("");
 
   return `${prefix}-${Date.now().toString(36)}-${randomPart}`;
 }
