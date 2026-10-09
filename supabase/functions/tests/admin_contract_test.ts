@@ -1,6 +1,7 @@
-import { assertEquals, assertThrows } from "jsr:@std/assert@1.0.14";
+import { assertEquals, assertRejects, assertThrows } from "jsr:@std/assert@1.0.14";
+import type { SupabaseClient } from "npm:@supabase/supabase-js@2.117.3";
 import { toAuditRow } from "../_shared/admin-audit.ts";
-import { readBearerToken } from "../_shared/admin-auth.ts";
+import { createSupabaseAdminAuth, readBearerToken } from "../_shared/admin-auth.ts";
 import {
   AdminRequestError,
   isOperationAllowed,
@@ -127,4 +128,20 @@ Deno.test("audit rows always carry api_version and never extra metadata keys", (
   assertEquals(row.admin_role, "support");
   assertEquals(row.target_home_space_id, null);
   assertEquals(row.result_count, 2);
+});
+
+Deno.test("Auth rate limits are rate_limited, other 4xx mean a bad token", async () => {
+  const authWith = (status: number) =>
+    createSupabaseAdminAuth({
+      auth: {
+        getUser: () => Promise.resolve({ data: { user: null }, error: { status } }),
+      },
+    } as unknown as SupabaseClient);
+
+  await assertRejects(
+    () => authWith(429).verifyAccessToken("a.b.c"),
+    AdminRequestError,
+    "rate_limited",
+  );
+  assertEquals(await authWith(401).verifyAccessToken("a.b.c"), null);
 });
