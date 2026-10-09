@@ -281,8 +281,8 @@ export function discoverFeedLink(html: string, pageUrl: URL): URL | null {
   // The first <base> that has an href sets the URL that relative links resolve against;
   // <base> elements without one (such as <base target>) are skipped, as browsers do.
   let base = pageUrl.href;
-  for (const baseTag of markup.matchAll(/<base\b[^>]*>/gi)) {
-    const baseHref = parseAttributes(baseTag[0]).get("href");
+  for (const baseTag of startTags(markup, "base")) {
+    const baseHref = parseAttributes(baseTag).get("href");
     if (baseHref === undefined) {
       continue;
     }
@@ -294,8 +294,8 @@ export function discoverFeedLink(html: string, pageUrl: URL): URL | null {
     break;
   }
 
-  for (const match of markup.matchAll(/<link\b[^>]*>/gi)) {
-    const attributes = parseAttributes(match[0]);
+  for (const tag of startTags(markup, "link")) {
+    const attributes = parseAttributes(tag);
     const rel = (attributes.get("rel") ?? "").toLowerCase().split(/\s+/);
     const type = (attributes.get("type") ?? "").toLowerCase().trim();
     const href = attributes.get("href");
@@ -313,6 +313,48 @@ export function discoverFeedLink(html: string, pageUrl: URL): URL | null {
     }
   }
   return null;
+}
+
+/**
+ * Yields each <name ...> start tag. A ">" inside a quoted attribute value does not end the
+ * tag, as in HTML. One forward pass: the search resumes after each tag, so hostile markup
+ * cannot make this quadratic. An unterminated tag ends the scan, as browsers drop it.
+ */
+function* startTags(markup: string, name: string): Generator<string> {
+  // Searched case-insensitively in place: lowercasing a copy can shift indexes for some
+  // non-ASCII characters.
+  const opener = new RegExp(`<${name}`, "gi");
+  let from = 0;
+  while (true) {
+    opener.lastIndex = from;
+    const start = opener.exec(markup)?.index ?? -1;
+    if (start < 0) {
+      return;
+    }
+    let index = start + name.length + 1;
+    if (index < markup.length && !/[\s/>]/.test(markup[index])) {
+      from = index; // a longer tag name such as <linker>
+      continue;
+    }
+    let quote = "";
+    for (; index < markup.length; index += 1) {
+      const char = markup[index];
+      if (quote) {
+        if (char === quote) {
+          quote = "";
+        }
+      } else if (char === '"' || char === "'") {
+        quote = char;
+      } else if (char === ">") {
+        break;
+      }
+    }
+    if (index >= markup.length) {
+      return;
+    }
+    yield markup.slice(start, index + 1);
+    from = index + 1;
+  }
 }
 
 function parseAttributes(tag: string): Map<string, string> {

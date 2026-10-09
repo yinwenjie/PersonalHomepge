@@ -80,26 +80,29 @@ async function parseFeedUnchecked(text: string, feedUrl: URL): Promise<ParsedFee
   const rdf = asElement(document.RDF);
   const atom = asElement(document.feed);
 
+  // Links in raw are already absolute: RSS resolves against the feed URL, Atom against the
+  // effective xml:base of the feed, entry and link elements.
   let raw: { title: Node; site: string | null; entries: RawEntry[] };
   if (rss && asElement(rss.channel)) {
     const channel = asElement(rss.channel)!;
     raw = {
       title: channel.title,
-      site: pickLink(channel.link, false),
-      entries: asArray(channel.item).map(rssEntry),
+      site: pickLink(channel.link, false, feedUrl),
+      entries: asArray(channel.item).map((item) => rssEntry(item, feedUrl)),
     };
   } else if (rdf && asElement(rdf.channel)) {
     const channel = asElement(rdf.channel)!;
     raw = {
       title: channel.title,
-      site: pickLink(channel.link, false),
-      entries: asArray(rdf.item).map(rssEntry),
+      site: pickLink(channel.link, false, feedUrl),
+      entries: asArray(rdf.item).map((item) => rssEntry(item, feedUrl)),
     };
   } else if (atom) {
+    const feedBase = xmlBase(atom, feedUrl);
     raw = {
       title: atom.title,
-      site: pickLink(atom.link, true),
-      entries: asArray(atom.entry).map(atomEntry),
+      site: pickLink(atom.link, true, feedBase),
+      entries: asArray(atom.entry).map((entry) => atomEntry(entry, feedBase)),
     };
   } else {
     throw new FeedError("not_feed");
@@ -109,7 +112,7 @@ async function parseFeedUnchecked(text: string, feedUrl: URL): Promise<ParsedFee
   const seen = new Set<string>();
   // Feeds list newest first; looking at the first entries bounds the work per document.
   for (const entry of raw.entries.slice(0, MAX_ENTRIES_SCANNED)) {
-    const item = await cleanEntry(entry, feedUrl);
+    const item = await cleanEntry(entry);
     if (item && !seen.has(item.id)) {
       seen.add(item.id);
       items.push(item);
@@ -130,7 +133,7 @@ async function parseFeedUnchecked(text: string, feedUrl: URL): Promise<ParsedFee
   const title = cleanText(textOf(raw.title), MAX_TITLE_LENGTH, false);
   return {
     title: title || null,
-    siteUrl: raw.site ? absoluteHttpUrl(raw.site, feedUrl) : null,
+    siteUrl: raw.site,
     items: limited,
   };
 }
@@ -143,36 +146,39 @@ interface RawEntry {
   summary: Node;
 }
 
-function rssEntry(node: Node): RawEntry {
+function rssEntry(node: Node, feedUrl: URL): RawEntry {
   const item = asElement(node) ?? {};
   return {
     title: item.title,
-    link: pickLink(item.link, false),
+    link: pickLink(item.link, false, feedUrl),
     guid: item.guid ?? item["@_about"],
     date: item.pubDate ?? item.date ?? item.published ?? item.updated,
     summary: item.description ?? item.summary ?? item.encoded,
   };
 }
 
-function atomEntry(node: Node): RawEntry {
+function atomEntry(node: Node, feedBase: URL): RawEntry {
   const entry = asElement(node) ?? {};
   return {
     title: entry.title,
-    link: pickLink(entry.link, true),
+    link: pickLink(entry.link, true, xmlBase(entry, feedBase)),
     guid: entry.id,
     date: entry.published ?? entry.updated,
     summary: entry.summary ?? entry.content,
   };
 }
 
-/** RSS links are text; Atom (and atom:link inside RSS) links are href attributes. */
-function pickLink(node: Node, atomOnly: boolean): string | null {
+/**
+ * The absolute http(s) link of an element. RSS links are text; Atom (and atom:link inside
+ * RSS) links are href attributes, resolved against the link element's own xml:base.
+ */
+function pickLink(node: Node, atomOnly: boolean, base: URL): string | null {
   const candidates = asArray(node);
   if (!atomOnly) {
     for (const candidate of candidates) {
       const text = typeof candidate === "string" ? candidate : textOf(candidate);
       if (text.trim()) {
-        return text.trim();
+        return absoluteHttpUrl(text, base);
       }
     }
   }
@@ -181,17 +187,24 @@ function pickLink(node: Node, atomOnly: boolean): string | null {
     const href = element?.["@_href"];
     const rel = element?.["@_rel"];
     if (typeof href === "string" && href.trim() && (rel === undefined || rel === "alternate")) {
-      return href.trim();
+      return element ? absoluteHttpUrl(href, xmlBase(element, base)) : null;
     }
   }
   return null;
 }
 
-async function cleanEntry(entry: RawEntry, feedUrl: URL): Promise<FeedItem | null> {
-  if (!entry.link) {
-    return null;
+/** Applies an element's xml:base (the parser drops the xml: prefix) on top of the inherited base. */
+function xmlBase(element: Element, inherited: URL): URL {
+  const value = element["@_base"];
+  if (typeof value !== "string" || !value.trim()) {
+    return inherited;
   }
-  const link = absoluteHttpUrl(entry.link, feedUrl);
+  const resolved = absoluteHttpUrl(value, inherited);
+  return resolved ? new URL(resolved) : inherited;
+}
+
+async function cleanEntry(entry: RawEntry): Promise<FeedItem | null> {
+  const link = entry.link;
   if (!link) {
     return null;
   }

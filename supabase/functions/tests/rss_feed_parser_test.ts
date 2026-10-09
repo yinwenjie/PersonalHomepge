@@ -90,6 +90,30 @@ Deno.test("parses Atom with alternate links and xhtml content", async () => {
   assertEquals(feed.items[0].title, "Release 1.0");
 });
 
+Deno.test("resolves Atom links against feed, entry and link xml:base", async () => {
+  const feed = await parseFeed(
+    `<feed xmlns="http://www.w3.org/2005/Atom" xml:base="https://cdn.example.net/site/">
+      <title>Based</title>
+      <link href="home"/>
+      <entry><title>Feed base</title><id>1</id><link href="posts/1"/></entry>
+      <entry xml:base="/other/"><title>Entry base</title><id>2</id><link href="2"/></entry>
+      <entry><title>Link base</title><id>3</id><link xml:base="https://media.example.org/" href="3"/></entry>
+      <entry xml:base="javascript:alert(1)//"><title>Bad base</title><id>4</id><link href="4"/></entry>
+    </feed>`,
+    FEED_URL,
+  );
+  assertEquals(feed.siteUrl, "https://cdn.example.net/site/home");
+  assertEquals(
+    feed.items.map((item) => item.link).sort(),
+    [
+      "https://cdn.example.net/other/2",
+      "https://cdn.example.net/site/4",
+      "https://cdn.example.net/site/posts/1",
+      "https://media.example.org/3",
+    ],
+  );
+});
+
 Deno.test("rejects documents that are not feeds", async () => {
   for (
     const text of [

@@ -252,6 +252,28 @@ Deno.test("discoverFeedLink finds RSS or Atom alternates and ignores others", ()
     )?.href,
     "https://example.com/a/feed?format=rss&lang=en&v=1",
   );
+  assertEquals(
+    discoverFeedLink(
+      `<linkage><link title="News > Updates" rel="alternate" type="application/rss+xml" href="/news">`,
+      page,
+    )?.href,
+    "https://example.com/news",
+  );
+  assertEquals(
+    discoverFeedLink(
+      `<LINK REL="alternate" TYPE="application/atom+xml" HREF="/İ/atom">`,
+      page,
+    )?.href,
+    "https://example.com/%C4%B0/atom",
+  );
+});
+
+Deno.test("discovery stays fast on hostile markup", () => {
+  const page = new URL("https://example.com/blog/");
+  const started = performance.now();
+  assertEquals(discoverFeedLink("<link ".repeat(100_000), page), null);
+  assertEquals(discoverFeedLink(`<link title="${"x".repeat(400_000)}`, page), null);
+  assert(performance.now() - started < 1000, "discovery should be linear in the page size");
 });
 
 Deno.test("a stalled DNS lookup ends at the fetch deadline", async () => {
