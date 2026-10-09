@@ -83,6 +83,11 @@ export interface AdminAuditFilters {
 export interface AdminReadStore {
   findProfileById(userId: string): Promise<ProfileRow | null>;
   findProfilesByEmail(email: string, limit: number): Promise<ProfileRow[]>;
+  /**
+   * Returns the Supabase Auth email for a user id, or null when the user does not exist.
+   * profiles.email is user-editable, so this is the authoritative value.
+   */
+  getAuthEmail(userId: string): Promise<string | null>;
   findHomeSpace(homeSpaceId: string): Promise<HomeSpaceRow | null>;
   listHomeSpaces(userId: string, page: PageQuery): Promise<HomeSpaceRow[]>;
   listSnapshots(userId: string, homeSpaceId: string, page: PageQuery): Promise<SnapshotRow[]>;
@@ -149,6 +154,17 @@ export function createSupabaseAdminReadStore(client: SupabaseClient): AdminReadS
         await client.from("profiles").select(PROFILE_COLUMNS).eq("email", email)
           .order("created_at", { ascending: false }).limit(limit),
       );
+    },
+
+    async getAuthEmail(userId) {
+      const { data, error } = await client.auth.admin.getUserById(userId);
+      if (error) {
+        if (error.status === 404) {
+          return null;
+        }
+        throw new AdminBackendError("query");
+      }
+      return data.user?.email?.toLowerCase() ?? null;
     },
 
     async findHomeSpace(homeSpaceId) {

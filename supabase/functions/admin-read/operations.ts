@@ -31,6 +31,8 @@ import type {
 import type { OperationContext, OperationHandler, OperationResult } from "./handler.ts";
 
 export const MAX_RESOLVED_USERS = 20;
+/** Candidate profiles checked against Auth per email search. */
+const MAX_EMAIL_CANDIDATES = 50;
 const MAX_EMAIL_LENGTH = 320;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -150,18 +152,32 @@ async function resolveUser(
   }
 
   let profiles: ProfileRow[];
+  let email: string | null = null;
   if (filters.userId !== undefined) {
     const profile = await store.findProfileById(parseUuid(filters.userId));
     profiles = profile ? [profile] : [];
   } else if (filters.email !== undefined) {
-    profiles = await store.findProfilesByEmail(parseEmail(filters.email), MAX_RESOLVED_USERS);
+    email = parseEmail(filters.email);
+    profiles = await store.findProfilesByEmail(email, MAX_EMAIL_CANDIDATES);
   } else {
     const space = await store.findHomeSpace(parseUuid(filters.homeSpaceId));
     const profile = space ? await store.findProfileById(space.user_id) : null;
     profiles = profile ? [profile] : [];
   }
 
-  const users = profiles.slice(0, MAX_RESOLVED_USERS).map(toResolvedUser);
+  // profiles.email is editable by its owner, so every candidate is checked against
+  // Supabase Auth and the DTO carries the Auth email, never the profile copy.
+  const users: ResolvedUserDto[] = [];
+  for (const profile of profiles) {
+    const authEmail = await store.getAuthEmail(profile.id);
+    if (email !== null && authEmail !== email) {
+      continue;
+    }
+    users.push(toResolvedUser(profile, authEmail));
+    if (users.length === MAX_RESOLVED_USERS) {
+      break;
+    }
+  }
   return {
     data: { users },
     audit: {
@@ -300,7 +316,7 @@ async function listAdminAuditEvents(
   if (filters.createdTo !== undefined) query.createdTo = parseTimestamp(filters.createdTo);
   if (
     query.createdFrom && query.createdTo &&
-    Date.parse(query.createdFrom) >= Date.parse(query.createdTo)
+    toEpochMicros(query.createdFrom) >= toEpochMicros(query.createdTo)
   ) {
     throw new AdminRequestError("invalid_request");
   }
@@ -391,6 +407,13 @@ function parseEmail(value: unknown): string {
   return email;
 }
 
+/** Microseconds since the epoch, keeping the full fraction that Date.parse would round off. */
+function toEpochMicros(timestamp: string): number {
+  const fraction = /\.(\d{1,6})/.exec(timestamp)?.[1] ?? "";
+  const millis = Date.parse(timestamp.replace(/\.\d{1,6}/, ""));
+  return millis * 1000 + Number(fraction.padEnd(6, "0"));
+}
+
 function parseTimestamp(value: unknown): string {
   if (!isTimestamp(value)) {
     throw new AdminRequestError("invalid_request");
@@ -398,10 +421,10 @@ function parseTimestamp(value: unknown): string {
   return value;
 }
 
-function toResolvedUser(row: ProfileRow): ResolvedUserDto {
+function toResolvedUser(row: ProfileRow, authEmail: string | null): ResolvedUserDto {
   return {
     userId: row.id,
-    email: row.email,
+    email: authEmail,
     displayName: row.display_name,
     createdAt: row.created_at,
   };

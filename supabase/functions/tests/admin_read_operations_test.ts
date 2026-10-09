@@ -83,6 +83,10 @@ function fakeStore(
       calls.emails.push(email);
       return Promise.resolve(email === PROFILE.email ? [PROFILE] : []);
     },
+    getAuthEmail: (id) =>
+      Promise.resolve(
+        id === USER_ID ? "person@example.com" : id === OTHER_USER_ID ? "other@example.com" : null,
+      ),
     findHomeSpace: (id) => Promise.resolve(id === SPACE_ID ? SPACE : null),
     listHomeSpaces: (_userId, page) => {
       calls.pages.push(page);
@@ -187,6 +191,27 @@ Deno.test("resolve-user finds an exact, normalized email and audits the target",
   assertEquals(result.audits[0].action, "admin.user.resolve");
   assertEquals(result.audits[0].targetUserId, USER_ID);
   assertEquals(result.audits[0].resultCount, 1);
+});
+
+Deno.test("resolve-user ignores profiles whose editable email does not match Auth", async () => {
+  const impostor: ProfileRow = { ...PROFILE, id: OTHER_USER_ID, display_name: "Impostor" };
+  const { store } = fakeStore({
+    findProfilesByEmail: () => Promise.resolve([impostor, PROFILE]),
+  });
+  const result = await call(store, {
+    operation: "resolve-user",
+    reason: REASON,
+    filters: { email: "person@example.com" },
+  });
+  assertEquals(result.body.data.users.map((u: { userId: string }) => u.userId), [USER_ID]);
+
+  const byId = await call(
+    fakeStore({
+      findProfileById: () => Promise.resolve({ ...PROFILE, email: "edited@example.com" }),
+    }).store,
+    { operation: "resolve-user", reason: REASON, filters: { userId: USER_ID } },
+  );
+  assertEquals(byId.body.data.users[0].email, "person@example.com");
 });
 
 Deno.test("resolve-user resolves through a home space id and reports empty results", async () => {
@@ -383,10 +408,21 @@ Deno.test("admin audit list validates filters and binds the cursor to them", asy
   });
   assertEquals(ok.audits[0].action, "admin.audit.list");
 
+  const microRange = await call(store, {
+    operation: "list-admin-audit-events",
+    reason: REASON,
+    filters: {
+      createdFrom: "2026-10-09T00:00:00.000001Z",
+      createdTo: "2026-10-09T00:00:00.000002Z",
+    },
+  });
+  assertEquals(microRange.status, 200);
+
   for (
     const filters of [
       { action: "admin.user.delete" },
       { createdFrom: "2026-10-09T00:00:00Z", createdTo: "2026-10-01T00:00:00Z" },
+      { createdFrom: "2026-10-09T00:00:00.000002Z", createdTo: "2026-10-09T00:00:00.000001Z" },
       { createdFrom: "last week" },
       { createdFrom: "2026-02-31T00:00:00Z" },
       { createdTo: "2026-10-09T24:00:00Z" },
