@@ -24,11 +24,11 @@ import { HomeDocumentEditorModal } from "@/components/home-document-editor-modal
 import { HomeThemeStyleBridge } from "@/components/home-theme-style-bridge";
 import { LegacySiteNotice } from "@/components/legacy-site-notice";
 import { SiteCollection } from "@/components/site-collection";
-import { SyncPanel } from "@/components/sync-panel";
 import { TemplateLibraryPanel } from "@/components/template-library-panel";
 import { WidgetPanel } from "@/components/widget-panel";
 import { useHomeDocumentController } from "@/hooks/use-home-document-controller";
 import { useHomeDocumentEditor } from "@/hooks/use-home-document-editor";
+import { useSyncEngine } from "@/hooks/use-sync-engine";
 import { useI18n } from "@/hooks/use-i18n";
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
 import { useUiPreferences } from "@/hooks/use-ui-preferences";
@@ -178,6 +178,17 @@ export function HomeDashboard() {
   const handleBeforeCloudOverwrite = useCallback((documentValue: HomeDocumentV2, source: LocalHomeSnapshotSource) => {
     return protectDocumentBeforeDangerousOverwrite(documentValue, source).canContinue;
   }, [protectDocumentBeforeDangerousOverwrite]);
+
+  useSyncEngine({
+    documentValue: homeDocument,
+    editorOpen: Boolean(editor),
+    storageReady,
+    visible: false,
+    onBeforeCloudOverwrite: handleBeforeCloudOverwrite,
+    onBeforeOverwrite: handleBeforeOverwrite,
+    onReplaceDocument: replaceHomeDocument,
+    onSyncMetaChange: updateSyncMeta,
+  });
 
   function completeOnboarding() {
     window.localStorage.setItem(ONBOARDING_STORAGE_KEY, "complete");
@@ -405,17 +416,6 @@ export function HomeDashboard() {
           <span aria-live="polite"><span className="search-count">{format.number(visibleCount)}</span> {t("home.searchVisibleUnit")}</span>
         </div>
       </section>
-
-      <SyncPanel
-        documentValue={homeDocument}
-        editorOpen={Boolean(editor)}
-        storageReady={storageReady}
-        visible={false}
-        onBeforeCloudOverwrite={handleBeforeCloudOverwrite}
-        onBeforeOverwrite={handleBeforeOverwrite}
-        onReplaceDocument={replaceHomeDocument}
-        onSyncMetaChange={updateSyncMeta}
-      />
 
       <div className="workspace">
         <SiteCollection
