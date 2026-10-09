@@ -179,7 +179,7 @@ interface RssFeedWidgetConfig {
 
 ### 限流（migration 022）
 
-表 `public.rss_rate_limits(bucket_key, window_start, request_count)`，加一个 `security definer` 函数 `rss_consume_rate(p_key, p_window_seconds, p_limit)`，原子地加一并返回是否超限，只授权给 `service_role`。
+表 `public.rss_rate_limits(bucket_key, window_start, request_count)`，加一个函数 `rss_consume_rate(p_key, p_window_seconds, p_limit)`，原子地加一并返回是否超限，只授权给 `service_role`（以调用者权限运行，不需要 `security definer`）。
 
 | 限制 | 默认值 | 超限时 |
 |---|---|---|
