@@ -671,3 +671,19 @@ Deno.test("a store outage after claiming releases the lease", async () => {
   assertEquals((await call(h, { mode: "read", feeds: [FEED] })).status, 503);
   assertEquals(h.store.rows.get(await sha256Hex(FEED))!.leaseUntil, null);
 });
+
+Deno.test("malformed requests count toward the client limit", async () => {
+  const h = harness();
+  h.store.rateLimits = { ip: 2 };
+  assertEquals((await call(h, "not json")).status, 400);
+  assertEquals((await call(h, { mode: "read" })).status, 400);
+  assertEquals((await call(h, { mode: "read", feeds: [FEED] })).status, 429);
+});
+
+Deno.test("a failed final write releases the lease", async () => {
+  const h = harness();
+  h.setRoute(FEED, feedResponse("x"));
+  h.store.finishRefresh = () => Promise.reject(new FeedStoreError("finish"));
+  assertEquals((await call(h, { mode: "read", feeds: [FEED] })).status, 503);
+  assertEquals(h.store.rows.get(await sha256Hex(FEED))!.leaseUntil, null);
+});

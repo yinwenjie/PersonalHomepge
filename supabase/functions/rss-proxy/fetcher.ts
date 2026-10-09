@@ -216,6 +216,10 @@ async function readCapped(response: Response, signal: AbortSignal): Promise<Uint
 
 /** Charset from the Content-Type header, then the XML declaration, then UTF-8. */
 function decode(bytes: Uint8Array, contentType: string): string {
+  const utf16 = detectUtf16(bytes);
+  if (utf16) {
+    return new TextDecoder(utf16).decode(bytes);
+  }
   const headerCharset = /charset\s*=\s*"?([\w.:-]+)/i.exec(contentType)?.[1];
   const head = new TextDecoder("latin1").decode(bytes.subarray(0, 200));
   const declared = /^\s*<\?xml[^>]*encoding\s*=\s*["']([\w.:-]+)["']/i.exec(head)?.[1];
@@ -230,6 +234,18 @@ function decode(bytes: Uint8Array, contentType: string): string {
     }
   }
   return new TextDecoder().decode(bytes);
+}
+
+/** UTF-16 by BOM, or by a NUL-interleaved "<?" (XML 1.0 Appendix F); the BOM is dropped. */
+function detectUtf16(bytes: Uint8Array): "utf-16le" | "utf-16be" | null {
+  const [a, b, c, d] = bytes;
+  if ((a === 0xff && b === 0xfe) || (a === 0x3c && b === 0x00 && c === 0x3f && d === 0x00)) {
+    return "utf-16le";
+  }
+  if ((a === 0xfe && b === 0xff) || (a === 0x00 && b === 0x3c && c === 0x00 && d === 0x3f)) {
+    return "utf-16be";
+  }
+  return null;
 }
 
 function limitHeader(value: string | null, max: number): string | null {

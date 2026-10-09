@@ -10,7 +10,8 @@ import {
 } from "./contract.ts";
 import {
   checkFeed,
-  enforceRequestRate,
+  enforceCheckRate,
+  enforceClientRate,
   maybeCleanup,
   readFeeds,
   type RssServiceDeps,
@@ -72,10 +73,14 @@ export async function handleRssProxy(request: Request, deps: RssProxyDeps): Prom
       throw new RssRequestError("invalid_request");
     }
 
+    const clientKey = await deps.clientKey(request);
+    await enforceClientRate(deps.store, clientKey);
+
     const parsed = parseRssRequest(await readJsonBody(request));
     mode = parsed.mode;
-
-    await enforceRequestRate(deps.store, parsed.mode, await deps.clientKey(request));
+    if (parsed.mode === "check") {
+      await enforceCheckRate(deps.store, clientKey);
+    }
 
     const outcome: ServiceOutcome = parsed.mode === "read"
       ? await readFeeds(parsed.feeds, deps)

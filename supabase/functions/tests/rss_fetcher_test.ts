@@ -279,3 +279,33 @@ Deno.test("a stalled rate-limit charge ends at the deadline as unspendable budge
   );
   assertEquals((error as Error).name, "FetchRateLimited");
 });
+
+Deno.test("decodes UTF-16 feeds without a charset header", async () => {
+  const text = '<?xml version="1.0" encoding="UTF-16"?><rss>é</rss>';
+  const le = new Uint8Array([
+    0xff,
+    0xfe,
+    ...Array.from(text).flatMap((ch) => {
+      const code = ch.charCodeAt(0);
+      return [code & 0xff, code >> 8];
+    }),
+  ]);
+  const be = new Uint8Array(
+    Array.from(text).flatMap((ch) => {
+      const code = ch.charCodeAt(0);
+      return [code >> 8, code & 0xff];
+    }),
+  );
+  for (const bytes of [le, be]) {
+    const result = await fetchDocument(
+      normalizeFeedUrl("https://example.com/feed"),
+      { allowHtml: false },
+      budget(),
+      deps({
+        "https://example.com/feed": () =>
+          new Response(bytes, { headers: { "Content-Type": "application/xml" } }),
+      }),
+    );
+    assertEquals(result.kind === "document" && result.text, text);
+  }
+});

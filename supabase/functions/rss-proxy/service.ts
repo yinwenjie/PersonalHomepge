@@ -49,18 +49,21 @@ export async function sha256Hex(value: string): Promise<string> {
   );
 }
 
-/** Per-client limits; clientKey is already a keyed hash of the IP. */
-export async function enforceRequestRate(
-  store: FeedStore,
-  mode: "read" | "check",
-  clientKey: string,
-): Promise<void> {
-  const { perIp, perIpCheck } = RATE_LIMITS;
+/**
+ * Per-client limits; clientKey is already a keyed hash of the IP. The base limit is taken
+ * before the body is read, so malformed requests count too; the check limit once the mode
+ * is known.
+ */
+export async function enforceClientRate(store: FeedStore, clientKey: string): Promise<void> {
+  const { perIp } = RATE_LIMITS;
   if (!(await store.consumeRate(`ip:${clientKey}`, perIp.windowSeconds, perIp.limit))) {
     throw new RssRequestError("rate_limited");
   }
+}
+
+export async function enforceCheckRate(store: FeedStore, clientKey: string): Promise<void> {
+  const { perIpCheck } = RATE_LIMITS;
   if (
-    mode === "check" &&
     !(await store.consumeRate(`check:${clientKey}`, perIpCheck.windowSeconds, perIpCheck.limit))
   ) {
     throw new RssRequestError("rate_limited");
@@ -152,7 +155,12 @@ async function readOne(
     }
     return { result: errorView("rate_limited"), cacheHit: false };
   }
-  await deps.store.finishRefresh(hash, update);
+  try {
+    await deps.store.finishRefresh(hash, update);
+  } catch (error) {
+    await deps.store.releaseLease(hash).catch(() => {});
+    throw error;
+  }
   return {
     result: present({ ...update, urlHash: hash, feedUrl: url.href }, now()),
     cacheHit: false,
