@@ -43,5 +43,16 @@
       "purpose": "Verify the set-as-homepage guide analytics events and browserFamily property are allowed, and unknown names still are not.",
       "requiresRollback": true
     }
+  ],
+  "edgeFunctions": [
+    {
+      "name": "admin-read",
+      "purpose": "Read-only administrator API (Phase 1.18.2-1.18.3); needs the admin tables and the Auth email lookup.",
+      "preflightChecks": [
+        "supabase/checks/021_admin_readonly_foundation_verify.sql",
+        "supabase/checks/022_admin_auth_email_lookup_verify.sql"
+      ],
+      "requiredSecrets": []
+    }
   ]
 }

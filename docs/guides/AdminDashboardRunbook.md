@@ -259,3 +259,5 @@ grant select, insert on table public.admin_audit_events to service_role;
 - 普通账号 C 没有 `admin_users` 记录。
 - 已确认 Edge Function server-only secrets、精确 CORS origin 和回滚窗口。
 - 仍未向公开主站或 GitHub Pages 添加后台页面、入口或 bundle。
+
+满足后按 `EdgeFunctionDeployment.md` 先运行 `check`，再运行 `deploy`。
