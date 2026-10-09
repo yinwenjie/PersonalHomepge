@@ -4,7 +4,8 @@
 // without an administrator session must be refused, from the right place, without data.
 // Uses only the project's public anon key; no administrator or user token is involved,
 // so nothing is read and no admin audit row is written.
-// 1. Missing or forged JWTs are stopped by the gateway (verify_jwt = true).
+// 1. Missing or forged JWTs are stopped by the gateway (verify_jwt = true) and never reach
+//    the function.
 // 2. With the anon key (a valid JWT that is not a user session) the function itself answers:
 //    - public product origins and a missing Origin get 403 not_authorized with no CORS headers;
 //    - the admin origin gets 401 not_authenticated, also for an oversized body and an unknown
@@ -20,7 +21,7 @@ import { fileURLToPath } from "node:url";
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ADMIN_ORIGIN = "https://admin.mylinker.net";
-const PUBLIC_ORIGINS = ["https://mylinker.net", "https://yinwenjie.github.io"];
+const PUBLIC_ORIGINS = ["https://mylinker.net", "https://www.mylinker.net", "https://yinwenjie.github.io"];
 const CONTEXT_BODY = JSON.stringify({ operation: "get-admin-context" });
 const ENVELOPE_KEYS = ["apiVersion", "error", "ok", "requestId"];
 
@@ -69,12 +70,13 @@ function forgedJwt() {
   return `${header}.${payload}.${signature}`;
 }
 
-async function call(url, { method = "POST", key = null, origin = ADMIN_ORIGIN, body = CONTEXT_BODY,
-  headers = {} } = {}) {
+async function call(url, { method = "POST", key = null, apikey = key, origin = ADMIN_ORIGIN,
+  body = CONTEXT_BODY, headers = {} } = {}) {
   const response = await fetch(url, {
     method,
     headers: {
-      ...(key ? { Authorization: `Bearer ${key}`, apikey: key } : {}),
+      ...(key ? { Authorization: `Bearer ${key}` } : {}),
+      ...(apikey ? { apikey } : {}),
       ...(origin ? { Origin: origin } : {}),
       ...(method === "POST" ? { "Content-Type": "application/json" } : {}),
       ...headers
@@ -134,15 +136,16 @@ function expect(label, result, { status, error = null, cors = null }) {
 try {
   const key = anonKey(projectRef);
 
-  // 1. Gateway.
+  // 1. Gateway. The anon key goes in apikey so only the Authorization JWT is wrong; reaching
+  // the function at all would mean JWT verification is off.
   for (const [label, token] of [["No JWT", null], ["Forged JWT", forgedJwt()]]) {
-    const result = await call(url, { key: token });
+    const result = await call(url, { key: token, apikey: key });
     console.log(`${label}: ${describe(result)}`);
     if (result.status !== 401) {
       problems.push(`${label}: expected HTTP 401 from the gateway, got ${result.status}`);
     }
-    if (fromFunction(result) && result.json.error !== "not_authenticated") {
-      problems.push(`${label}: reached the function and was not refused as not_authenticated`);
+    if (fromFunction(result)) {
+      problems.push(`${label}: reached the function, so gateway JWT verification is off`);
     }
   }
 
