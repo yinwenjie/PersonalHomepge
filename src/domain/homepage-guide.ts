@@ -1,4 +1,5 @@
 export const HOMEPAGE_GUIDE_STORAGE_KEY = "homepage:homepage-guide:v1";
+export const HOMEPAGE_GUIDE_CANONICAL_URL = "https://mylinker.net/";
 
 export const HOMEPAGE_GUIDE_BROWSERS = ["chrome", "edge", "firefox", "safari"] as const;
 
@@ -50,6 +51,26 @@ export function detectBrowserFamily(userAgent: string): BrowserFamily {
 export function isMobileDevice(userAgent: string, maxTouchPoints: number): boolean {
   return /\b(iPhone|iPad|iPod|Android|Mobile)\b/.test(userAgent) ||
     (/\bMacintosh\b/.test(userAgent) && maxTouchPoints > 1);
+}
+
+/**
+ * The address people paste into browser settings must outlive this deployment, so every
+ * hosted copy (Pages previews, the GitHub Pages legacy site) points at the main domain,
+ * the same rule as public share links. Only local development keeps its own origin.
+ */
+export function getHomepageGuideAddress(runtimeOrigin: string): string {
+  try {
+    const origin = new URL(runtimeOrigin);
+    const loopbackHost = origin.hostname === "localhost"
+      || origin.hostname === "127.0.0.1"
+      || origin.hostname === "[::1]";
+    if (loopbackHost && (origin.protocol === "http:" || origin.protocol === "https:")) {
+      return `${origin.origin}/`;
+    }
+  } catch {
+    // Fall through to the canonical address.
+  }
+  return HOMEPAGE_GUIDE_CANONICAL_URL;
 }
 
 export function toGuideBrowser(family: BrowserFamily): HomepageGuideBrowser {

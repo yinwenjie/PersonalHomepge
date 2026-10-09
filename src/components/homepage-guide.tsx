@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import {
   type BrowserFamily,
   detectBrowserFamily,
+  getHomepageGuideAddress,
   HOMEPAGE_GUIDE_BROWSERS,
   HOMEPAGE_GUIDE_STORAGE_KEY,
   type HomepageGuideBrowser,
@@ -20,7 +21,6 @@ import { trackProductEvent } from "@/infrastructure/product-analytics-repository
 import { useI18n } from "@/hooks/use-i18n";
 
 const LEGACY_HOST_SUFFIX = ".github.io";
-const MAIN_SITE_URL = "https://mylinker.net/";
 
 const BROWSER_LABELS: Record<HomepageGuideBrowser, string> = {
   chrome: "Chrome",
@@ -54,11 +54,6 @@ function isGuideSupported(): boolean {
 
 function isLegacyHost(): boolean {
   return window.location.hostname.endsWith(LEGACY_HOST_SUFFIX);
-}
-
-/** The legacy GitHub Pages copy points people at the main site rather than itself. */
-function getHomepageAddress(): string {
-  return isLegacyHost() ? MAIN_SITE_URL : `${window.location.origin}/`;
 }
 
 function readGuideState(): HomepageGuideState {
@@ -171,7 +166,7 @@ function HomepageGuideDialog({ source, onClose }: { source: HomepageGuideSource;
   const panelId = useId();
   const [detected] = useState<BrowserFamily>(() => detectBrowserFamily(window.navigator.userAgent));
   const [browser, setBrowser] = useState<HomepageGuideBrowser>(() => toGuideBrowser(detected));
-  const [address] = useState(getHomepageAddress);
+  const [address] = useState(() => getHomepageGuideAddress(window.location.origin));
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "failed">("idle");
 
   useEffect(() => {
