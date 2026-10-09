@@ -48,6 +48,22 @@ Deno.test("parses RSS 2.0, resolves links, drops non-http links and sorts by dat
   assert(feed.items.every((item) => /^[0-9a-f]{24}$/.test(item.id)));
 });
 
+Deno.test("uses a permalink guid when an RSS item has no link", async () => {
+  const feed = await parseFeed(
+    `<rss version="2.0"><channel><title>G</title>
+      <item><title>Default</title><guid>https://example.com/a</guid></item>
+      <item><title>Explicit</title><guid isPermaLink="true">https://example.com/b</guid></item>
+      <item><title>Not a link</title><guid isPermaLink="false">https://example.com/c</guid></item>
+      <item><title>Relative</title><guid>/d</guid></item>
+    </channel></rss>`,
+    FEED_URL,
+  );
+  assertEquals(feed.items.map((item) => item.link).sort(), [
+    "https://example.com/a",
+    "https://example.com/b",
+  ]);
+});
+
 Deno.test("parses RSS 1.0 (RDF)", async () => {
   const feed = await parseFeed(
     `<?xml version="1.0"?>

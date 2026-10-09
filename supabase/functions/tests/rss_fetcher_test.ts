@@ -201,6 +201,21 @@ Deno.test("decodes using the declared charset", async () => {
   assertEquals(result.kind === "document" && result.text, "<a>é</a>");
 });
 
+Deno.test("discoverFeedLink skips links inside nested and unclosed templates", () => {
+  const page = new URL("https://example.com/");
+  const alt = (href: string) => `<link rel="alternate" type="application/rss+xml" href="${href}">`;
+  assertEquals(
+    discoverFeedLink(
+      `<template><template>${alt("/inner.xml")}</template>${alt("/outer.xml")}</TEMPLATE >
+       <templates>${alt("/real.xml")}`,
+      page,
+    )?.href,
+    "https://example.com/real.xml",
+  );
+  assertEquals(discoverFeedLink(`<template>${alt("/inert.xml")}`, page), null);
+  assertEquals(discoverFeedLink(`<template>${alt("/inert.xml")}</template`, page), null);
+});
+
 Deno.test("discoverFeedLink finds RSS or Atom alternates and ignores others", () => {
   const page = new URL("https://example.com/blog/");
   assertEquals(

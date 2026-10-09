@@ -269,14 +269,17 @@ function fetchFailure(error: unknown, signal: AbortSignal): FeedError {
 
 /** Finds the first RSS or Atom alternate link in an HTML page. */
 export function discoverFeedLink(html: string, pageUrl: URL): URL | null {
-  // Links inside comments or raw-text elements are text, not document links.
-  const markup = html
-    .slice(0, 512 * 1024)
-    .replace(/<!--[\s\S]*?(?:-->|$)/g, " ")
-    .replace(
-      /<(script|style|template|noscript|textarea|title|xmp|iframe|noembed|noframes)\b[\s\S]*?(?:<\/\1\s*>|$)/gi,
-      " ",
-    );
+  // Links inside comments or raw-text elements are text, and links inside templates are
+  // inert; none of them are document links.
+  const markup = removeTemplates(
+    html
+      .slice(0, 512 * 1024)
+      .replace(/<!--[\s\S]*?(?:-->|$)/g, " ")
+      .replace(
+        /<(script|style|noscript|textarea|title|xmp|iframe|noembed|noframes)\b[\s\S]*?(?:<\/\1\s*>|$)/gi,
+        " ",
+      ),
+  );
 
   // The first <base> that has an href sets the URL that relative links resolve against;
   // <base> elements without one (such as <base target>) are skipped, as browsers do.
@@ -313,6 +316,38 @@ export function discoverFeedLink(html: string, pageUrl: URL): URL | null {
     }
   }
   return null;
+}
+
+/**
+ * Removes <template> elements, counting nesting so an inner </template> does not end the
+ * outer one. An unclosed template runs to the end of the markup. One forward pass.
+ */
+function removeTemplates(markup: string): string {
+  const tag = /<(\/?)template(?=[\s/>])/gi;
+  let kept = "";
+  let copied = 0;
+  let depth = 0;
+  let start = 0;
+  for (let match = tag.exec(markup); match; match = tag.exec(markup)) {
+    if (!match[1]) {
+      if (depth === 0) {
+        start = match.index;
+      }
+      depth += 1;
+    } else if (depth > 0) {
+      depth -= 1;
+      if (depth === 0) {
+        const end = markup.indexOf(">", tag.lastIndex);
+        if (end < 0) {
+          return kept + markup.slice(copied, start);
+        }
+        kept += markup.slice(copied, start) + " ";
+        copied = end + 1;
+        tag.lastIndex = copied;
+      }
+    }
+  }
+  return depth > 0 ? kept + markup.slice(copied, start) : kept + markup.slice(copied);
 }
 
 /**
