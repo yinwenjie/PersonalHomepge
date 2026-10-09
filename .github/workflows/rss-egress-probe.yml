@@ -1,0 +1,71 @@
+name: RSS Egress Probe
+
+# rss-proxy go-live checks against the hosted runtime. Deploys a temporary probe function,
+# calls it once and deletes it in the same run. Changes no data, secrets or other functions.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_project_ref:
+        description: Enter the exact target project ref
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-production
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    name: Probe Edge egress and client address
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: supabase-production
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_ID: ${{ vars.SUPABASE_PROJECT_ID }}
+      PROBE_CONFIRM_PROJECT_REF: ${{ inputs.confirm_project_ref }}
+    steps:
+      - name: Require master branch
+        if: github.ref != 'refs/heads/master'
+        run: |
+          echo "The egress probe must run from refs/heads/master."
+          exit 1
+
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+
+      - name: Setup Supabase CLI
+        id: cli
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Run probe
+        timeout-minutes: 6
+        run: node scripts/rss-egress-probe.mjs
+
+      # Runs after failures, cancellation and the probe step's timeout, so the probe never
+      # outlives the run.
+      - name: Delete probe
+        if: always() && steps.cli.outcome == 'success'
+        run: |
+          supabase functions delete egress-probe --project-ref "$SUPABASE_PROJECT_ID" --yes || true
+          # A failed listing proves nothing, so it fails the step too.
+          if ! functions=$(supabase functions list --project-ref "$SUPABASE_PROJECT_ID"); then
+            echo "Could not confirm egress-probe was deleted; check it by hand."
+            exit 1
+          fi
+          if grep -qw egress-probe <<<"$functions"; then
+            echo "egress-probe is still deployed; delete it by hand."
+            exit 1
+          fi

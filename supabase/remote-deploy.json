@@ -48,5 +48,27 @@
       "purpose": "Verify the RSS proxy tables and functions are service-role only, the rate limit and refresh lease work, and rss.feed_checked analytics is allowed.",
       "requiresRollback": true
     }
+  ],
+  "edgeFunctions": [
+    {
+      "name": "admin-read",
+      "purpose": "Read-only administrator API (Phase 1.18.2-1.18.3); needs the admin tables and the Auth email lookup.",
+      "preflightChecks": [
+        "supabase/checks/021_admin_readonly_foundation_verify.sql",
+        "supabase/checks/022_admin_auth_email_lookup_verify.sql"
+      ],
+      "requiredSecrets": []
+    },
+    {
+      "name": "rss-proxy",
+      "purpose": "RSS widget feed proxy (Phase 2.2); needs the RSS cache and rate-limit tables, and refuses to start until the egress review is recorded.",
+      "preflightChecks": [
+        "supabase/checks/024_rss_proxy_verify.sql"
+      ],
+      "requiredSecrets": [
+        "RSS_RATE_LIMIT_SALT",
+        "RSS_EGRESS_VERIFIED"
+      ]
+    }
   ]
 }

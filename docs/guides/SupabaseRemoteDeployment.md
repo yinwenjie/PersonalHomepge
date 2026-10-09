@@ -14,6 +14,8 @@
 
 它不会执行 `migration repair`、`--include-all`、远程 `db reset`、seed、Edge Function 部署、管理员初始化或任意目录扫描。
 
+Edge Function 部署和回滚使用单独的 `deploy-edge-function.yml`，见 `EdgeFunctionDeployment.md`。
+
 ## 仓库文件
 
 - `.github/workflows/deploy-supabase.yml`：仅由 `workflow_dispatch` 启动的远程工作流。

@@ -17,6 +17,8 @@
     "verify:supabase-preparation": "node scripts/verify-supabase-preparation.mjs",
     "verify:supabase-remote-config": "node scripts/deploy-supabase-remote.mjs --validate-config",
     "deploy:supabase:remote": "node scripts/deploy-supabase-remote.mjs",
+    "verify:edge-function-config": "node scripts/deploy-edge-function.mjs --validate-config",
+    "deploy:edge-function": "node scripts/deploy-edge-function.mjs",
     "verify:todo": "node scripts/verify-todo-widget.mjs"
   },
   "dependencies": {
