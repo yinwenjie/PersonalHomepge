@@ -234,16 +234,16 @@ flags as (
     c.anonymous_id,
     c.cohort_day,
     -- null = the day has not fully passed yet, so this install does not count either way
-    case when c.cohort_day + 1 < current_date then bool_or(v.day = c.cohort_day + 1) end as d1,
-    case when c.cohort_day + 7 < current_date then bool_or(v.day = c.cohort_day + 7) end as d7,
-    case when c.cohort_day + 30 < current_date then bool_or(v.day = c.cohort_day + 30) end as d30
+    case when c.cohort_day + 1 < (now() at time zone 'UTC')::date then bool_or(v.day = c.cohort_day + 1) end as d1,
+    case when c.cohort_day + 7 < (now() at time zone 'UTC')::date then bool_or(v.day = c.cohort_day + 7) end as d7,
+    case when c.cohort_day + 30 < (now() at time zone 'UTC')::date then bool_or(v.day = c.cohort_day + 30) end as d30
   from cohorts c
   cross join data_start d
   -- One join plus aggregation instead of a subquery per install, so cost stays linear.
   join views v on v.anonymous_id = c.anonymous_id
   -- Skip the first 30 retained days: anyone whose earlier views were deleted or predate
   -- analytics would otherwise look like a new install there.
-  where c.cohort_day >= greatest(current_date - 90, d.first_day + 30)
+  where c.cohort_day >= greatest((now() at time zone 'UTC')::date - 90, d.first_day + 30)
   group by c.anonymous_id, c.cohort_day
 )
 select
@@ -293,16 +293,16 @@ flags as (
   select
     c.anonymous_id,
     c.cohort_day,
-    case when c.cohort_day + 13 < current_date
+    case when c.cohort_day + 13 < (now() at time zone 'UTC')::date
       then bool_or(v.day between c.cohort_day + 7 and c.cohort_day + 13) end as week1,
-    case when c.cohort_day + 34 < current_date
+    case when c.cohort_day + 34 < (now() at time zone 'UTC')::date
       then bool_or(v.day between c.cohort_day + 28 and c.cohort_day + 34) end as week4
   from cohorts c
   cross join data_start d
   join views v on v.anonymous_id = c.anonymous_id
   -- Skip the first 30 retained days: anyone whose earlier views were deleted or predate
   -- analytics would otherwise look like a new install there.
-  where c.cohort_day >= greatest(current_date - 90, d.first_day + 30)
+  where c.cohort_day >= greatest((now() at time zone 'UTC')::date - 90, d.first_day + 30)
   group by c.anonymous_id, c.cohort_day
 )
 select
@@ -358,6 +358,8 @@ order by 1 desc;
 - 兜底：首页已经是本机保存的文档（`home.viewed` 带 `hasStoredDocument = true`）
 
 认领同步码空间、迁移到账号托管、用当前首页创建账号托管空间都不算：它们只是把现有首页挂到账号下，不改变首页内容（认领失败时也会上报）。以后新增“把别的首页写进本机”的事件时，要一起加进下面的列表。
+
+已知低估：编辑或删除已有网站、分组目前不上报事件。只做了这类修改、而且 7 天内没再打开首页的新安装，会被算成“没有自定义”（再打开一次就会被 `hasStoredDocument` 兜底算上）。要补上需要新增事件和对应的白名单 migration。
 
 ```sql
 with data_start as (
