@@ -254,12 +254,16 @@ Invoke-WebRequest -Uri "http://mylinker.net/" -MaximumRedirection 0 -UseBasicPar
 
 ### 8. WAF Managed Rules
 
-路径：
+当前状态（2026-10-08）：`mylinker.net` 使用 Cloudflare Free 套餐。Free 套餐只提供 Cloudflare Free Managed Ruleset，且默认已部署；完整 Cloudflare Managed Ruleset、OWASP Core Ruleset 需要 Pro 及以上套餐，本阶段不为此升级。本步骤在 Free 套餐下只需确认 Free Managed Ruleset 处于启用状态。
+
+路径（新版后台）：
 
 1. 选择你的域名。
-2. 打开 `Security` -> `WAF`。
-3. 进入 `Managed rules`。
-4. 启用可用的 Cloudflare Managed Ruleset。
+2. 打开 `Security` -> `Settings`。
+3. 筛选 `Web application exploits`。
+4. Free 套餐：确认 Free managed ruleset 已启用；Pro 及以上：打开 `Cloudflare managed ruleset`，保持默认设置后 `Save`。
+
+旧版后台路径为 `Security` -> `WAF` -> `Managed rules`。拦截记录在 `Security` -> `Events`（新版在 `Security` -> `Analytics` 的 Events 标签）。
 
 建议：
 
