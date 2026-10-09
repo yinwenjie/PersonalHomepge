@@ -274,16 +274,20 @@ export function discoverFeedLink(html: string, pageUrl: URL): URL | null {
       " ",
     );
 
-  // The first <base href> sets the URL that relative links resolve against.
+  // The first <base> that has an href sets the URL that relative links resolve against;
+  // <base> elements without one (such as <base target>) are skipped, as browsers do.
   let base = pageUrl.href;
-  const baseTag = /<base\b[^>]*>/i.exec(markup);
-  const baseHref = baseTag ? parseAttributes(baseTag[0]).get("href") : undefined;
-  if (baseHref) {
+  for (const baseTag of markup.matchAll(/<base\b[^>]*>/gi)) {
+    const baseHref = parseAttributes(baseTag[0]).get("href");
+    if (baseHref === undefined) {
+      continue;
+    }
     try {
       base = new URL(decodeAttribute(baseHref), pageUrl.href).href;
     } catch {
       // An unusable base is ignored, as browsers do.
     }
+    break;
   }
 
   for (const match of markup.matchAll(/<link\b[^>]*>/gi)) {
