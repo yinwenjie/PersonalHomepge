@@ -320,6 +320,10 @@ cursor: 可选的不透明分页游标
 - Banner/背景只展示配置状态、source 和安全文件类型摘要，不显示完整外部 URL、Storage path，不请求图片，也不创建 signed URL。
 - 预览组件在私有 Admin 仓库中实现，不从公开主站构建产物加载运行时代码；可以按已固定的安全字段重做只读展示，但不得复制或挂载编辑、拖拽、计时写回、设置弹窗、同步、恢复、本地存储或观测副作用。
 
+### 1.18.3 遗留
+
+- `home_space_snapshots.content_fingerprint`、`summary` 和 `home_space_audit_events.metadata`/`summary_*` 没有长度上限，且用户本人可直接插入。`list-snapshots`、`list-home-audit-events` 目前取回原始列后在 Edge Function 投影，用户可让后台查看其本人数据时返回 503（不泄露、不影响他人）。1.18.5 实现快照投影时一并改为数据库端投影或加长度约束。
+
 ### 安全行为
 
 - `support` 在前端不显示预览入口，Edge Function 仍必须独立拒绝伪造的 `preview-snapshot` 请求。
