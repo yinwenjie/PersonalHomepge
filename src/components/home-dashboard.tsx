@@ -23,6 +23,7 @@ import { createHomeDocumentFromTemplate, type HomeTemplate } from "@/domain/home
 import { SYNC_BINDING_STORAGE_KEY } from "@/domain/sync-code";
 import { HomeDocumentEditorModal } from "@/components/home-document-editor-modal";
 import { HomeThemeStyleBridge } from "@/components/home-theme-style-bridge";
+import { HomepageGuideTip } from "@/components/homepage-guide";
 import { LegacySiteNotice } from "@/components/legacy-site-notice";
 import { SiteCollection } from "@/components/site-collection";
 import { TemplateLibraryPanel } from "@/components/template-library-panel";
@@ -366,6 +367,7 @@ export function HomeDashboard() {
       </header>
 
       <LegacySiteNotice />
+      <HomepageGuideTip suppressed={showWelcome} />
 
       {showWelcome ? (
         <div className="welcome-template-shell">

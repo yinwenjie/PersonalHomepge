@@ -168,6 +168,23 @@ group by 1
 order by applied_count desc;
 ```
 
+“设为首页”引导漏斗（migration 021 之后才有数据）：
+
+```sql
+select
+  properties ->> 'source' as source,
+  properties ->> 'browserFamily' as browser_family,
+  count(distinct anonymous_id) filter (where event_name = 'homepage_guide.opened') as opened_installs,
+  count(distinct anonymous_id) filter (where event_name = 'homepage_guide.address_copied') as copied_installs
+from public.product_analytics_events
+where event_name in ('homepage_guide.opened', 'homepage_guide.address_copied')
+  and created_at >= now() - interval '30 days'
+group by 1, 2
+order by opened_installs desc;
+```
+
+首页提示被关闭的次数看 `homepage_guide.tip_dismissed`。`address_copied` 只说明用户复制了网址，不代表已经设置成功；浏览器不会告诉网页它是不是首页。
+
 ## 解读规则
 
 - 事件数不是用户数；同一浏览器可触发多次同类事件。

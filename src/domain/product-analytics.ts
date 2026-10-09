@@ -50,7 +50,10 @@ export const PRODUCT_ANALYTICS_EVENTS = [
   "home_space.sync_code_migrated",
   "home_space.removed",
   "account.preferences_updated",
-  "analytics.preference_changed"
+  "analytics.preference_changed",
+  "homepage_guide.opened",
+  "homepage_guide.address_copied",
+  "homepage_guide.tip_dismissed"
 ] as const;
 
 export type ProductAnalyticsEventName = typeof PRODUCT_ANALYTICS_EVENTS[number];
@@ -68,6 +71,7 @@ export const PRODUCT_ANALYTICS_PROPERTY_KEYS = [
   "accessMode",
   "assetSlot",
   "assetSource",
+  "browserFamily",
   "cloudHistoryAvailable",
   "documentClass",
   "force",

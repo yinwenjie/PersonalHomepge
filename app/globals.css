@@ -3078,6 +3078,78 @@ h1 {
   justify-content: flex-end;
 }
 
+.settings-page-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.homepage-guide-dialog {
+  width: min(560px, calc(100% - 32px));
+}
+
+.homepage-guide-address {
+  display: grid;
+  gap: 6px;
+}
+
+.homepage-guide-address-row {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.homepage-guide-address-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0 10px;
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+}
+
+.homepage-guide-copy-status {
+  min-height: 1.2em;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.homepage-guide-detected {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: middle;
+}
+
+.homepage-guide-panel {
+  display: grid;
+  gap: 8px;
+}
+
+.homepage-guide-steps {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 20px;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.homepage-guide-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .editor-title {
   margin: 0;
   font-size: 17px;
