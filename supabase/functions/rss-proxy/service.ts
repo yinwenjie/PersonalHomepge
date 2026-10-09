@@ -20,6 +20,7 @@ import {
   type FetchBudget,
   fetchDocument,
   type FetcherDeps,
+  FetchRateLimited,
   newFetchBudget,
 } from "./fetcher.ts";
 import { assertHostAllowed, normalizeFeedUrl } from "./url-guard.ts";
@@ -132,10 +133,14 @@ async function readOne(
     return { result: await waitForOtherRefresh(hash, deps), cacheHit: true };
   }
 
-  const { globalFetch } = RATE_LIMITS;
-  if (
-    !(await deps.store.consumeRate("global-fetch", globalFetch.windowSeconds, globalFetch.limit))
-  ) {
+  let update: FeedUpdate;
+  try {
+    update = await refresh(url, row, deps);
+  } catch (error) {
+    if (!(error instanceof FetchRateLimited)) {
+      throw error;
+    }
+    // Over the global request budget: leave the row as it was so the next caller retries.
     await deps.store.releaseLease(hash);
     if (row && row.fetchedAt !== null && now() - row.fetchedAt <= STALE_LIMIT_MS) {
       return {
@@ -145,8 +150,6 @@ async function readOne(
     }
     return { result: errorView("rate_limited"), cacheHit: false };
   }
-
-  const update = await refresh(url, row, deps);
   await deps.store.finishRefresh(hash, update);
   return {
     result: present({ ...update, urlHash: hash, feedUrl: url.href }, now()),
@@ -177,7 +180,7 @@ async function refresh(
   deps: RssServiceDeps,
 ): Promise<FeedUpdate> {
   const now = (deps.now ?? Date.now)();
-  const budget = (deps.newBudget ?? newFetchBudget)();
+  const budget = chargedBudget(deps);
   try {
     const document = await fetchDocument(
       url,
@@ -214,6 +217,9 @@ async function refresh(
       nextFetchAt: now + FRESH_MS,
     };
   } catch (error) {
+    if (error instanceof FetchRateLimited) {
+      throw error;
+    }
     const failureCount = (row?.failureCount ?? 0) + 1;
     const base = row ? rowData(row) : emptyData();
     return {
@@ -246,14 +252,7 @@ export async function checkFeed(raw: string, deps: RssServiceDeps): Promise<Serv
     };
   }
 
-  const { globalFetch } = RATE_LIMITS;
-  if (
-    !(await deps.store.consumeRate("global-fetch", globalFetch.windowSeconds, globalFetch.limit))
-  ) {
-    return { feeds: [checkError(raw, "rate_limited")], cacheHits: 0 };
-  }
-
-  const budget = (deps.newBudget ?? newFetchBudget)();
+  const budget = chargedBudget(deps);
   let feedUrl: URL;
   let update: FeedUpdate;
   let discovered = false;
@@ -291,6 +290,9 @@ export async function checkFeed(raw: string, deps: RssServiceDeps): Promise<Serv
       nextFetchAt: fetchedAt + FRESH_MS,
     };
   } catch (error) {
+    if (error instanceof FetchRateLimited) {
+      return { feeds: [checkError(raw, "rate_limited")], cacheHits: 0 };
+    }
     return { feeds: [checkError(raw, storedErrorCode(error))], cacheHits: 0 };
   }
 
@@ -302,6 +304,16 @@ export async function checkFeed(raw: string, deps: RssServiceDeps): Promise<Serv
       discovered,
     }],
     cacheHits: 0,
+  };
+}
+
+/** A fetch budget whose every outbound request is counted against the global limit. */
+function chargedBudget(deps: RssServiceDeps): FetchBudget {
+  const { globalFetch } = RATE_LIMITS;
+  return {
+    ...(deps.newBudget ?? newFetchBudget)(),
+    charge: () =>
+      deps.store.consumeRate("global-fetch", globalFetch.windowSeconds, globalFetch.limit),
   };
 }
 

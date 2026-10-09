@@ -546,3 +546,18 @@ Deno.test("cleanup runs on roughly one request in a hundred", async () => {
   await call(h, { mode: "read", feeds: [FEED] });
   assertEquals(h.store.cleanups, 1);
 });
+
+Deno.test("check: discovery charges the global limit for each request it makes", async () => {
+  const h = harness();
+  h.setRoute("https://example.com/", () =>
+    new Response(
+      `<link rel="alternate" type="application/rss+xml" href="/feed.xml">`,
+      { headers: { "Content-Type": "text/html" } },
+    ));
+  h.setRoute(FEED, feedResponse("Found"));
+  h.store.rateLimits = { "global-fetch": 1 };
+  const result = await call(h, { mode: "check", feeds: ["https://example.com/"] });
+  assertEquals(result.body.feeds[0].errorCode, "rate_limited");
+  assertEquals(h.fetches, ["https://example.com/"]);
+  assertEquals(h.store.rates.get("global-fetch"), 2);
+});

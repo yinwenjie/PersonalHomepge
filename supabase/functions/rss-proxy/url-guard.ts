@@ -66,7 +66,11 @@ export function assertHostAllowed(url: URL): void {
  * Full check before a request: hostname rules, then every resolved address.
  * Fails closed: a resolver error or an empty answer means the hop is not made.
  */
-export async function checkFetchTarget(url: URL, resolve: DnsResolver): Promise<void> {
+export async function checkFetchTarget(
+  url: URL,
+  resolve: DnsResolver,
+  signal?: AbortSignal,
+): Promise<void> {
   assertHostAllowed(url);
   const host = url.hostname.toLowerCase().replace(/\.$/, "");
   if (ipLiteral(host) !== null) {
@@ -75,8 +79,11 @@ export async function checkFetchTarget(url: URL, resolve: DnsResolver): Promise<
 
   let addresses: string[];
   try {
-    addresses = await resolve(host);
-  } catch {
+    addresses = await withDeadline(resolve(host), signal);
+  } catch (error) {
+    if (error instanceof FeedError) {
+      throw error;
+    }
     throw new FeedError("fetch_failed");
   }
 
@@ -90,6 +97,21 @@ export async function checkFetchTarget(url: URL, resolve: DnsResolver): Promise<
       throw new FeedError("blocked_address");
     }
   }
+}
+
+/** A stalled DNS lookup must not outlive the fetch deadline. */
+function withDeadline<T>(promise: Promise<T>, signal: AbortSignal | undefined): Promise<T> {
+  if (!signal) {
+    return promise;
+  }
+  if (signal.aborted) {
+    return Promise.reject(new FeedError("timeout"));
+  }
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(new FeedError("timeout"));
+    signal.addEventListener("abort", onAbort, { once: true });
+    promise.then(resolve, reject).finally(() => signal.removeEventListener("abort", onAbort));
+  });
 }
 
 /** Deno resolver: all A and AAAA records. CNAME chains are followed by the runtime. */

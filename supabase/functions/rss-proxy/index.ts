@@ -13,6 +13,14 @@ if (!supabaseUrl || !serviceRoleKey || !rateLimitSalt || rateLimitSalt.length < 
   throw new Error("rss-proxy is missing its server configuration.");
 }
 
+// fetch() resolves DNS again after checkFetchTarget, and Deno cannot pin the connection to
+// the checked address, so DNS rebinding is only stopped if the egress network itself cannot
+// reach private and metadata addresses. Go-live step 0 verifies that; until it has passed and
+// this is set, the function refuses to start.
+if (Deno.env.get("RSS_EGRESS_VERIFIED") !== "true") {
+  throw new Error("rss-proxy egress verification has not been recorded.");
+}
+
 const serviceClient = createClient(supabaseUrl, serviceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
 });

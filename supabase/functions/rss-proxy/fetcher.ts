@@ -21,6 +21,19 @@ export interface FetchBudget {
   signal: AbortSignal;
   /** Redirects plus discovery hops already spent; shared across one feed request. */
   hops: number;
+  /**
+   * Called before every outbound request (first hop, each redirect, discovery) so the
+   * global fetch limit counts network requests, not refreshes. Returns false when over.
+   */
+  charge?: () => Promise<boolean>;
+}
+
+/** The global outbound request budget ran out partway through a fetch. */
+export class FetchRateLimited extends Error {
+  constructor() {
+    super("global fetch limit reached");
+    this.name = "FetchRateLimited";
+  }
 }
 
 export interface FetchOptions {
@@ -65,7 +78,10 @@ export async function fetchDocument(
   let conditional = true;
 
   while (true) {
-    await checkFetchTarget(url, deps.resolve);
+    await checkFetchTarget(url, deps.resolve, budget.signal);
+    if (budget.charge && !(await budget.charge())) {
+      throw new FetchRateLimited();
+    }
 
     const headers: Record<string, string> = {
       "User-Agent": USER_AGENT,

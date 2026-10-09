@@ -214,3 +214,45 @@ Deno.test("discoverFeedLink finds RSS or Atom alternates and ignores others", ()
   );
   assertEquals(discoverFeedLink("<p>no feed</p>", page), null);
 });
+
+Deno.test("a stalled DNS lookup ends at the fetch deadline", async () => {
+  const controller = new AbortController();
+  const stalled: FetcherDeps = {
+    resolve: () => new Promise(() => {}),
+    fetch: () => Promise.reject(new Error("should not fetch")),
+  };
+  setTimeout(() => controller.abort(new DOMException("time is up", "TimeoutError")), 10);
+  assertEquals(
+    await failure(fetchDocument(
+      normalizeFeedUrl("https://slow-dns.example.com/feed"),
+      { allowHtml: false },
+      { signal: controller.signal, hops: 0 },
+      stalled,
+    )),
+    "timeout",
+  );
+});
+
+Deno.test("every outbound request is charged, including redirects", async () => {
+  let charges = 0;
+  const seen: Array<{ url: string; init: RequestInit }> = [];
+  const redirect = (location: string) => () =>
+    new Response(null, { status: 302, headers: { Location: location } });
+  const error = await assertRejects(() =>
+    fetchDocument(
+      normalizeFeedUrl("https://example.com/a"),
+      { allowHtml: false },
+      { ...budget(), charge: () => Promise.resolve(++charges <= 2) },
+      deps(
+        { "https://example.com/a": redirect("/b"), "https://example.com/b": redirect("/c") },
+        seen,
+      ),
+    )
+  );
+  assertEquals((error as Error).name, "FetchRateLimited");
+  assertEquals(charges, 3);
+  assertEquals(seen.map((request) => request.url), [
+    "https://example.com/a",
+    "https://example.com/b",
+  ]);
+});

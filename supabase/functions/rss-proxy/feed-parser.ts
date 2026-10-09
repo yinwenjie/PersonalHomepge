@@ -255,15 +255,13 @@ function textOf(node: Node): string {
 }
 
 /**
- * Plain text only: strip tags, decode entities, and for summaries strip once more so
- * entity-escaped HTML (common in RSS descriptions) also loses its markup.
+ * Plain text only: strip tags, decode entities, then strip once more so entity-escaped
+ * HTML (RSS descriptions, Atom type="html" titles) also loses its markup.
  */
 export function cleanText(raw: string, max: number, htmlBody: boolean): string {
   // Only a short prefix can survive truncation; capping the input keeps regex work bounded.
   let text = decodeEntities(stripTags(raw.slice(0, htmlBody ? 16_384 : 4_096)));
-  if (htmlBody) {
-    text = stripTags(text);
-  }
+  text = stripTags(text);
   // deno-lint-ignore no-control-regex
   text = text.replace(/[\u0000-\u001f\u007f​-‏‪-‮⁦-⁩]/g, " ")
     .replace(/\s+/g, " ")

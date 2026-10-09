@@ -86,8 +86,8 @@ Deno.test("parses Atom with alternate links and xhtml content", async () => {
   assertEquals(feed.items[0].link, "https://example.net/1");
   assertEquals(feed.items[0].publishedAt, "2026-10-07T10:00:00.000Z");
   assertEquals(feed.items[0].summary, "First release");
-  // Titles keep entity-escaped markup as text rather than dropping words.
-  assertEquals(feed.items[0].title, "Release <b>1.0</b>");
+  // Atom type="html" titles arrive entity-escaped; the markup is removed after decoding.
+  assertEquals(feed.items[0].title, "Release 1.0");
 });
 
 Deno.test("rejects documents that are not feeds", async () => {
