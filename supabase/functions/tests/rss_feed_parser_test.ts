@@ -200,3 +200,21 @@ Deno.test("cleanText removes markup, control characters and bidi overrides", () 
   );
   assertEquals(decodeEntities("&lt;&#60;&#x3C;&LT;"), "<<<<");
 });
+
+Deno.test("cleanText does not end a tag at a quoted >", () => {
+  assertEquals(
+    cleanText('&lt;span title="News &gt; Updates"&gt;Release&lt;/span&gt;', 240, false),
+    "Release",
+  );
+  assertEquals(cleanText("<a title='a>b' href=\"c>d\">Link</a> 3 < 4", 240, true), "Link 3 < 4");
+  // A quote left open falls back to ending tags at the next ">".
+  assertEquals(cleanText('<b title="x>Bold</b> text', 240, true), "Bold text");
+});
+
+Deno.test("cleanText stays linear on hostile tag markup", () => {
+  for (const hostile of ["<a ".repeat(6_000), '<a "'.repeat(4_000), "<a>".repeat(6_000)]) {
+    const started = performance.now();
+    cleanText(hostile, 240, true);
+    assert(performance.now() - started < 200);
+  }
+});

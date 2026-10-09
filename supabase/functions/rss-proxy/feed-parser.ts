@@ -292,11 +292,53 @@ export function cleanText(raw: string, max: number, htmlBody: boolean): string {
 }
 
 function stripTags(value: string): string {
-  return value
+  value = value
     .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
     .replace(/<(script|style)\b[\s\S]*?<\/\1\s*>/gi, " ")
-    .replace(/<!--[\s\S]*?-->/g, " ")
-    .replace(/<\/?[a-zA-Z][^>]*>/g, " ");
+    .replace(/<!--[\s\S]*?-->/g, " ");
+  return removeTags(value);
+}
+
+/**
+ * Replaces each tag with a space. A ">" inside a quoted attribute value does not end the
+ * tag, as in HTML. One forward pass: after a quote left open to the end, later tags end at
+ * the next ">" instead, so hostile markup cannot make this quadratic.
+ */
+function removeTags(value: string): string {
+  const opener = /<\/?[a-zA-Z]/g;
+  let quoteAware = true;
+  let text = "";
+  let copied = 0;
+  for (let match = opener.exec(value); match; match = opener.exec(value)) {
+    let end = -1;
+    if (quoteAware) {
+      let quote = "";
+      for (let index = opener.lastIndex; index < value.length; index += 1) {
+        const char = value[index];
+        if (quote) {
+          if (char === quote) {
+            quote = "";
+          }
+        } else if (char === '"' || char === "'") {
+          quote = char;
+        } else if (char === ">") {
+          end = index;
+          break;
+        }
+      }
+      quoteAware = end >= 0;
+    }
+    if (end < 0) {
+      end = value.indexOf(">", opener.lastIndex);
+    }
+    if (end < 0) {
+      break; // no ">" left, so the rest is text
+    }
+    text += value.slice(copied, match.index) + " ";
+    copied = end + 1;
+    opener.lastIndex = copied;
+  }
+  return text + value.slice(copied);
 }
 
 const NAMED_ENTITIES: Record<string, string> = {

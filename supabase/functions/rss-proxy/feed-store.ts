@@ -101,8 +101,15 @@ export function createSupabaseFeedStore(client: SupabaseClient): FeedStore {
 
     async finishRefresh(urlHash, token, update) {
       // A holder whose lease expired and was taken over matches no row and writes nothing.
+      // Touching the row in the same update keeps stale-row cleanup from deleting it as
+      // soon as the lease is gone.
       const { error } = await table()
-        .update({ ...toRow(update), refresh_lease_until: null, refresh_lease_token: null })
+        .update({
+          ...toRow(update),
+          last_requested_at: new Date().toISOString(),
+          refresh_lease_until: null,
+          refresh_lease_token: null,
+        })
         .eq("url_hash", urlHash)
         .eq("refresh_lease_token", token);
       if (error) {
@@ -112,7 +119,11 @@ export function createSupabaseFeedStore(client: SupabaseClient): FeedStore {
 
     async releaseLease(urlHash, token) {
       const { error } = await table()
-        .update({ refresh_lease_until: null, refresh_lease_token: null })
+        .update({
+          last_requested_at: new Date().toISOString(),
+          refresh_lease_until: null,
+          refresh_lease_token: null,
+        })
         .eq("url_hash", urlHash)
         .eq("refresh_lease_token", token);
       if (error) {
