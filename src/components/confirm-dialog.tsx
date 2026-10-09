@@ -157,12 +157,21 @@ function ConfirmDialogView({ dialog }: { dialog: PendingDialog }) {
       return;
     }
 
+    // The dialog is removed by unmounting, which skips the native close steps, so restore focus ourselves.
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
     // showModal() focuses the first button: Cancel for confirms, so Enter never confirms by accident.
     if (typeof element.showModal === "function") {
       element.showModal();
     } else {
       element.setAttribute("open", "");
     }
+
+    return () => {
+      if (previousFocus?.isConnected) {
+        previousFocus.focus();
+      }
+    };
   }, []);
 
   return (
