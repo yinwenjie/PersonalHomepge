@@ -21,6 +21,7 @@ const TEXT_FILE = /\.(?:[cm]?[jt]sx?|css|html?|json|txt|xml|md|webmanifest|svg)$
 // Strings that only admin code would contain. Matched case-insensitively.
 const FORBIDDEN_MARKERS = [
   { pattern: /admin-read/i, label: "the admin-read Edge Function" },
+  { pattern: /(?:["'`(]|mylinker\.net|\/PersonalHomepge)\/admin(?![\w-])/i, label: "a link or path to /admin" },
   { pattern: /admin\.mylinker\.net/i, label: "the admin site hostname" },
   { pattern: /preview-snapshot|list-admin-audit-events|get-admin-context/i, label: "an admin API operation" },
   { pattern: /admin_users|admin_audit_events/i, label: "an admin table" },
