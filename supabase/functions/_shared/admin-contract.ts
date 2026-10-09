@@ -147,7 +147,8 @@ export function parseAdminReadRequest(body: unknown): AdminReadRequest {
       throw new AdminRequestError("invalid_request");
     }
     reason = body.reason.trim();
-    if (!isSafeReason(reason)) {
+    // The session reason is reserved for admin.session.check by the 019 constraint.
+    if (!isSafeReason(reason) || reason === SESSION_CHECK_REASON) {
       throw new AdminRequestError("invalid_request");
     }
   }

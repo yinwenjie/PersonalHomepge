@@ -165,8 +165,8 @@ async function readJsonBody(request: Request): Promise<unknown> {
     throw new AdminRequestError("invalid_request");
   }
 
-  const bytes = new Uint8Array(await request.arrayBuffer());
-  if (bytes.byteLength === 0 || bytes.byteLength > MAX_REQUEST_BYTES) {
+  const bytes = await readLimitedBody(request);
+  if (bytes.byteLength === 0) {
     throw new AdminRequestError("invalid_request");
   }
 
@@ -175,6 +175,37 @@ async function readJsonBody(request: Request): Promise<unknown> {
   } catch {
     throw new AdminRequestError("invalid_request");
   }
+}
+
+/** Reads at most MAX_REQUEST_BYTES, cancelling the stream as soon as it goes over. */
+async function readLimitedBody(request: Request): Promise<Uint8Array> {
+  if (!request.body) {
+    return new Uint8Array();
+  }
+
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    total += value.byteLength;
+    if (total > MAX_REQUEST_BYTES) {
+      await reader.cancel().catch(() => {});
+      throw new AdminRequestError("invalid_request");
+    }
+    chunks.push(value);
+  }
+
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
 }
 
 function errorResponse(requestId: string, code: AdminErrorCode, origin: string | null): Response {
