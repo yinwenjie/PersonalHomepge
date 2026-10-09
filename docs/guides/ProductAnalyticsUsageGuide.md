@@ -193,6 +193,7 @@ order by opened_installs desc;
 
 - **安装**：一个 `anonymous_id`，即一个浏览器里的一份本机数据，不等于一个人或一个账号。
 - **新安装日**：这个安装第一次上报 `home.viewed` 的日期。表里最早的 30 天不算新安装：埋点上线前就在用的老用户，以及按保留策略清理掉早期事件的老用户，都会在那段时间里“第一次出现”。所以清理时请保留至少 120 天（建议 180 天），否则 D30 没有可算的新安装。这个排除只对每天都来的老用户完全有效：执行过清理之后，隔了 30 天以上才回来的老用户仍会被算成新安装。在还没执行过 `delete_product_analytics_events_older_than` 之前，口径是准确的；要在清理之后也准确，需要另存一份不随清理删除的“首次出现时间”。
+- **后来才开启统计的不算新安装**：开了“请勿跟踪”的浏览器默认不上报，用户之后在设置里打开统计时，第一条事件是 `analytics.preference_changed`（`result = enabled`），之后才有 `home.viewed`。这类安装已经用了一段时间，三个新安装查询都会排除它们。
 - **活跃**：当天至少上报过一次 `home.viewed`。日期统一按 UTC 切分。
 - **未满期的不计入**：例如新安装才 5 天，它的 D7 还没到，就不进 D7 的分母，避免把“还没发生”算成“没回来”。
 
@@ -210,9 +211,22 @@ with views as (
 data_start as (
   select min(day) as first_day from views
 ),
+opted_in_later as (
+  -- Existing browsers that turned analytics on in Settings (it starts off under Do Not
+  -- Track): the opt-in is their first event, so they would look like new installs.
+  select o.anonymous_id
+  from public.product_analytics_events o
+  where o.event_name = 'analytics.preference_changed'
+    and o.properties ->> 'result' = 'enabled'
+    and not exists (
+      select 1 from public.product_analytics_events e
+      where e.anonymous_id = o.anonymous_id and e.event_name = 'home.viewed' and e.created_at < o.created_at
+    )
+),
 cohorts as (
   select anonymous_id, min(day) as cohort_day
   from views
+  where anonymous_id not in (select anonymous_id from opted_in_later)
   group by 1
 ),
 flags as (
@@ -257,9 +271,22 @@ with views as (
 data_start as (
   select min(day) as first_day from views
 ),
+opted_in_later as (
+  -- Existing browsers that turned analytics on in Settings (it starts off under Do Not
+  -- Track): the opt-in is their first event, so they would look like new installs.
+  select o.anonymous_id
+  from public.product_analytics_events o
+  where o.event_name = 'analytics.preference_changed'
+    and o.properties ->> 'result' = 'enabled'
+    and not exists (
+      select 1 from public.product_analytics_events e
+      where e.anonymous_id = o.anonymous_id and e.event_name = 'home.viewed' and e.created_at < o.created_at
+    )
+),
 cohorts as (
   select anonymous_id, min(day) as cohort_day
   from views
+  where anonymous_id not in (select anonymous_id from opted_in_later)
   group by 1
 ),
 flags as (
@@ -338,10 +365,23 @@ with data_start as (
   from public.product_analytics_events
   where event_name = 'home.viewed'
 ),
+opted_in_later as (
+  -- Existing browsers that turned analytics on in Settings (it starts off under Do Not
+  -- Track): the opt-in is their first event, so they would look like new installs.
+  select o.anonymous_id
+  from public.product_analytics_events o
+  where o.event_name = 'analytics.preference_changed'
+    and o.properties ->> 'result' = 'enabled'
+    and not exists (
+      select 1 from public.product_analytics_events e
+      where e.anonymous_id = o.anonymous_id and e.event_name = 'home.viewed' and e.created_at < o.created_at
+    )
+),
 first_seen as (
   select anonymous_id, min(created_at) as first_seen_at
   from public.product_analytics_events
   where event_name = 'home.viewed'
+    and anonymous_id not in (select anonymous_id from opted_in_later)
   group by 1
   having min(created_at) >= greatest(now() - interval '60 days', (select first_at from data_start) + interval '30 days')
      and min(created_at) < now() - interval '7 days'
