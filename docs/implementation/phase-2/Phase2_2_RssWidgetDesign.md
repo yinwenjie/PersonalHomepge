@@ -194,7 +194,10 @@ interface RssFeedWidgetConfig {
 | 每个 IP 的 `check` 次数 | 10 分钟 20 次 | 返回 `rate_limited` |
 | 全局真实抓取次数（不含命中缓存） | 每分钟 300 次 | 有缓存就返回 `stale`，没有返回 `rate_limited` |
 
-- IP 不落库：`bucket_key` 是 `SHA-256(IP + 服务端密钥 RSS_RATE_LIMIT_SALT)`。客户端可以自己带 `X-Forwarded-For`，Supabase 网关会把它看到的地址追加在最后，所以只取最后一项；不是合法 IP 时归入同一个严格的 `unknown` 桶。
+- IP 不落库：`bucket_key` 是 `SHA-256(IP + 服务端密钥 RSS_RATE_LIMIT_SALT)`。IP 只取 `CF-Connecting-IP`；不是合法 IP 时归入同一个严格的 `unknown` 桶。依据是 2026-10-09 的线上探针（[运行 37955393204](https://github.com/yinwenjie/PersonalHomepge/actions/runs/37955393204)，伪造了 `X-Forwarded-For`、`X-Real-IP`、`X-Client-IP`）：
+  - `CF-Connecting-IP` 正好是调用方的真实地址，由 Supabase 前面的 Cloudflare 设置。
+  - `X-Forwarded-For` 里伪造的值被丢掉了，但最后一项是网关自己的一跳，而且每次不同（`3.2.54.118`、`99.82.172.149`），所以不能用。最初设计“只取最后一项”是错的，会让所有人共用一个限流额度。
+  - `X-Client-IP` 会原样透传伪造值，`X-Real-IP` 被去掉了。
 - 一天前的限流行顺带清理。
 
 ### 日志
@@ -229,7 +232,7 @@ interface RssFeedWidgetConfig {
 - Deno handler 测试：用假的 `fetch` 和假的存储覆盖缓存命中、过期重抓、失败回退旧数据、退避、限流、CORS、请求校验，以及同一 feed 并发过期时只有一个请求去抓。
 - pgTAP：`rss_consume_rate` 的计数和窗口、`rss_claim_refresh` 的租约（两次连续调用只有第一次成功，租约过期后可以再拿）、表和函数的权限（`anon`、`authenticated` 不能访问）。
 - 上线前验证：第 4 节的出口网络验证，结果写进运行手册。
-- 上线前验证限流键：部署后连续发 61 个 `read` 请求，每个都带不同的伪造 `X-Forwarded-For`，第 61 个必须返回 `rate_limited`。如果没有被限流，说明网关没有按预期追加真实地址，先停用函数再改取地址的方式。
+- 上线前验证限流键：部署后从同一台机器连续发 61 个 `read` 请求，每个都带不同的伪造 `CF-Connecting-IP` 和 `X-Forwarded-For`，第 61 个必须返回 `rate_limited`（Cloudflare 直接拒绝带伪造 `CF-Connecting-IP` 的请求也算通过）。如果没有被限流，说明这个头能被伪造，先停用函数再改取地址的方式。
 - 前端：配置归一化、本机缓存淘汰、合并排序；Playwright 用假的函数响应跑一遍添加订阅、刷新、部分失败和离线。
 
 ## 9. v1 不做

@@ -55,15 +55,15 @@ export function isRssOriginAllowed(origin: string | null): origin is string {
 }
 
 /**
- * The address the rate limits key on. A client can send its own X-Forwarded-For, and the
- * Supabase gateway appends the address it saw, so only the last entry is trusted. Anything
- * that is not an IP literal shares one strict "unknown" bucket. Go-live verifies this with
- * spoofed headers (Phase2_2_RssWidgetDesign.md, go-live checks).
+ * The address the rate limits key on: CF-Connecting-IP, which Cloudflare (in front of the
+ * Supabase gateway) sets to the caller's address. X-Forwarded-For is not used: the go-live
+ * probe showed its last entry is a gateway hop, and other headers such as X-Client-IP pass a
+ * forged value through. Anything that is not an IP literal shares one strict "unknown"
+ * bucket. Phase2_2_RssWidgetDesign.md records the probe and the go-live check.
  */
 export function clientAddress(request: Request): string {
-  const entries = (request.headers.get("X-Forwarded-For") ?? "").split(",");
-  const last = entries[entries.length - 1].trim();
-  return ipLiteral(last) ? last.toLowerCase() : "unknown";
+  const value = (request.headers.get("CF-Connecting-IP") ?? "").trim();
+  return ipLiteral(value) ? value.toLowerCase() : "unknown";
 }
 
 export async function handleRssProxy(request: Request, deps: RssProxyDeps): Promise<Response> {

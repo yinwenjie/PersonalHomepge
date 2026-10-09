@@ -232,17 +232,28 @@ async function call(h: Harness, body: unknown, origin?: string | null) {
   return { status: response.status, headers: response.headers, body: await response.json() };
 }
 
-Deno.test("client address: only the gateway-appended X-Forwarded-For entry counts", () => {
-  const withForwarded = (value: string | null) =>
-    new Request("https://project.supabase.co/functions/v1/rss-proxy", {
-      headers: value === null ? {} : { "X-Forwarded-For": value },
-    });
-  assertEquals(clientAddress(withForwarded("203.0.113.9")), "203.0.113.9");
-  assertEquals(clientAddress(withForwarded("1.2.3.4, 203.0.113.9")), "203.0.113.9");
-  assertEquals(clientAddress(withForwarded("9.9.9.9,8.8.8.8, 2001:DB8::1")), "2001:db8::1");
-  assertEquals(clientAddress(withForwarded("203.0.113.9, not-an-ip")), "unknown");
-  assertEquals(clientAddress(withForwarded("")), "unknown");
-  assertEquals(clientAddress(withForwarded(null)), "unknown");
+Deno.test("client address: only CF-Connecting-IP counts", () => {
+  const withHeaders = (headers: Record<string, string>) =>
+    new Request("https://project.supabase.co/functions/v1/rss-proxy", { headers });
+  assertEquals(clientAddress(withHeaders({ "CF-Connecting-IP": "203.0.113.9" })), "203.0.113.9");
+  assertEquals(clientAddress(withHeaders({ "CF-Connecting-IP": " 2001:DB8::1 " })), "2001:db8::1");
+  // X-Forwarded-For (its last entry is a gateway hop) and caller-controlled headers are ignored.
+  assertEquals(
+    clientAddress(
+      withHeaders({
+        "X-Forwarded-For": "203.0.113.9, 99.82.172.149",
+        "X-Client-IP": "198.51.100.7",
+        "X-Real-IP": "198.51.100.7",
+      }),
+    ),
+    "unknown",
+  );
+  assertEquals(
+    clientAddress(withHeaders({ "CF-Connecting-IP": "203.0.113.9, 1.2.3.4" })),
+    "unknown",
+  );
+  assertEquals(clientAddress(withHeaders({ "CF-Connecting-IP": "not-an-ip" })), "unknown");
+  assertEquals(clientAddress(withHeaders({})), "unknown");
 });
 
 Deno.test("origin allowlist: product site, local dev and Pages previews only", () => {
