@@ -60,7 +60,12 @@ jobs:
         if: always() && steps.cli.outcome == 'success'
         run: |
           supabase functions delete egress-probe --project-ref "$SUPABASE_PROJECT_ID" --yes || true
-          if supabase functions list --project-ref "$SUPABASE_PROJECT_ID" | grep -qw egress-probe; then
+          # A failed listing proves nothing, so it fails the step too.
+          if ! functions=$(supabase functions list --project-ref "$SUPABASE_PROJECT_ID"); then
+            echo "Could not confirm egress-probe was deleted; check it by hand."
+            exit 1
+          fi
+          if grep -qw egress-probe <<<"$functions"; then
             echo "egress-probe is still deployed; delete it by hand."
             exit 1
           fi
