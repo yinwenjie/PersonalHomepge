@@ -35,7 +35,7 @@ v1 的产品结果是只读后台：管理员可以精确查找用户、查看�
 ### 数据与权限
 
 - v1 角色固定为 `owner`、`admin`、`support`。
-- `owner` 和 `admin` 可以执行 v1 全部只读查询；`support` 只能查找用户、查看空间元数据、快照摘要列表和用户侧云端审计，不得读取 `document_json`，也不得查询其他管理员的审计记录。
+- `owner` 和 `admin` 可以执行 v1 全部只读查询；`support` 只能查找用户、查看空间元数据、快照摘要列表、用户侧云端审计和汇总统计，不得读取 `document_json`，不得浏览用户目录，也不得查询其他管理员的审计记录。
 - v1 不提供管理员名单管理 API 或 UI。首个 `owner` 由有 Supabase Dashboard 权限的运维人员使用明确的 Auth user UUID 手动初始化；migration 中不得硬编码邮箱或用户 UUID。
 - 管理员启用、停用和角色调整在 v1 仍是受控运维操作，不属于 Dashboard 的用户数据写入能力。后续若产品化，必须进入独立阶段并增加二次确认和审计。
 - 后台只读取账号托管空间已有的 `home_space_snapshots`。不读取或解密 `sync_spaces` 当前内容，不读取 `home_space_credentials`，不生成新的云端快照。
@@ -55,7 +55,7 @@ v1 的产品结果是只读后台：管理员可以精确查找用户、查看�
 - 不修改、恢复、删除或创建用户首页、空间、快照、同步码、凭证或分享。
 - 不提供数据包导出、批量复制、下载 `document_json` 或原始 JSON 展示。
 - 不读取普通同步码空间明文，不新增服务端解密流程。
-- 不增加模糊用户目录浏览、全量用户列表或无条件批量查询。
+- 不增加模糊搜索或无条件批量导出。2026-10-10 负责人决定增加**打码的**用户目录（见 1.18.3 补充）：可以分页浏览，但邮箱只返回打码值，完整邮箱仍须逐个精确查找并审计。
 - 不接 RSS、天气、GitHub、支付、OAuth、账号删除或其他联网产品功能。
 - 不把 admin 权限做成普通 RLS policy，不向 `authenticated` 授予跨用户表权限或 service-role RPC。
 
@@ -260,6 +260,8 @@ cursor: 可选的不透明分页游标
 | `preview-snapshot` | 允许 | 允许 | 拒绝 | 服务端投影后的单个账号托管快照预览 DTO；必须独立理由和审计 |
 | `list-home-audit-events` | 允许 | 允许 | 允许 | 字段白名单，不返回敏感 metadata 原文 |
 | `list-admin-audit-events` | 允许 | 允许 | 拒绝 | 管理员审计 DTO，不返回用户内容 |
+| `list-users` | 允许 | 允许 | 拒绝 | 打码的用户目录：打码邮箱、注册/登录时间、空间和快照数量；每页审计 |
+| `get-stats` | 允许 | 允许 | 允许 | 只返回汇总数字和 30 天每日序列，不含任何单个用户 |
 
 ### 查询规则
 
@@ -270,6 +272,19 @@ cursor: 可选的不透明分页游标
 - 快照正文只能按已验证的 snapshot UUID 单条读取，且再次校验 snapshot、home space 和 target user 的关联；不得只依赖客户端上一步列表结果。Edge Function 必须在服务端把 `document_json` 投影为 `AdminSnapshotPreviewDocument`，浏览器不得收到原始 `HomeDocumentV2`、未列入 DTO 的内部字段或 raw JSON。
 - 用户侧云端审计 DTO 使用 event type、severity、revision、关联 snapshot UUID、低敏感 summary 和时间；原始 metadata 必须经过服务端白名单投影。
 - 管理员审计按管理员、目标用户、目标空间、action 和时间范围过滤；不得提供删除、修改或 CSV/JSON 导出。
+
+### 1.18.3 补充：打码用户目录与统计（2026-10-10）
+
+负责人在后台第 3 步联调后决定增加用户列表和统计，并选择“列表打码”。
+
+- 迁移 `025_admin_user_directory.sql` 新增三个只授权 `service_role` 的函数：
+  - `admin_mask_email`：`alice@example.com` 变为 `a***@example.com`，形态不对时返回 null。
+  - `admin_list_users`：按 `created_at desc, id desc` keyset 分页，每页最多 51 行。不含匿名用户和已软删除用户。只返回用户 UUID、打码邮箱、注册时间、最近登录时间、空间数（账号托管、同步码）、快照数和最近快照时间，不返回完整邮箱、昵称或首页内容。
+  - `admin_read_stats`：用户总数、近 7/30 天新增和登录、空间与快照数量、近 7/30 天有云端保存的用户数、匿名访客数（发送过 `home.viewed` 的 analytics 匿名 ID，关闭统计的用户不计入），以及最近 30 个 UTC 日的每日新增用户和访客。
+- 同一迁移把 `admin.user.list`、`admin.stats.read` 加入 `admin_audit_events_action_valid`。
+- `list-users` 只允许 owner 和 admin，过滤条件只有 `pageSize`，每页写一条审计。Edge Function 再次校验邮箱确实是打码形态，否则返回 null。要看完整邮箱，必须用 `resolve-user` 按用户 UUID 精确查找，并单独审计。
+- `get-stats` 三个角色都可用，不接受过滤条件和游标。Edge Function 按固定字段重建统计结果，形态不对时按 `service_unavailable` 失败，不返回任何数据。
+- 线上部署后由 `supabase/checks/027_admin_user_directory_verify.sql` 验证，它也是部署 `admin-read` 前的预检之一。
 
 ## 1.18.4：独立 Admin Pages 基座
 

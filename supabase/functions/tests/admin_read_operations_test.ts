@@ -12,6 +12,7 @@ import {
   type PageQuery,
   type ProfileRow,
   type SnapshotRow,
+  type UserDirectoryRow,
 } from "../_shared/admin-read-store.ts";
 import { resolveAllowedOrigins } from "../_shared/cors.ts";
 import { BASE_OPERATIONS, handleAdminRead } from "../admin-read/handler.ts";
@@ -79,6 +80,31 @@ function spaceRow(index: number): HomeSpaceRow {
     created_at: `2026-02-0${index}T00:00:00+00:00`,
   };
 }
+
+function directoryRow(index: number): UserDirectoryRow {
+  return {
+    id: `44444444-4444-4444-8444-00000000000${index}`,
+    masked_email: "p***@example.com",
+    created_at: `2026-01-0${index}T00:00:00+00:00`,
+    last_sign_in_at: null,
+    home_space_count: 2,
+    account_managed_space_count: 1,
+    sync_code_space_count: 1,
+    snapshot_count: 4,
+    last_snapshot_at: "2026-03-01T00:00:00+00:00",
+  };
+}
+
+const STATS = {
+  generatedAt: "2026-10-10T16:00:00.123456+00:00",
+  users: { total: 9, new7d: 2, new30d: 5, signedIn7d: 3, signedIn30d: 6, emails: ["x@y.z"] },
+  homeSpaces: { total: 7, accountManaged: 4, syncCode: 3, usersWithAccountManaged: 4 },
+  snapshots: { total: 40, last7d: 6 },
+  cloudSaves: { users7d: 2, users30d: 3 },
+  visitors: { today: 1, last7d: 11, last30d: 30 },
+  daily: [{ date: "2026-10-10", newUsers: 1, visitors: 4, extra: "dropped" }],
+  rawRows: [{ email: "x@y.z" }],
+};
 
 interface Calls {
   pages: PageQuery[];
@@ -159,6 +185,13 @@ function fakeStore(
       calls.pages.push(page);
       return Promise.resolve([]);
     },
+    listUsers: (page) => {
+      calls.pages.push(page);
+      return Promise.resolve(
+        [directoryRow(3), directoryRow(2), directoryRow(1)].slice(0, page.limit),
+      );
+    },
+    readStats: () => Promise.resolve(STATS),
     ...overrides,
   };
   return { store, calls };
@@ -791,4 +824,170 @@ Deno.test("supabase store reads user-writable columns only through the database 
     }],
   ]);
   assert(!JSON.stringify(log).includes("content_fingerprint"));
+});
+
+Deno.test("list-users pages masked users for owner and admin and audits each page", async () => {
+  const { store, calls } = fakeStore();
+  const first = await call(store, {
+    operation: "list-users",
+    reason: REASON,
+    filters: { pageSize: 2 },
+  });
+
+  assertEquals(first.status, 200);
+  assertEquals(calls.pages[0], { limit: 3, after: null });
+  assertEquals(first.body.data.users.length, 2);
+  assertEquals(first.body.data.users[0], {
+    userId: "44444444-4444-4444-8444-000000000003",
+    maskedEmail: "p***@example.com",
+    createdAt: "2026-01-03T00:00:00+00:00",
+    lastSignInAt: null,
+    homeSpaceCount: 2,
+    accountManagedSpaceCount: 1,
+    syncCodeSpaceCount: 1,
+    snapshotCount: 4,
+    lastSnapshotAt: "2026-03-01T00:00:00+00:00",
+  });
+  assertEquals(first.audits[0].action, "admin.user.list");
+  assertEquals(first.audits[0].resultCount, 2);
+  assertEquals(first.audits[0].targetUserId, undefined);
+  assertNotEquals(first.body.nextCursor, null);
+
+  const next = await call(store, {
+    operation: "list-users",
+    reason: REASON,
+    filters: { pageSize: 2 },
+    cursor: first.body.nextCursor,
+  });
+  assertEquals(next.status, 200);
+  assertEquals(calls.pages[1].after, {
+    createdAt: "2026-01-02T00:00:00+00:00",
+    id: "44444444-4444-4444-8444-000000000002",
+  });
+  assertEquals(next.audits[0].metadata, { page_direction: "next", result_status: "ok" });
+
+  const admin = await call(store, { operation: "list-users", reason: REASON, filters: {} }, {
+    ...OWNER,
+    role: "admin",
+  });
+  assertEquals(admin.status, 200);
+});
+
+Deno.test("list-users is denied to support and rejects unknown filters and foreign cursors", async () => {
+  const { store } = fakeStore();
+  const support = await call(store, { operation: "list-users", reason: REASON, filters: {} }, {
+    ...OWNER,
+    role: "support",
+  });
+  assertEquals(support.status, 403);
+  assertEquals(support.body.error, "not_authorized");
+
+  const badFilter = await call(store, {
+    operation: "list-users",
+    reason: REASON,
+    filters: { email: "person@example.com" },
+  });
+  assertEquals(badFilter.status, 400);
+
+  const foreign = await call(store, {
+    operation: "list-users",
+    reason: REASON,
+    filters: {},
+    cursor: encodeCursor(`list-home-spaces:${USER_ID}`, {
+      createdAt: "2026-01-02T00:00:00+00:00",
+      id: SPACE_ID,
+    }),
+  });
+  assertEquals(foreign.status, 400);
+
+  const noReason = await call(store, { operation: "list-users", filters: {} });
+  assertEquals(noReason.status, 400);
+});
+
+Deno.test("list-users never passes on an email that is not masked", async () => {
+  const { store } = fakeStore({
+    listUsers: () =>
+      Promise.resolve([
+        { ...directoryRow(2), masked_email: "person@example.com" },
+        { ...directoryRow(1), masked_email: "pe***@example.com" },
+      ]),
+  });
+  const result = await call(store, { operation: "list-users", reason: REASON, filters: {} });
+  assertEquals(result.status, 200);
+  assertEquals(result.body.data.users.map((user: { maskedEmail: unknown }) => user.maskedEmail), [
+    null,
+    null,
+  ]);
+  assert(!JSON.stringify(result.body).includes("person@example.com"));
+});
+
+Deno.test("get-stats returns only the fixed counts, for every role", async () => {
+  const { store } = fakeStore();
+  for (const role of ["owner", "admin", "support"] as const) {
+    const result = await call(store, { operation: "get-stats", reason: REASON, filters: {} }, {
+      ...OWNER,
+      role,
+    });
+    assertEquals(result.status, 200);
+    assertEquals(result.body.data, {
+      generatedAt: "2026-10-10T16:00:00.123456+00:00",
+      users: { total: 9, new7d: 2, new30d: 5, signedIn7d: 3, signedIn30d: 6 },
+      homeSpaces: { total: 7, accountManaged: 4, syncCode: 3, usersWithAccountManaged: 4 },
+      snapshots: { total: 40, last7d: 6 },
+      cloudSaves: { users7d: 2, users30d: 3 },
+      visitors: { today: 1, last7d: 11, last30d: 30 },
+      daily: [{ date: "2026-10-10", newUsers: 1, visitors: 4 }],
+    });
+    assertEquals(result.audits[0].action, "admin.stats.read");
+    assertEquals(result.audits[0].resultCount, null);
+  }
+});
+
+Deno.test("get-stats rejects filters and cursors and fails closed on a bad shape", async () => {
+  const { store } = fakeStore();
+  const withFilter = await call(store, {
+    operation: "get-stats",
+    reason: REASON,
+    filters: { userId: USER_ID },
+  });
+  assertEquals(withFilter.status, 400);
+  const withCursor = await call(store, {
+    operation: "get-stats",
+    reason: REASON,
+    filters: {},
+    cursor: "abc",
+  });
+  assertEquals(withCursor.status, 400);
+
+  for (
+    const broken of [
+      null,
+      { ...STATS, users: { ...STATS.users, total: -1 } },
+      { ...STATS, visitors: { today: 1.5, last7d: 1, last30d: 1 } },
+      { ...STATS, daily: [{ date: "yesterday", newUsers: 1, visitors: 1 }] },
+      { ...STATS, generatedAt: "now" },
+    ]
+  ) {
+    const { store: brokenStore } = fakeStore({ readStats: () => Promise.resolve(broken) });
+    const result = await call(brokenStore, { operation: "get-stats", reason: REASON, filters: {} });
+    assertEquals(result.status, 503);
+    assertEquals(result.audits.length, 0);
+  }
+});
+
+Deno.test("supabase store reads the user directory and statistics through the database functions", async () => {
+  const { client, log } = recordingClient();
+  const store = createSupabaseAdminReadStore(client);
+  const after = { createdAt: "2026-02-01T00:00:00.123456+00:00", id: USER_ID };
+  await store.listUsers({ limit: 21, after });
+  await store.readStats();
+
+  assertEquals(log, [
+    ["rpc", "admin_list_users", {
+      p_after_created_at: after.createdAt,
+      p_after_id: after.id,
+      p_limit: 21,
+    }],
+    ["rpc", "admin_read_stats", undefined],
+  ]);
 });

@@ -22,6 +22,8 @@ export const ADMIN_OPERATIONS = [
   "preview-snapshot",
   "list-home-audit-events",
   "list-admin-audit-events",
+  "list-users",
+  "get-stats",
 ] as const;
 export type AdminOperation = typeof ADMIN_OPERATIONS[number];
 
@@ -34,6 +36,8 @@ export const OPERATION_AUDIT_ACTIONS: Record<AdminOperation, AdminAuditAction> =
   "preview-snapshot": "admin.snapshot.preview",
   "list-home-audit-events": "admin.home_audit.list",
   "list-admin-audit-events": "admin.audit.list",
+  "list-users": "admin.user.list",
+  "get-stats": "admin.stats.read",
 };
 
 export type AdminAuditAction =
@@ -43,9 +47,14 @@ export type AdminAuditAction =
   | "admin.snapshot.list"
   | "admin.snapshot.preview"
   | "admin.home_audit.list"
-  | "admin.audit.list";
+  | "admin.audit.list"
+  | "admin.user.list"
+  | "admin.stats.read";
 
-/** Role matrix from Phase1_18_Implement.md 1.18.3. The role always comes from admin_users. */
+/**
+ * Role matrix from Phase1_18_Implement.md 1.18.3 (list-users and get-stats added
+ * 2026-10-10). The role always comes from admin_users.
+ */
 export const OPERATION_ROLES: Record<AdminOperation, readonly AdminRole[]> = {
   "get-admin-context": ["owner", "admin", "support"],
   "resolve-user": ["owner", "admin", "support"],
@@ -54,6 +63,8 @@ export const OPERATION_ROLES: Record<AdminOperation, readonly AdminRole[]> = {
   "preview-snapshot": ["owner", "admin"],
   "list-home-audit-events": ["owner", "admin", "support"],
   "list-admin-audit-events": ["owner", "admin"],
+  "list-users": ["owner", "admin"],
+  "get-stats": ["owner", "admin", "support"],
 };
 
 export function isOperationAllowed(operation: AdminOperation, role: AdminRole): boolean {

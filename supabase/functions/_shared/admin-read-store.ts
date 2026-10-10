@@ -3,7 +3,9 @@
 // choose them. document_json is read only by readSnapshotDocument, for preview-snapshot,
 // which projects it before anything is returned. Profiles, snapshots and user-side
 // audit events are read through the migration 023 functions, which bound every
-// user-writable column in the database before it reaches this function.
+// user-writable column in the database before it reaches this function. The user
+// directory and statistics come from the migration 025 functions, which mask emails and
+// return counts only.
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.117.3";
 import { AdminBackendError } from "./admin-auth.ts";
 import { type AdminAuditAction, AdminRequestError } from "./admin-contract.ts";
@@ -85,6 +87,20 @@ export interface AdminAuditRow {
   created_at: string;
 }
 
+/** One row of the masked user directory (migration 025). */
+export interface UserDirectoryRow {
+  id: string;
+  /** First character of the local part plus the domain; never the full address. */
+  masked_email: string | null;
+  created_at: string;
+  last_sign_in_at: string | null;
+  home_space_count: number;
+  account_managed_space_count: number;
+  sync_code_space_count: number;
+  snapshot_count: number;
+  last_snapshot_at: string | null;
+}
+
 export interface AdminAuditFilters {
   /** Matches the retained admin_auth_user_id, which survives deletion of the admin_users row. */
   adminAuthUserId?: string;
@@ -123,6 +139,10 @@ export interface AdminReadStore {
     page: PageQuery,
   ): Promise<HomeAuditRow[]>;
   listAdminAuditEvents(filters: AdminAuditFilters, page: PageQuery): Promise<AdminAuditRow[]>;
+  /** Users newest first with masked emails and counts only (migration 025). */
+  listUsers(page: PageQuery): Promise<UserDirectoryRow[]>;
+  /** Aggregate counts as built by admin_read_stats (migration 025); validated by the caller. */
+  readStats(): Promise<unknown>;
 }
 
 const HOME_SPACE_COLUMNS =
@@ -263,6 +283,18 @@ export function createSupabaseAdminReadStore(client: SupabaseClient): AdminReadS
       if (filters.createdFrom) query = query.gte("created_at", filters.createdFrom);
       if (filters.createdTo) query = query.lt("created_at", filters.createdTo);
       return rowsOrThrow<AdminAuditRow>(await applyPage(query, page));
+    },
+
+    async listUsers(page) {
+      return rowsOrThrow<UserDirectoryRow>(await client.rpc("admin_list_users", pageArgs(page)));
+    },
+
+    async readStats() {
+      const { data, error } = await client.rpc("admin_read_stats");
+      if (error) {
+        throw new AdminBackendError("query");
+      }
+      return data;
     },
   };
 }

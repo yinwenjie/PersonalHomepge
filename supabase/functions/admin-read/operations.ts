@@ -3,6 +3,7 @@
 // whitelisted DTOs. preview-snapshot projects one stored document through
 // snapshot-preview.ts (Phase 1.18.5).
 import type { AdminAuditMetadata } from "../_shared/admin-audit.ts";
+import { AdminBackendError } from "../_shared/admin-auth.ts";
 import {
   ADMIN_OPERATIONS,
   type AdminAuditAction,
@@ -28,6 +29,7 @@ import type {
   HomeSpaceRow,
   ProfileRow,
   SnapshotRow,
+  UserDirectoryRow,
 } from "../_shared/admin-read-store.ts";
 import type { OperationContext, OperationHandler, OperationResult } from "./handler.ts";
 import {
@@ -123,6 +125,37 @@ export interface AdminAuditEventDto {
   createdAt: string;
 }
 
+/** One row of the masked user directory. The full email needs an exact resolve-user. */
+export interface UserDirectoryDto {
+  userId: string;
+  /** "a***@example.com"; null when the address had no usable shape. */
+  maskedEmail: string | null;
+  createdAt: string;
+  lastSignInAt: string | null;
+  homeSpaceCount: number;
+  accountManagedSpaceCount: number;
+  syncCodeSpaceCount: number;
+  snapshotCount: number;
+  lastSnapshotAt: string | null;
+}
+
+/** Aggregate counts only; see admin_read_stats in migration 025 for the definitions. */
+export interface AdminStatsDto {
+  generatedAt: string;
+  users: { total: number; new7d: number; new30d: number; signedIn7d: number; signedIn30d: number };
+  homeSpaces: {
+    total: number;
+    accountManaged: number;
+    syncCode: number;
+    usersWithAccountManaged: number;
+  };
+  snapshots: { total: number; last7d: number };
+  cloudSaves: { users7d: number; users30d: number };
+  visitors: { today: number; last7d: number; last30d: number };
+  /** The last 30 UTC days, oldest first. */
+  daily: { date: string; newUsers: number; visitors: number }[];
+}
+
 const SNAPSHOT_SOURCES = new Set([
   "account-managed-created",
   "cloud-baseline",
@@ -157,6 +190,8 @@ export function createReadOperations(
     "preview-snapshot": (context) => previewSnapshot(store, context),
     "list-home-audit-events": (context) => listHomeAuditEvents(store, context),
     "list-admin-audit-events": (context) => listAdminAuditEvents(store, context),
+    "list-users": (context) => listUsers(store, context),
+    "get-stats": (context) => getStats(store, context),
   };
 }
 
@@ -421,6 +456,41 @@ async function listAdminAuditEvents(
   };
 }
 
+async function listUsers(
+  store: AdminReadStore,
+  { request }: OperationContext,
+): Promise<OperationResult> {
+  const filters = readFilters(request.filters, ["pageSize"], []);
+  const scope = "list-users";
+  const page = readPage(filters.pageSize, request.cursor, scope);
+
+  const rows = await store.listUsers({ limit: page.size + 1, after: page.after });
+  const { items, nextCursor } = paginate(rows, page.size, scope);
+  return {
+    data: { users: items.map(toUserDirectoryEntry) },
+    nextCursor,
+    audit: {
+      severity: "info",
+      resultCount: items.length,
+      metadata: pageMetadata(page.after, items.length),
+    },
+  };
+}
+
+async function getStats(
+  store: AdminReadStore,
+  { request }: OperationContext,
+): Promise<OperationResult> {
+  readFilters(request.filters, [], []);
+  if (request.cursor !== null) {
+    throw new AdminRequestError("invalid_request");
+  }
+  return {
+    data: toStats(await store.readStats()),
+    audit: { severity: "info", resultCount: null, metadata: { result_status: "ok" } },
+  };
+}
+
 function readFilters(
   filters: Record<string, unknown>,
   allowed: readonly string[],
@@ -583,6 +653,74 @@ function toAdminAuditEvent(row: AdminAuditRow): AdminAuditEventDto {
     resultCount: row.result_count,
     createdAt: row.created_at,
   };
+}
+
+// Defense in depth: anything that does not look masked is dropped rather than shown.
+const MASKED_EMAIL_PATTERN = /^[^@\s]\*\*\*@[^@\s]{1,100}$/;
+
+function toUserDirectoryEntry(row: UserDirectoryRow): UserDirectoryDto {
+  return {
+    userId: row.id,
+    maskedEmail: typeof row.masked_email === "string" && MASKED_EMAIL_PATTERN.test(row.masked_email)
+      ? row.masked_email
+      : null,
+    createdAt: row.created_at,
+    lastSignInAt: row.last_sign_in_at,
+    homeSpaceCount: row.home_space_count,
+    accountManagedSpaceCount: row.account_managed_space_count,
+    syncCodeSpaceCount: row.sync_code_space_count,
+    snapshotCount: row.snapshot_count,
+    lastSnapshotAt: row.last_snapshot_at,
+  };
+}
+
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Rebuilds the statistics from fixed keys; an unexpected shape is a backend error. */
+function toStats(raw: unknown): AdminStatsDto {
+  if (!isPlainObject(raw) || !isTimestamp(raw.generatedAt) || !Array.isArray(raw.daily)) {
+    throw new AdminBackendError("query");
+  }
+  if (raw.daily.length > 31) {
+    throw new AdminBackendError("query");
+  }
+  return {
+    generatedAt: raw.generatedAt,
+    users: counts(raw.users, ["total", "new7d", "new30d", "signedIn7d", "signedIn30d"]),
+    homeSpaces: counts(raw.homeSpaces, [
+      "total",
+      "accountManaged",
+      "syncCode",
+      "usersWithAccountManaged",
+    ]),
+    snapshots: counts(raw.snapshots, ["total", "last7d"]),
+    cloudSaves: counts(raw.cloudSaves, ["users7d", "users30d"]),
+    visitors: counts(raw.visitors, ["today", "last7d", "last30d"]),
+    daily: raw.daily.map((day) => {
+      if (!isPlainObject(day) || typeof day.date !== "string" || !DATE_PATTERN.test(day.date)) {
+        throw new AdminBackendError("query");
+      }
+      return { date: day.date, newUsers: count(day.newUsers), visitors: count(day.visitors) };
+    }),
+  };
+}
+
+function counts<K extends string>(value: unknown, keys: readonly K[]): Record<K, number> {
+  if (!isPlainObject(value)) {
+    throw new AdminBackendError("query");
+  }
+  const result = {} as Record<K, number>;
+  for (const key of keys) {
+    result[key] = count(value[key]);
+  }
+  return result;
+}
+
+function count(value: unknown): number {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
+    throw new AdminBackendError("query");
+  }
+  return value;
 }
 
 const THEME_PRESET_PATTERN = /^[a-z0-9-]{1,40}$/;
