@@ -25,6 +25,7 @@ const FORBIDDEN_MARKERS = [
   { pattern: /admin\.mylinker\.net/i, label: "the admin site hostname" },
   { pattern: /preview-snapshot|list-admin-audit-events|get-admin-context/i, label: "an admin API operation" },
   { pattern: /admin_users|admin_audit_events/i, label: "an admin table" },
+  { pattern: /admin_list_users|admin_read_stats|admin_mask_email/i, label: "an admin database function" },
   { pattern: /service[_-]?role/i, label: "a service role reference" },
   { pattern: /supabase\/functions\//i, label: "an import of server-only Edge Function code" }
 ];
