@@ -1,6 +1,6 @@
 begin;
 
-select plan(12);
+select plan(13);
 
 select ok(
   (
@@ -83,6 +83,17 @@ values
    2, 'after-cloud-push', 'user-data', 'fp2', '{"version": 2}'::jsonb, '{}'::jsonb,
    '2026-01-02T00:00:00Z');
 
+-- Visitors in the last 30 days use a rolling cutoff: a view just inside now() - 30 days counts,
+-- even when it falls before the first UTC date of the daily series.
+create temp table visitors_before on commit drop as
+  select (public.admin_read_stats() -> 'visitors' ->> 'last30d')::integer as n;
+grant select on visitors_before to service_role;
+
+insert into public.product_analytics_events (event_name, anonymous_id, user_state, created_at)
+values
+  ('home.viewed', 'anon-directory-inside', 'anonymous', now() - interval '30 days' + interval '1 minute'),
+  ('home.viewed', 'anon-directory-outside', 'anonymous', now() - interval '30 days' - interval '1 minute');
+
 set local role service_role;
 
 select is(
@@ -148,6 +159,12 @@ select is(
   ),
   array['number', 'number', 'number', '30'],
   'statistics should be numbers with a 30-day daily series'
+);
+
+select is(
+  (public.admin_read_stats() -> 'visitors' ->> 'last30d')::integer - (select n from visitors_before),
+  1,
+  '30-day visitors should use a rolling 30 * 24 hour window'
 );
 
 reset role;

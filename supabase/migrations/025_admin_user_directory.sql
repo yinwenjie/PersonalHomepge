@@ -97,7 +97,7 @@ as $$
 $$;
 
 -- Aggregate counts for the dashboard. Days are UTC calendar days; "last 7 days" means the
--- last 7 * 24 hours. Visitors are distinct anonymous analytics ids that sent home.viewed,
+-- last 7 * 24 hours (likewise for 30 days). Visitors are distinct anonymous analytics ids that sent home.viewed,
 -- so people who turned analytics off are not counted.
 create or replace function public.admin_read_stats()
 returns jsonb
@@ -123,7 +123,7 @@ as $$
       select e.anonymous_id, e.created_at
       from public.product_analytics_events as e, bounds as b
       where e.event_name = 'home.viewed'
-        and e.created_at >= (b.today - 29)::timestamp at time zone 'utc'
+        and e.created_at >= b.at - interval '30 days'
     ),
     saves as (
       select a.user_id, a.created_at
