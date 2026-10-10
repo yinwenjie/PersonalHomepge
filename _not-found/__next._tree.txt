@@ -1,0 +1,4 @@
+:HL["/PersonalHomepge/_next/static/chunks/18x5s1wbo7rz5.css","style"]
+2:[["children",{"s":"__PAGE__","h":160}]]
+1:[["children",{"s":"/_not-found","h":96,"c":"$Q2"}]]
+0:{"b":"yl_3ZG5kRXfCFjL4Z3MRn","t":{"t":{"s":"","h":80,"c":"$Q1"}}}
