@@ -4,7 +4,7 @@
 
 Phase 1.18 为 MyLinker 建立第一条受控服务端管理链路，使授权管理员能够在留痕、最小权限、不破坏普通同步码密文边界且不向普通用户交付后台页面资源的前提下排查账号托管首页空间。
 
-当前状态：Phase 1.18.0 方案、安全边界和准备阶段已完成；2026-08-10 Phase 1.18.1 已完成仓库、本地、CI 和线上数据库门禁，目标项目的 001-019 schema/history 一致，标准 dry-run 与完整 `021` verify 通过。尚未初始化持久化管理员；开始 1.18.2 联调前仍须按运行手册初始化明确的测试管理员。Edge Function、私有 Admin 仓库、管理页面和 Access 配置仍未实施。
+当前状态：Phase 1.18.0 方案、安全边界和准备阶段已完成；2026-08-10 Phase 1.18.1 已完成仓库、本地、CI 和线上数据库门禁，目标项目的 001-019 schema/history 一致，标准 dry-run 与完整 `021` verify 通过。2026-10-10 更新：`admin-read` 已上线，管理员账号已初始化，私有仓库的只读后台已部署到 `admin.mylinker.net` 并由 Cloudflare Access 保护，线上数据库到 `025`，四个账号的线上回归和回滚演练（停用再恢复 support 管理员）通过，Phase 1.18 完成。
 
 v1 的产品结果是只读后台：管理员可以精确查找用户、查看空间元数据、查看账号托管云端历史与用户侧云端审计，并在高权限和强审计条件下预览单个账号托管快照。除管理员审计记录外，后台不得写入任何用户数据。
 
@@ -187,7 +187,7 @@ created_at timestamptz not null
 
 ## 1.18.2：受控 Edge Function 基座
 
-状态：2026-10-09 代码与单元测试已完成，尚未部署 Function，也未用真实 JWT 和测试管理员做端到端联调（需先按运行手册初始化测试管理员）。
+状态：已完成。2026-10-09 部署到线上；2026-10-10 部署后拒绝检查通过，并用真实管理员账号完成端到端联调。
 
 - `admin-read/handler.ts` 按下文 9 步顺序实现请求流程；Auth、`admin_users` 查询和审计写入通过端口注入，`index.ts` 只负责用服务端 env 组装 service role client。
 - 1.18.2 只开放 `get-admin-context`；其余 operation 在 1.18.3 补齐 handler 前一律返回 `invalid_request`。
@@ -240,7 +240,7 @@ cursor: 可选的不透明分页游标
 
 ## 1.18.3：只读查询 API
 
-状态：2026-10-09 代码与单元测试已完成，尚未部署，也未连真实数据库联调。`preview-snapshot` 的服务端投影已在 1.18.5 服务端部分实现。
+状态：已完成并上线（`020`、`023`、`024`、`025`），已用真实数据库和管理员账号联调。`preview-snapshot` 的服务端投影已在 1.18.5 服务端部分实现。
 
 - `_shared/admin-read-store.ts` 固定表名、列名和排序（`created_at desc, id desc` keyset 分页），不查询 `document_json`；`admin-read/operations.ts` 校验各 operation 的严格 filters 并投影 DTO。
 - 分页游标绑定 operation 和目标（管理员审计绑定完整 filter 组合），换目标重放会被拒绝。
@@ -288,7 +288,7 @@ cursor: 可选的不透明分页游标
 
 ## 1.18.4：独立 Admin Pages 基座
 
-状态：待实施。
+状态：已完成。页面在私有仓库实现，界面为中文和英文，2026-10-10 上线。
 
 ### 文件范围
 
@@ -324,7 +324,7 @@ cursor: 可选的不透明分页游标
 
 ## 1.18.5：受控快照预览
 
-状态：服务端部分已于 2026-10-09 完成（migration 024 + `preview-snapshot`），未部署；预览页面在私有 Admin 仓库实施，尚未开始。
+状态：已完成。服务端部分（migration 024 + `preview-snapshot`）已上线，预览页面在私有仓库实现并于 2026-10-10 上线。
 
 服务端实施结果：
 
@@ -368,7 +368,7 @@ cursor: 可选的不透明分页游标
 
 ## 1.18.6：回归、部署与运行观察
 
-状态：公开仓库的自动隔离校验已于 2026-10-09 完成；其余待实施。
+状态：公开仓库的自动隔离校验已于 2026-10-09 完成。2026-10-10 完成部署和线上回归：私有仓库由 GitHub Actions 构建后直接上传 Cloudflare Pages，上传前确认 Access 覆盖自定义域名、生产 `pages.dev` 和预览通配入口，上传后从外部确认三类入口都停在 Access；Access 用 GitHub 登录，只放行负责人一个身份，会话 8 小时；四个账号的线上权限回归通过。回滚演练按下文“安全回滚”的首选步骤做了一次：停用 support 管理员后该账号立即无法进入后台，恢复后正常；Access 全部拒绝策略的切换没有演练。
 
 - `npm run verify:admin-isolation`（`scripts/verify-admin-isolation.mjs`）检查站点源码 `app/`、`src/`、`public/` 和 next.config：
   - 没有名为 admin 的路由或资源；

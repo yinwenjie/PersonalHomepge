@@ -2,7 +2,7 @@
 
 ## Summary
 
-Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持续扩展的个人首页产品。Phase 1.1-1.17 已完成本地编辑、同步码、账号托管、模板、主题、组件、导入、数据保全、观测、产品化、多语言、主域名、低成本组件和公开快照分享。正式主域名为 `mylinker.net`，Cloudflare Pages 主站与 GitHub Pages legacy 部署链路均已建立。2026-07-22 Phase 1.17 已通过线上验收；2026-08-10 Phase 1.18.1 管理员身份和审计数据库已完成仓库、本地、CI、远端 history/schema 和 `021` rollback 门禁，下一步是在初始化明确测试管理员后实施 1.18.2 受控 Edge Function 基座。
+Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持续扩展的个人首页产品。Phase 1.1-1.17 已完成本地编辑、同步码、账号托管、模板、主题、组件、导入、数据保全、观测、产品化、多语言、主域名、低成本组件和公开快照分享。正式主域名为 `mylinker.net`，Cloudflare Pages 主站与 GitHub Pages legacy 部署链路均已建立。2026-07-22 Phase 1.17 已通过线上验收；2026-08-10 Phase 1.18.1 管理员身份和审计数据库已完成仓库、本地、CI、远端 history/schema 和 `021` rollback 门禁，下一步是在初始化明确测试管理员后实施 1.18.2 受控 Edge Function 基座。2026-10-10 Phase 1.18 只读后台 dashboard v1 已上线 `admin.mylinker.net` 并通过四个账号的线上权限回归和回滚演练，Phase 1.18 完成。
 
 当前产品原则：
 
@@ -52,7 +52,7 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 - Phase 1.15.6 已完成：新增 `verify:i18n` 校验、补齐同步/导入/设备/审计/错误等关键路径在 `fr-FR`、`es-ES`、`ja-JP`、`ko-KR`、`it-IT` 的覆盖，并完成桌面、平板、移动端多视口回归；回归中修复书签/URL 导入面板默认提示在语言偏好加载后仍停留简中的问题。
 - Phase 1.16 已完成并部署：Notes、Countdown、World Clock、模板组件组合、恢复预览摘要和观测隐私校验已落地；Cloudflare Pages 主站与 GitHub Pages legacy 已完成构建、发布和线上访问验证。
 
-Phase 1.17 已完成并通过线上验收。只读 Renderer、公开投影、最小授权 RPC、设置页分享管理、会话内链接、`/share/` 通用失败页和 robots 边界均已落地；目标 Supabase 已执行 `018` 热修复并通过 `020`、`019` 结构权限与 transaction-scoped A/B 检查，真实账号的发布、更新、撤销、重新发布及真实 token 生命周期已完成 smoke test。2026-07-22 Cloudflare Pages preview、`mylinker.net` 与 GitHub Pages legacy 三个静态入口也已通过部署检查。Phase 1.18.1 数据库基础已于 2026-08-10 完成线上门禁；尚未创建持久化管理员或 Edge Function。
+Phase 1.17 已完成并通过线上验收。只读 Renderer、公开投影、最小授权 RPC、设置页分享管理、会话内链接、`/share/` 通用失败页和 robots 边界均已落地；目标 Supabase 已执行 `018` 热修复并通过 `020`、`019` 结构权限与 transaction-scoped A/B 检查，真实账号的发布、更新、撤销、重新发布及真实 token 生命周期已完成 smoke test。2026-07-22 Cloudflare Pages preview、`mylinker.net` 与 GitHub Pages legacy 三个静态入口也已通过部署检查。Phase 1.18.1 数据库基础已于 2026-08-10 完成线上门禁。2026-10-09 至 10-10 `admin-read` Edge Function 上线、管理员账号初始化，只读后台上线 `admin.mylinker.net` 并通过线上回归。
 
 ## Phase Plan
 
@@ -75,7 +75,7 @@ Phase 1.17 已完成并通过线上验收。只读 Renderer、公开投影、最
 | Phase 1.15：多语言支持 v1 | 已完成 | 语言数据模型、账号/本地偏好、I18n Provider、静态 dictionary、日期时间/月历 locale formatter、首页、设置页、同步、导入和错误细节本地化；新增 i18n 校验、小语种关键路径覆盖和多视口人工回归 | 后续只做翻译修订和缺陷修复 |
 | Phase 1.16：低成本组件扩展 | 已完成并部署 | Notes、Countdown、World Clock、模板组合、恢复预览摘要、观测隐私校验和多视口回归已完成 | 后续仅做缺陷修复与组件候选评估 |
 | Phase 1.17：只读渲染与分享链接 v1 | 已完成并通过线上验收 | 只读首页 renderer、公开快照存储/RPC、设置页发布管理、会话内链接、撤销机制、`/share/` 静态公开入口 | 后续仅做缺陷修复、安全回归和运行观察 |
-| Phase 1.18：受控服务端与后台 dashboard v1 | 1.18.1 数据库基础与线上门禁完成 | Edge Function、管理员身份、管理员审计、独立私有 Admin Pages、Cloudflare Access | 初始化明确测试管理员后实施 1.18.2，继续保持只读、强审计、双层鉴权和主站零后台资源 |
+| Phase 1.18：受控服务端与后台 dashboard v1 | 已完成并上线（2026-10-10） | `admin-read` Edge Function、管理员身份与审计、打码用户列表与统计、受控快照预览、独立私有 Admin Pages、Cloudflare Access | 保持只读、强审计、双层鉴权；后续只做缺陷修复、运行观察和按需扩展 |
 
 ## Candidate Feature Evaluation
 
@@ -99,7 +99,7 @@ Phase 1.17 已完成并通过线上验收。只读 Renderer、公开投影、最
 | P2 | Weather 天气 | Medium | API key、缓存、额度、隐私说明 | M-L | 依赖 API 代理和 quota |
 | P2 | GitHub public repo 组件 | Medium | API rate limit、缓存、错误降级 | M | 只考虑 public repo，OAuth 暂缓 |
 | P2 | 账号删除 | Medium-High | 数据生命周期、审计、RLS/RPC | L | 合规重要，但要单独设计和强回归 |
-| P2 | 后台管理 dashboard | High | Edge Function、service role、管理员审计、私有 Admin Pages、Cloudflare Access | XL | Phase 1.18.0 隔离方案已完成；后续按只读、强审计、双层鉴权和最小权限分阶段实施 |
+| P2 | 后台管理 dashboard | High | Edge Function、service role、管理员审计、私有 Admin Pages、Cloudflare Access | XL | v1 已完成并上线（2026-10-10），见 Phase 1.18 Breakdown |
 
 ## Phase 1.13 Breakdown
 
@@ -758,7 +758,7 @@ Phase 1.15 采用分层交付：先固化语言偏好的数据模型和兼容边
 
 ### Phase 1.18：受控服务端与只读后台 Dashboard v1
 
-状态：1.18.0 与准备阶段已完成；1.18.1 已完成仓库、本地、CI 和线上数据库门禁，待 1.18.2 联调前初始化测试管理员；Edge Function、私有 Admin 仓库和 Access 配置尚未实施。
+状态：已完成并上线（2026-10-10）。1.18.0-1.18.6 均已完成，包括线上回归和回滚演练。`admin.mylinker.net` 由 Cloudflare Access 保护，线上数据库到 `025`。
 
 目标：建立第一条受控服务端管理链路，使授权管理员能够在强审计、最小权限和不破坏普通同步码密文边界的前提下，精确查询账号、查看空间元数据、账号托管云端历史和用户侧云端审计，并受控预览单个账号托管快照。
 
@@ -801,31 +801,36 @@ Phase 1.15 采用分层交付：先固化语言偏好的数据模型和兼容边
 
 ### Phase 1.18.2：受控 Edge Function 基座
 
-状态：待实施。
+状态：已完成。`admin-read` 于 2026-10-09 部署到线上；部署后的拒绝检查（无 JWT、伪造 JWT、主站来源、无 session）于 2026-10-10 通过。
 
 目标：实现 `admin-read` 的 POST-only 协议、JWT 验证、管理员 enabled/role 校验、CORS、请求大小限制、稳定错误码、服务端字段白名单和审计 helper。权限判断不得相信客户端 role 或隐藏路由。
 
 ### Phase 1.18.3：只读查询 API
 
-状态：待实施。
+状态：已完成。`020`、`023`（有界读取）和 `024`（预览投影）已上线。2026-10-10 负责人决定补充打码用户列表和统计（`025`，见设计文档 1.18.3 补充）：owner/admin 可分页查看邮箱打码的用户列表，完整邮箱仍只能通过精确查找获得；统计只返回聚合数，三种角色都可用。这一项替代了下文“不提供用户目录”的原约束。
 
 目标：实现精确用户解析、空间列表、账号托管快照摘要、服务端投影后的单快照预览 DTO、用户侧云端审计和管理员审计六类 operation；原始 `document_json` 不返回浏览器，所有列表分页且最多 50 条，敏感响应在审计失败时 fail closed。
 
 ### Phase 1.18.4：独立 Admin Pages 基座
 
-状态：待实施。
+状态：已完成。页面在私有仓库中实现（中英文界面），本仓库不含任何后台页面代码，`verify:admin-isolation` 在 CI 中检查。
 
 目标：在负责人确认的私有仓库中新增独立 Admin Pages static export，通过 `admin.mylinker.net` 提供 Supabase 登录、精确搜索、空间/快照/审计列表和安全错误态；主站及 GitHub Pages 不新增 `/admin/` 或后台 bundle。查询条件、访问理由和响应只保存在组件内存，不提供用户数据写入、导出或 raw JSON 操作。
 
 ### Phase 1.18.5：受控快照预览
 
-状态：待实施。
+状态：已完成。owner/admin 每次预览都要填写理由并确认，服务端写 warning 级审计；support 前后端都拒绝；预览不加载外链和图片。
 
 目标：保持 Phase 1.17 公开投影不变，由 Edge Function 新增独立 admin snapshot preview 服务端投影，私有 Admin Pages 只接收严格 DTO；owner/admin 可只读查看标题、主题、分组、网站、组件和图片配置状态，support 被前后端同时拒绝。预览不加载外链或 Storage 图片，不挂载编辑、同步、恢复、持久化或观测副作用。
 
 ### Phase 1.18.6：回归、部署与运行观察
 
-状态：待实施。
+状态：已完成（2026-10-10），部署、线上回归和回滚演练都已完成。
+
+- 部署：GitHub Actions 构建后直接上传到独立的 Cloudflare Pages 项目；每次上传前确认 Access 已覆盖全部入口，上传后从外部确认 `admin.mylinker.net`、生产 `pages.dev` 和预览通配入口都停在 Access 登录页。
+- Access：GitHub 登录，只放行负责人一个身份，会话 8 小时。Supabase Auth 回调地址已加入 `https://admin.mylinker.net/`。
+- 回归：负责人用 owner、admin、support 和普通账号在线上走完权限矩阵，结果符合预期。
+- 回滚演练（2026-10-10）：按实施文档“安全回滚”的首选步骤，负责人把 support 管理员的 `admin_users.enabled` 设为 false，该账号在线上立即无法进入后台；改回 true 后恢复正常。Access 策略切换为全部拒绝的步骤没有演练。整站紧急下线方式是在 Cloudflare 删除自定义域名或暂停 Pages 项目，以及用 Edge Function 工作流的 delete 模式下线 `admin-read`；后台数据不在 Pages 上。
 
 目标：补齐公开主站隔离检查、私有 Admin Pages 专项校验、隐私检查、`021` 数据库验证、owner/support/普通账号 A/B/C API 回归，并分别保护 `admin.mylinker.net`、生产 `pages.dev` 和所有预览入口；完成 Access + Supabase 双层门禁、审计 fail-closed 与不公开 Pages 内容的安全回滚演练。
 
