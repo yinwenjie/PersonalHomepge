@@ -111,6 +111,7 @@ export function ThemeImagePanel({
     const slotLabel = formatSettingsImageSlot(slot, t);
 
     commitThemeAsset(slot, null, t("settings.images.clearedCommit", { slot: slotLabel }));
+    void repositoryRef.current.invalidateLocalAsset(currentAsset, userId);
     setMessage({ text: t("settings.images.cleared", { slot: slotLabel }), tone: "success" });
 
     if (currentAsset?.source === "storage") {

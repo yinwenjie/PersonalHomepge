@@ -459,7 +459,7 @@ export function SettingsDashboard() {
 
   return (
     <>
-      <HomeThemeStyleBridge theme={homeDocument.theme} />
+      <HomeThemeStyleBridge theme={homeDocument.theme} documentId={homeDocument.documentId} spaceId={homeDocument.syncMeta.spaceId} storageReady={storageReady} />
       <main className="page settings-page">
       <header className="settings-page-header">
         <div>

@@ -39,9 +39,9 @@
 - UI runtime：React 19。
 - Styling：原生 CSS，集中在 `app/globals.css`，不使用 Tailwind 或外部 UI 框架。
 - Drag and drop：`@dnd-kit/core`、`@dnd-kit/sortable`、`@dnd-kit/utilities`。
-- Persistence：浏览器 `localStorage` 保存本地首页文档、同步码绑定状态、UI 偏好缓存、最近一次恢复默认前备份、文档保护状态和本地历史快照。
+- Persistence：浏览器 `localStorage` 保存本地首页文档、同步码绑定状态、UI 偏好缓存、最近一次恢复默认前备份、文档保护状态和本地历史快照；IndexedDB 缓存 Banner/背景图片 Blob，减少刷新后的重复下载。
 - Cloud sync：Supabase JavaScript SDK 调用 Postgres RPC。
-- Asset storage：Supabase Storage private bucket `home-assets` 保存登录用户的 Banner/背景图片。
+- Asset storage：Supabase Storage private bucket `home-assets` 保存登录用户的 Banner/背景图片；浏览器按项目、账号、资源与版本缓存图片，最多 20 项/50MB，签名 URL 不持久化。
 - Client-side encryption：普通同步码空间由浏览器 Web Crypto 对首页文档加密后上传；账号托管空间采用账号可信托管模型，可保存有效用户首页的明文云端历史用于恢复和审计。
 - Database：Supabase Postgres，核心表包括 `sync_spaces`、`profiles`、`account_preferences`、`home_spaces`、`home_space_snapshots`、`home_space_audit_events`、`product_analytics_events`、`client_error_events`、独立公开快照表 `public_home_shares`，以及 Phase 1.18 的 `admin_users` / `admin_audit_events` 受控服务端表，配合 RLS、权限收敛和 `security definer` RPC。
 - Deployment：Next.js static export 输出到 `out/`；当前通过 GitHub Actions 部署到 GitHub Pages，Phase 1.14 迁移到 Cloudflare Pages 主站，GitHub Pages 转为 legacy 入口。

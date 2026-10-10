@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { HomeAssetStorageRepository } from "@/infrastructure/home-asset-storage-repository";
+import { homeThemeImageController } from "@/infrastructure/home-theme-image-controller";
 import type { HomeTheme } from "@/domain/home-document";
 import {
   getHomeThemeAppearanceAttribute,
@@ -14,12 +14,17 @@ import { useUiPreferences } from "@/hooks/use-ui-preferences";
 
 interface HomeThemeStyleBridgeProps {
   theme: HomeTheme;
+  documentId: string;
+  spaceId: string | null;
+  storageReady: boolean;
 }
 
-export function HomeThemeStyleBridge({ theme }: HomeThemeStyleBridgeProps) {
+export function HomeThemeStyleBridge({ theme, documentId, spaceId, storageReady }: HomeThemeStyleBridgeProps) {
   const { preferences } = useUiPreferences();
-  const { user } = useSupabaseAuth();
-  const signedIn = Boolean(user);
+  const { user, loading } = useSupabaseAuth();
+  const userId = user?.id ?? null;
+  // Document normalization recreates asset objects even when only colors/masks changed.
+  const imageAssetsJson = JSON.stringify({ bannerAsset: theme.bannerAsset, backgroundAsset: theme.backgroundAsset });
 
   useEffect(() => {
     const root = document.documentElement;
@@ -50,90 +55,17 @@ export function HomeThemeStyleBridge({ theme }: HomeThemeStyleBridgeProps) {
   }, [preferences.themePreference, theme]);
 
   useEffect(() => {
-    let cancelled = false;
-    const root = document.documentElement;
-    const repository = new HomeAssetStorageRepository();
-
-    async function applyImageVariables() {
-      try {
-        const [bannerUrl, backgroundUrl] = await Promise.all([
-          resolveThemeAssetUrl(theme.bannerAsset, signedIn, repository),
-          resolveThemeAssetUrl(theme.backgroundAsset, signedIn, repository)
-        ]);
-        await preloadThemeImages([bannerUrl, backgroundUrl]);
-
-        if (cancelled) {
-          return;
-        }
-
-        root.style.setProperty("--home-banner-image", toCssImageValue(bannerUrl));
-        root.style.setProperty("--home-background-image", toCssImageValue(backgroundUrl));
-        root.style.setProperty("--home-background-image-scrim", backgroundUrl ? "var(--home-background-scrim)" : "linear-gradient(transparent, transparent)");
-      } catch (error) {
-        console.warn(error);
-        if (!cancelled) {
-          if (!theme.bannerAsset) {
-            root.style.setProperty("--home-banner-image", "none");
-          }
-
-          if (!theme.backgroundAsset) {
-            root.style.setProperty("--home-background-image", "none");
-            root.style.setProperty("--home-background-image-scrim", "linear-gradient(transparent, transparent)");
-          }
-        }
-      }
-    }
-
-    applyImageVariables();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [theme.bannerAsset, theme.backgroundAsset, signedIn]);
+    // Preserve images while a new route restores the saved document.
+    if (!storageReady || loading) return;
+    const assets = JSON.parse(imageAssetsJson) as Pick<HomeTheme, "bannerAsset" | "backgroundAsset">;
+    return homeThemeImageController.apply(assets, JSON.stringify([documentId, spaceId]), userId);
+  }, [imageAssetsJson, documentId, spaceId, storageReady, loading, userId]);
 
   return null;
 }
 
-async function resolveThemeAssetUrl(
-  asset: HomeTheme["bannerAsset"],
-  signedIn: boolean,
-  repository: HomeAssetStorageRepository
-): Promise<string | null> {
-  if (!asset) {
-    return null;
-  }
-
-  if (asset.source === "external") {
-    return asset.url;
-  }
-
-  if (!signedIn) {
-    return null;
-  }
-
-  return repository.createSignedUrl(asset);
-}
-
-function toCssImageValue(url: string | null): string {
-  return url ? `url(${JSON.stringify(url)})` : "none";
-}
-
 function toMaskOpacityCssValue(value: number): string {
   return String(Math.min(100, Math.max(0, value)) / 100);
-}
-
-async function preloadThemeImages(urls: Array<string | null>): Promise<void> {
-  await Promise.all(urls.filter((url): url is string => Boolean(url)).map(preloadImage));
-}
-
-function preloadImage(url: string): Promise<void> {
-  return new Promise((resolve) => {
-    const image = new Image();
-
-    image.onload = () => resolve();
-    image.onerror = () => resolve();
-    image.src = url;
-  });
 }
 
 function resolveColorScheme(themePreference: ThemePreference, darkSchemeMedia: MediaQueryList): HomeThemeColorScheme {

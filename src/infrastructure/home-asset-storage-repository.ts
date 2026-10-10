@@ -11,16 +11,27 @@ import {
 } from "@/domain/home-document";
 import {
   getSupabaseBrowserClient,
+  getSupabaseAssetProjectScope,
   isSupabaseConfigured,
   SUPABASE_CONFIGURATION_MESSAGE
 } from "@/infrastructure/supabase-client";
+import { getHomeAssetCacheIdentity, homeAssetCache } from "@/infrastructure/home-asset-cache-repository";
 
 const SIGNED_URL_REFRESH_SKEW_MS = 60 * 1000;
-const signedUrlCache = new Map<string, { expiresAt: number; signedUrl: string }>();
+const signedUrlCache = new Map<string, { userId: string; expiresAt: number; signedUrl: string }>();
+
+export function clearHomeAssetSignedUrls(userId: string): void {
+  for (const [key, entry] of signedUrlCache) {
+    if (entry.userId === userId) signedUrlCache.delete(key);
+  }
+}
 
 export class HomeAssetStorageRepository {
   async upload(userId: string, slot: HomeThemeAssetSlot, prepared: PreparedHomeThemeAssetFile): Promise<HomeThemeAsset> {
     assertStorageConfigured();
+
+    const project = getSupabaseAssetProjectScope();
+    const accountVersion = homeAssetCache.accountVersion(project, userId);
 
     const path = createHomeThemeAssetStoragePath(userId, slot, prepared.extension);
     const { error } = await getSupabaseBrowserClient()
@@ -36,15 +47,18 @@ export class HomeAssetStorageRepository {
       throw new Error(toHomeAssetStorageErrorMessage(error.message));
     }
 
-    return createStorageHomeThemeAsset({
+    const asset = createStorageHomeThemeAsset({
       path,
       contentType: prepared.contentType,
       width: prepared.width,
       height: prepared.height
     });
+    const identity = getHomeAssetCacheIdentity(project, userId, asset);
+    if (identity) await homeAssetCache.put(identity, prepared.file, accountVersion);
+    return asset;
   }
 
-  async createSignedUrl(asset: HomeThemeAsset): Promise<string | null> {
+  async createSignedUrl(asset: HomeThemeAsset, userId: string | null): Promise<string | null> {
     if (asset.source === "external") {
       return asset.url;
     }
@@ -55,7 +69,12 @@ export class HomeAssetStorageRepository {
 
     assertStorageConfigured();
 
-    const cacheKey = getSignedUrlCacheKey(asset);
+    const project = getSupabaseAssetProjectScope();
+    const identity = getHomeAssetCacheIdentity(project, userId, asset);
+    if (!identity || !userId) return null;
+    const cacheKey = identity.key;
+    const accountVersion = homeAssetCache.accountVersion(project, userId);
+    const resourceVersion = homeAssetCache.resourceVersion(identity);
     const cached = signedUrlCache.get(cacheKey);
     if (cached && cached.expiresAt - SIGNED_URL_REFRESH_SKEW_MS > Date.now()) {
       return cached.signedUrl;
@@ -70,7 +89,10 @@ export class HomeAssetStorageRepository {
       throw new Error(toHomeAssetStorageErrorMessage(error.message));
     }
 
+    if (homeAssetCache.accountVersion(project, userId) !== accountVersion
+      || homeAssetCache.resourceVersion(identity) !== resourceVersion) return null;
     signedUrlCache.set(cacheKey, {
+      userId,
       signedUrl: data.signedUrl,
       expiresAt: Date.now() + HOME_THEME_ASSET_SIGNED_URL_TTL_SECONDS * 1000
     });
@@ -83,6 +105,7 @@ export class HomeAssetStorageRepository {
       return;
     }
 
+    await this.invalidateLocalAsset(asset, asset.path.split("/")[0]);
     assertStorageConfigured();
 
     const { error } = await getSupabaseBrowserClient()
@@ -93,8 +116,15 @@ export class HomeAssetStorageRepository {
     if (error) {
       throw new Error(toHomeAssetStorageErrorMessage(error.message));
     }
+  }
 
-    signedUrlCache.delete(getSignedUrlCacheKey(asset));
+  async invalidateLocalAsset(asset: HomeThemeAsset | null, userId: string | null): Promise<void> {
+    if (!asset) return;
+    const identity = getHomeAssetCacheIdentity(getSupabaseAssetProjectScope(), userId, asset);
+    if (identity) {
+      signedUrlCache.delete(identity.key);
+      await homeAssetCache.remove(identity);
+    }
   }
 }
 
@@ -108,10 +138,6 @@ function isReadableStorageAsset(asset: HomeThemeAsset): asset is HomeThemeAsset 
   return asset.source === "storage"
     && asset.bucket === HOME_THEME_ASSET_BUCKET
     && Boolean(asset.path);
-}
-
-function getSignedUrlCacheKey(asset: HomeThemeAsset & { path: string }): string {
-  return `${asset.bucket}:${asset.path}`;
 }
 
 function toHomeAssetStorageErrorMessage(message: string): string {

@@ -20,7 +20,8 @@
     "deploy:supabase:remote": "node scripts/deploy-supabase-remote.mjs",
     "verify:edge-function-config": "node scripts/deploy-edge-function.mjs --validate-config",
     "deploy:edge-function": "node scripts/deploy-edge-function.mjs",
-    "verify:todo": "node scripts/verify-todo-widget.mjs"
+    "verify:todo": "node scripts/verify-todo-widget.mjs",
+    "verify:theme-images": "node scripts/verify-theme-images.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

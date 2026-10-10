@@ -331,7 +331,7 @@ export function HomeDashboard() {
 
   return (
     <>
-      <HomeThemeStyleBridge theme={homeDocument.theme} />
+      <HomeThemeStyleBridge theme={homeDocument.theme} documentId={homeDocument.documentId} spaceId={homeDocument.syncMeta.spaceId} storageReady={storageReady} />
       <main className="page">
       <header className={`masthead${hasBannerImage ? " masthead-banner" : ""}`}>
         <div className="home-title-block">

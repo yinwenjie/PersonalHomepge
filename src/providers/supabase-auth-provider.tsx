@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { SupabaseAuthContext, type SupabaseAuthState } from "@/contexts/supabase-auth-context";
 import { getErrorMessage } from "@/domain/errors";
@@ -12,6 +12,7 @@ import {
 } from "@/infrastructure/supabase-client";
 import { captureClientError } from "@/infrastructure/error-monitoring-repository";
 import { trackProductEvent } from "@/infrastructure/product-analytics-repository";
+import { clearHomeThemeImagesForAccount } from "@/infrastructure/home-theme-image-controller";
 
 interface SupabaseAuthProviderProps {
   children: ReactNode;
@@ -24,6 +25,15 @@ export function SupabaseAuthProvider({ children }: SupabaseAuthProviderProps) {
   const [actionPending, setActionPending] = useState(false);
   const [message, setMessage] = useState(configured ? "" : SUPABASE_CONFIGURATION_MESSAGE);
   const [error, setError] = useState("");
+  const currentUserIdRef = useRef<string | null>(null);
+  const updateSession = useCallback((nextSession: Session | null) => {
+    const nextUserId = nextSession?.user.id ?? null;
+    if (currentUserIdRef.current && currentUserIdRef.current !== nextUserId) {
+      clearHomeThemeImagesForAccount(currentUserIdRef.current);
+    }
+    currentUserIdRef.current = nextUserId;
+    setSession(nextSession);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -41,7 +51,7 @@ export function SupabaseAuthProvider({ children }: SupabaseAuthProviderProps) {
           return;
         }
 
-        setSession(nextSession);
+        updateSession(nextSession);
         setLoading(false);
         if (nextSession?.user) {
           setMessage("账号已登录。");
@@ -72,7 +82,7 @@ export function SupabaseAuthProvider({ children }: SupabaseAuthProviderProps) {
           });
         }
 
-        setSession(data.session);
+        updateSession(data.session);
         setLoading(false);
       }).catch((sessionError: unknown) => {
         if (!mounted) {
@@ -121,7 +131,7 @@ export function SupabaseAuthProvider({ children }: SupabaseAuthProviderProps) {
         window.clearTimeout(timerId);
       };
     }
-  }, [configured]);
+  }, [configured, updateSession]);
 
   const signInWithMagicLink = useCallback(async (email: string) => {
     if (!configured) {
@@ -193,7 +203,7 @@ export function SupabaseAuthProvider({ children }: SupabaseAuthProviderProps) {
 
   const signOut = useCallback(async () => {
     if (!configured) {
-      setSession(null);
+      updateSession(null);
       setMessage(SUPABASE_CONFIGURATION_MESSAGE);
       setError("");
       return;
@@ -222,7 +232,7 @@ export function SupabaseAuthProvider({ children }: SupabaseAuthProviderProps) {
         return;
       }
 
-      setSession(null);
+      updateSession(null);
       setMessage("已退出账号。本地首页数据不会被删除。");
       trackProductEvent("auth.signed_out", {
         result: "success"
@@ -241,7 +251,7 @@ export function SupabaseAuthProvider({ children }: SupabaseAuthProviderProps) {
     } finally {
       setActionPending(false);
     }
-  }, [configured]);
+  }, [configured, updateSession]);
 
   const value = useMemo<SupabaseAuthState>(() => ({
     user: session?.user ?? null,

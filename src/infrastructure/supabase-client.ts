@@ -16,6 +16,10 @@ export function isSupabaseConfigured(): boolean {
   return Boolean(supabaseUrl && supabaseAnonKey);
 }
 
+export function getSupabaseAssetProjectScope(): string {
+  return getSupabaseEnvironment().supabaseUrl.replace(/\/+$/, "");
+}
+
 export function getSupabaseBrowserClient(): SupabaseClient {
   if (browserClient) {
     return browserClient;
