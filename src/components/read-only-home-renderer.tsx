@@ -30,6 +30,8 @@ interface ReadOnlyHomeRendererProps {
   status: ReadOnlyHomeRendererStatus;
   copy: ReadOnlyHomeCopy;
   colorScheme?: "system" | "light" | "dark";
+  /** Embedded previews inherit the host page theme and must not rewrite its root variables or images. */
+  applyThemeToDocument?: boolean;
 }
 
 /**
@@ -40,7 +42,8 @@ export function ReadOnlyHomeRenderer({
   document: documentValue,
   status,
   copy,
-  colorScheme = "system"
+  colorScheme = "system",
+  applyThemeToDocument = true
 }: ReadOnlyHomeRendererProps) {
   if (status === "loading") {
     return <ReadOnlyHomeFallback label={copy.emptyLabel} loading />;
@@ -59,7 +62,7 @@ export function ReadOnlyHomeRenderer({
 
   return (
     <>
-      <ReadOnlyThemeStyleBridge theme={documentValue.theme} colorScheme={colorScheme} />
+      {applyThemeToDocument ? <ReadOnlyThemeStyleBridge theme={documentValue.theme} colorScheme={colorScheme} /> : null}
       <main className="page read-only-home" aria-label={documentValue.documentTitle}>
         <header className="masthead read-only-masthead">
           <div className="home-title-block">

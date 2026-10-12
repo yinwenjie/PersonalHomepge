@@ -314,6 +314,7 @@ function PublicSharePreview({ documentValue }: { documentValue: PublicHomeDocume
           <ReadOnlyHomeRenderer
             document={documentValue}
             status="ready"
+            applyThemeToDocument={false}
             copy={{
               emptyLabel: t("settings.publicShare.previewEmpty"),
               unavailableLabel: t("settings.publicShare.previewUnavailable")
