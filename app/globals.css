@@ -3488,6 +3488,7 @@ h1 {
 
 .public-share-panel-head span,
 .public-share-preview > header p,
+.public-share-outline-note,
 .public-share-link-block > p,
 .public-share-manual-copy {
   margin: 0;
@@ -3503,8 +3504,7 @@ h1 {
   font-weight: 700;
 }
 
-.public-share-status-badge,
-.public-share-preview > header > span {
+.public-share-status-badge {
   display: inline-flex;
   align-items: center;
   min-height: 26px;
@@ -3570,30 +3570,76 @@ h1 {
   display: none;
 }
 
-.public-share-preview-frame {
-  max-height: 420px;
+.public-share-outline {
+  min-width: 0;
+  max-height: 360px;
   overflow: auto;
+  padding: 12px 14px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--background);
 }
 
-.public-share-preview-frame .page {
-  width: min(100% - 28px, 980px);
-  min-height: 0;
-  padding: 24px 0;
+.public-share-outline-title {
+  margin: 0 0 10px;
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
-.public-share-preview-frame h1 {
-  font-size: clamp(30px, 7vw, 46px);
+.public-share-outline-groups {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.public-share-preview-frame .read-only-masthead {
-  margin-bottom: 20px;
+.public-share-outline-groups > li {
+  min-width: 0;
+  padding-left: 10px;
+  border-left: 2px solid var(--line);
 }
 
-.public-share-preview-frame .read-only-section {
-  grid-template-columns: minmax(100px, 140px) minmax(0, 1fr);
+.public-share-outline-group {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.public-share-outline-group > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.public-share-outline-count {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.public-share-outline-sites {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 2px 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.public-share-outline-sites > li {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.6;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .public-share-disclosure strong,
@@ -5395,10 +5441,6 @@ h1 {
   .home-space-activate-form,
   .public-share-metadata,
   .public-share-link-row {
-    grid-template-columns: 1fr;
-  }
-
-  .public-share-preview-frame .read-only-section {
     grid-template-columns: 1fr;
   }
 

@@ -221,9 +221,21 @@ function verifyClientPrivacyContract() {
     /useState[^\n]*(?:token|shareToken)/i.test(sharePage),
     "public share page should not copy the fragment token into React state"
   );
+  for (const forbidden of ["ReadOnlyHomeRenderer", "ReadOnlyThemeStyleBridge", "SiteIcon", "dangerouslySetInnerHTML"]) {
+    expectFalse(
+      settingsPanel.includes(forbidden),
+      `the settings preview should not use ${forbidden}`
+    );
+  }
+
+  const preview = settingsPanel.match(/function PublicSharePreview\b[\s\S]*?\n\}/)?.[0] ?? "";
   expectTrue(
-    /<ReadOnlyHomeRenderer[^>]*applyThemeToDocument=\{false\}/s.test(settingsPanel),
-    "the settings preview should not overwrite the settings page theme or background image"
+    preview.includes("aria-expanded"),
+    "the settings preview toggle should expose its expanded state"
+  );
+  expectTrue(
+    /\buseState\(\s*false\s*\)/.test(preview),
+    "the settings preview should be collapsed by default"
   );
   expectTrue(route.includes("noarchive: true"), "share route metadata should disable archiving");
   expectTrue(route.includes("index: false"), "share route metadata should disable indexing");

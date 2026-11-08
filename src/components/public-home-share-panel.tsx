@@ -2,10 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { requestConfirm } from "@/components/confirm-dialog";
-import {
-  ReadOnlyHomeRenderer,
-  ReadOnlyHomeRendererBoundary
-} from "@/components/read-only-home-renderer";
 import { StatusMessage, type StatusTone } from "@/components/status-message";
 import type { HomeSpace } from "@/domain/account";
 import type { HomeDocumentV2 } from "@/domain/home-document";
@@ -204,6 +200,30 @@ export function PublicHomeSharePanel({
         <StatusMessage tone="neutral">{t(eligibility.messageKey)}</StatusMessage>
       ) : (
         <div className="public-share-panel-content">
+          <div className="public-share-link-block" hidden={!hasSessionShareUrl}>
+            <label htmlFor="currentSessionShareUrl">{t("settings.publicShare.currentSessionLink")}</label>
+            <div className="public-share-link-row">
+              <input
+                ref={sessionShareUrlInputRef}
+                id="currentSessionShareUrl"
+                readOnly
+                spellCheck={false}
+                defaultValue=""
+                onFocus={(event) => event.currentTarget.select()}
+              />
+              <button className="utility-button" type="button" onClick={handleCopy}>
+                {t("settings.publicShare.copy")}
+              </button>
+            </div>
+            {manualCopyVisible ? (
+              <p className="public-share-manual-copy">{t("settings.publicShare.manualCopy")}</p>
+            ) : null}
+            <p>{t("settings.publicShare.sessionOnlyNotice")}</p>
+          </div>
+          {!hasSessionShareUrl && metadata?.status === "active" ? (
+            <StatusMessage tone="info">{t("settings.publicShare.linkUnavailableAfterRefresh")}</StatusMessage>
+          ) : null}
+
           <StatusMessage
             role={status.tone === "danger" ? "alert" : "status"}
             tone={status.tone}
@@ -239,30 +259,6 @@ export function PublicHomeSharePanel({
             <p>{t("settings.publicShare.snapshotNotice")}</p>
           </div>
 
-          <div className="public-share-link-block" hidden={!hasSessionShareUrl}>
-            <label htmlFor="currentSessionShareUrl">{t("settings.publicShare.currentSessionLink")}</label>
-            <div className="public-share-link-row">
-              <input
-                ref={sessionShareUrlInputRef}
-                id="currentSessionShareUrl"
-                readOnly
-                spellCheck={false}
-                defaultValue=""
-                onFocus={(event) => event.currentTarget.select()}
-              />
-              <button className="utility-button" type="button" onClick={handleCopy}>
-                {t("settings.publicShare.copy")}
-              </button>
-            </div>
-            {manualCopyVisible ? (
-              <p className="public-share-manual-copy">{t("settings.publicShare.manualCopy")}</p>
-            ) : null}
-            <p>{t("settings.publicShare.sessionOnlyNotice")}</p>
-          </div>
-          {!hasSessionShareUrl && metadata?.status === "active" ? (
-            <StatusMessage tone="info">{t("settings.publicShare.linkUnavailableAfterRefresh")}</StatusMessage>
-          ) : null}
-
           <div className="settings-actions public-share-actions">
             <button
               className="utility-button public-share-primary-button"
@@ -295,6 +291,7 @@ export function PublicHomeSharePanel({
 
 function PublicSharePreview({ documentValue }: { documentValue: PublicHomeDocumentV1 }) {
   const { t } = useI18n();
+  const [expanded, setExpanded] = useState(false);
   const siteCount = documentValue.groups.reduce((total, group) => total + group.sites.length, 0);
 
   return (
@@ -307,21 +304,39 @@ function PublicSharePreview({ documentValue }: { documentValue: PublicHomeDocume
             sites: siteCount
           })}</p>
         </div>
-        <span>{t("settings.publicShare.previewBadge")}</span>
+        <button
+          className="utility-button"
+          type="button"
+          aria-expanded={expanded}
+          aria-controls="publicSharePreviewOutline"
+          onClick={() => setExpanded((value) => !value)}
+        >
+          {expanded ? t("settings.publicShare.previewHide") : t("settings.publicShare.previewShow")}
+        </button>
       </header>
-      <div className="public-share-preview-frame">
-        <ReadOnlyHomeRendererBoundary unavailableLabel={t("settings.publicShare.previewUnavailable")}>
-          <ReadOnlyHomeRenderer
-            document={documentValue}
-            status="ready"
-            applyThemeToDocument={false}
-            copy={{
-              emptyLabel: t("settings.publicShare.previewEmpty"),
-              unavailableLabel: t("settings.publicShare.previewUnavailable")
-            }}
-          />
-        </ReadOnlyHomeRendererBoundary>
-      </div>
+      {expanded ? (
+        <>
+          <div className="public-share-outline" id="publicSharePreviewOutline">
+            <p className="public-share-outline-title">{documentValue.documentTitle}</p>
+            <ol className="public-share-outline-groups">
+              {[...documentValue.groups].sort((left, right) => left.order - right.order).map((group) => (
+                <li key={group.id}>
+                  <p className="public-share-outline-group">
+                    <span>{group.title}</span>
+                    <span className="public-share-outline-count">{group.sites.length}</span>
+                  </p>
+                  <ul className="public-share-outline-sites">
+                    {[...group.sites].sort((left, right) => left.order - right.order).map((site) => (
+                      <li key={site.id} title={site.name}>{site.name}</li>
+                    ))}
+                  </ul>
+                </li>
+              ))}
+            </ol>
+          </div>
+          <p className="public-share-outline-note">{t("settings.publicShare.previewTextNotice")}</p>
+        </>
+      ) : null}
     </section>
   );
 }
