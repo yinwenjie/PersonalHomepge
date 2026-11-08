@@ -76,9 +76,16 @@ RLS：用户只能 `select` 自己的行；没有任何前端写权限。
 
 强制方式：
 
-- 云端历史：快照清理函数按套餐保留份数。
+- 云端历史：现在每插入一份快照，`trim_home_space_snapshots()`（013）就会删掉超出 50 份的旧快照。所以不能简单地把它的上限改成“当前套餐的份数”，否则降级后第一次同步就会永久删掉付费期间的历史。做法是：
+  - `home_space_snapshots` 增加 `retained` 布尔列。降级（webhook 把生效套餐从付费变成免费）时，把该账号当时已有的快照全部标为 `retained = true`。
+  - 清理函数只在 `retained = false` 的快照里按当前套餐份数轮换，`retained` 的快照不计数、不删除，只读保留。
+  - 重新升级时把 `retained` 清回 `false`，按付费额度重新计数。
+  - 用户自己删除空间或账号时，`retained` 的快照照常一起删除。
 - 空间数、分享数：新增空间、发布分享的 RPC 先查额度，超出返回 `plan_limit_reached`。
-- 图片大小：Storage bucket 上限按付费版设，免费版的检查放在上传前的签名或 RPC 里。
+- 图片大小：不能把 `home-assets` 的上限调大、再靠一个签名接口或 RPC 检查免费额度，因为现在浏览器直接用 Supabase 客户端上传（`HomeAssetStorageRepository.upload()`），012 的插入和更新策略只检查目录，免费用户可以绕过那个接口直接传到大上限。做法是让 Storage 自己把关：
+  - `home-assets` 保持免费版上限（现在是 5 MB），策略不变。
+  - 付费版的大图放进新 bucket `home-assets-pro`，上限按付费版设；它的插入和更新策略除了检查目录，还要求 `has_paid_plan(auth.uid())`（读 `entitlements` 的 security definer 函数）为真。
+  - 读取和删除策略只检查目录，降级后已上传的大图仍可显示、可删除，但不能再传新的。
 - 前端遇到 `plan_limit_reached` 显示升级提示，不显示原始错误。
 
 ## 4. 购买和管理订阅
