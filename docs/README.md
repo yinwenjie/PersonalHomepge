@@ -33,6 +33,7 @@
 - `implementation/phase-2/Phase2_2_RssWidgetDesign.md`：Phase 2.2，RSS 组件设计；记录 `rss.feed` 组件交互、配置与数据边界、`rss-proxy` Edge Function 的抓取限制、共享缓存、限流、埋点和上线步骤（待确认，未实现）。
 - `implementation/phase-2/Phase2_3_AccountDeletionDesign.md`：Phase 2.3，账号删除设计；记录账号数据清单、重新验证与确认流程、同步空间和图片的处理、`account-delete` Edge Function 的执行顺序、删除记录和本机清理（已确认，未实现）。
 - `implementation/phase-2/Phase2_4_EntitlementDesign.md`：Phase 2.4，付费权益设计；记录服务端 `entitlements` 表、额度定义与强制方式、checkout/portal/webhook 三个函数、首页文档 `billing` 字段的处理以及与账号删除的关系（支付用 Stripe 已确认，收费项目待定，未实现）。
+- `implementation/phase-2/Phase2_5_ShareTextPreviewDesign.md`：Phase 2.5，设置页公开快照预览改为“标题 → 分组 → 网站”三级文字结构，默认收起；记录交互、样式、文案、静态检查和验收清单（待确认，未实现）。
 
 ## Tech Stack
 
