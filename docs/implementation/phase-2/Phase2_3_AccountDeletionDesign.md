@@ -1,6 +1,6 @@
 # Phase 2.3 账号删除设计
 
-状态：设计稿，待确认。本文只定方案，不包含运行时代码、migration 或部署。
+状态：设计已确认（2026-11-08，第 10 节）。本文只定方案，不包含运行时代码、migration 或部署。
 
 ## 背景
 
@@ -14,7 +14,7 @@
 |---|---|
 | 入口 | 设置页 → 账号 → 删除账号。只对已登录用户显示 |
 | 确认 | 先发一封新的登录邮件重新验证身份，回来后再输入自己的邮箱确认；15 分钟内有效 |
-| 冷静期 | 不设，确认后立即删除（待确认，备选是 7 天冷静期） |
+| 冷静期 | 不设，确认后立即删除（已确认） |
 | 谁来删 | 新 Edge Function `account-delete`，用户自己的 JWT 调用，服务端用 service role 执行 |
 | 账号托管空间 | 删除云端历史、分享和底层加密数据（没有其他账号引用时） |
 | 普通同步码空间 | 只从账号解绑，底层数据保留，持有同步码的设备照常同步 |
@@ -44,7 +44,7 @@
 | `admin_audit_events` | 只存 UUID，故意没有 FK（019） | 不受影响 | 保留 |
 | `product_analytics_events`、`client_error_events` | 只有匿名 id，没有 user id、邮箱、IP（014、015） | 不受影响 | 无法也无需按账号删除，按 180 天保留期清理 |
 | `rss_feed_cache`、`rss_rate_limits` | 与账号无关（022） | 不受影响 | 不处理 |
-| `auth.audit_log_entries` | Supabase Auth 自带，可能含邮箱 | 不会删除 | 若项目开启了表存储，在 RPC 里删掉该用户的条目（需先在线上确认是否在写，见第 10 节） |
+| `auth.audit_log_entries` | Supabase Auth 自带，可能含邮箱 | 不会删除 | 2026-11-08 线上为 0 行，项目没有写这张表，不处理（见第 10 节） |
 | Resend 邮件日志 | 发信记录含邮箱 | 不受影响 | 按 Resend 的保留期自动过期，文档里写明 |
 | 浏览器本机 | 见第 7 节 | 不受影响 | 删除成功后由页面清理 |
 
@@ -84,7 +84,7 @@
 3. **付费检查**：有付费权益后，先取消订阅，取消失败就停下（见 `Phase2_4_EntitlementDesign.md` 第 7 节）。在没有付费功能前这一步跳过。
 4. **写删除记录**：在 `account_deletions` 里按 user id 哈希插入或取回一行，状态 `started`。
 5. **删图片**：用 service role 列出 `home-assets` 里 `{userId}/banner/` 和 `{userId}/background/`，分批删除，记下数量。
-6. **删应用数据**：调用 service role 专用 RPC `delete_account_app_data(p_user_id)`，在一个事务里按第 3 节处理每个空间，删掉 `home_spaces`（级联凭证、快照、分享），再删可删的 `sync_spaces`，并按需删除 `auth.audit_log_entries` 里该用户的条目。返回各项数量。
+6. **删应用数据**：调用 service role 专用 RPC `delete_account_app_data(p_user_id)`，在一个事务里按第 3 节处理每个空间，删掉 `home_spaces`（级联凭证、快照、分享），再删可删的 `sync_spaces`。返回各项数量。
 7. **删 Auth 用户**：`auth.admin.deleteUser(userId)`，级联删掉 `profiles`、`account_preferences`、用户侧审计等剩余行。
 8. **完成**：删除记录改为 `completed`，写入数量；返回 `{ status: "deleted", counts }`。
 
@@ -136,12 +136,12 @@
 4. 按现有流程上线：migration 用 deploy-supabase 工作流，函数用 Edge Function 部署工作流（需加入白名单），前端走 production。每一步都要你确认。
 5. 用一个专门的测试账号走一遍真实删除：有账号托管空间、普通同步码空间、分享链接、图片；删除后逐项核对第 1 节表格。
 
-## 10. 待确认
+## 10. 决定记录
 
-1. **冷静期**：默认不设、立即删除。备选是 7 天冷静期，期间登录即可撤销；需要定时执行（GitHub Actions 定时工作流），实现多一个组件。
-2. **`auth.audit_log_entries`**：需要你在 SQL Editor 跑一次 `select count(*) from auth.audit_log_entries;`。有数据就在 RPC 里删除该用户的条目，没有就不处理。
-3. **本机首页默认保留**：删除账号后本机首页默认保留（本地优先），勾选才清除。你也可以改成默认清除。
-4. **完整导出**：现有导出不含云端历史。v1 只提示用户先导出首页 JSON；如需导出全部云端历史，另做一个导出功能。
+1. **冷静期**（2026-11-08 Gerald 确认）：不设，重新验证并输入邮箱后立即删除。
+2. **`auth.audit_log_entries`**（2026-11-08 Gerald 在 SQL Editor 查询，结果 0 行）：项目没有写这张表，删除流程不处理它。如果以后在 Supabase 里打开了 Auth 审计日志的表存储，需要回来补上。
+3. **本机首页默认保留**：沿用默认，删除账号后本机首页保留（本地优先），勾选才清除。
+4. **完整导出**：沿用默认，v1 只提示用户先导出首页 JSON；导出全部云端历史以后另做。
 
 ## 11. 相关发现（本设计不处理）
 
