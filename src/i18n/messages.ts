@@ -432,11 +432,11 @@ export const DEFAULT_MESSAGES = {
   "settings.publicShare.notPublished": "当前空间尚未发布公开快照。",
   "settings.publicShare.publishedAt": "首次发布",
   "settings.publicShare.updatedAt": "快照更新",
-  "settings.publicShare.previewTitle": "实际公开预览",
+  "settings.publicShare.previewTitle": "公开内容预览",
   "settings.publicShare.previewMetrics": "{groups} 个分组 · {sites} 个网站",
-  "settings.publicShare.previewBadge": "只读",
-  "settings.publicShare.previewUnavailable": "公开预览不可用。",
-  "settings.publicShare.previewEmpty": "没有可公开的网站。",
+  "settings.publicShare.previewShow": "显示预览",
+  "settings.publicShare.previewHide": "隐藏预览",
+  "settings.publicShare.previewTextNotice": "预览只显示文字结构。公开页面会按你的主题显示图标和颜色。",
   "settings.publicShare.includedTitle": "公开范围",
   "settings.publicShare.includedFields": "包含：首页标题、主题风格、分组和网站的名称、URL、标记与排序。",
   "settings.publicShare.excludedFields": "不包含：组件及配置、Banner、背景图片、账号、同步、审计和恢复信息。",
@@ -1759,11 +1759,11 @@ const PHASE_1_15_4_EN_US_MESSAGES: Partial<MessageDictionary> = {
   ,"settings.publicShare.notPublished": "This space has not published a public snapshot."
   ,"settings.publicShare.publishedAt": "First published"
   ,"settings.publicShare.updatedAt": "Snapshot updated"
-  ,"settings.publicShare.previewTitle": "Actual public preview"
+  ,"settings.publicShare.previewTitle": "Public content preview"
   ,"settings.publicShare.previewMetrics": "{groups} groups · {sites} sites"
-  ,"settings.publicShare.previewBadge": "Read only"
-  ,"settings.publicShare.previewUnavailable": "The public preview is unavailable."
-  ,"settings.publicShare.previewEmpty": "There are no sites that can be shared."
+  ,"settings.publicShare.previewShow": "Show preview"
+  ,"settings.publicShare.previewHide": "Hide preview"
+  ,"settings.publicShare.previewTextNotice": "This preview shows the text outline only. The public page uses your theme, icons and colors."
   ,"settings.publicShare.includedTitle": "Public scope"
   ,"settings.publicShare.includedFields": "Includes the home title, theme style, groups, and site names, URLs, marks, and ordering."
   ,"settings.publicShare.excludedFields": "Excludes widgets and config, banner, background, account, sync, audit, and recovery data."
@@ -1799,7 +1799,13 @@ const PHASE_1_15_4_EN_US_MESSAGES: Partial<MessageDictionary> = {
   ,"settings.publicShare.pageUnavailableHelp": "The link may be invalid, revoked, or expired, or the service may be temporarily unreachable."
 };
 
-const PHASE_1_15_4_ZH_TW_MESSAGES = createSettingsMessageOverrides(toTraditionalChinese);
+const PHASE_1_15_4_ZH_TW_MESSAGES = {
+  ...createSettingsMessageOverrides(toTraditionalChinese),
+  "settings.publicShare.previewTitle": "公開內容預覽",
+  "settings.publicShare.previewShow": "顯示預覽",
+  "settings.publicShare.previewHide": "隱藏預覽",
+  "settings.publicShare.previewTextNotice": "預覽只顯示文字結構。公開頁面會按你的主題顯示圖示和顏色。"
+};
 
 const PHASE_1_15_4_LOCALE_ROWS = [
   ["settings.shell.eyebrow", "Paramètres", "Configuración", "設定", "설정", "Impostazioni"],
@@ -2170,11 +2176,11 @@ const PHASE_1_15_4_LOCALE_ROWS = [
   ["settings.publicShare.notPublished", "Cet espace n'a pas encore d'instantané public.", "Este espacio aún no tiene una instantánea pública.", "このスペースはまだ公開されていません。", "이 공간은 아직 공개되지 않았습니다.", "Questo spazio non ha ancora uno snapshot pubblico."],
   ["settings.publicShare.publishedAt", "Première publication", "Primera publicación", "初回公開", "최초 게시", "Prima pubblicazione"],
   ["settings.publicShare.updatedAt", "Instantané mis à jour", "Instantánea actualizada", "スナップショット更新", "스냅샷 업데이트", "Snapshot aggiornato"],
-  ["settings.publicShare.previewTitle", "Aperçu public réel", "Vista previa pública real", "実際の公開プレビュー", "실제 공개 미리보기", "Anteprima pubblica effettiva"],
+  ["settings.publicShare.previewTitle", "Aperçu du contenu public", "Vista previa del contenido público", "公開内容のプレビュー", "공개 콘텐츠 미리보기", "Anteprima del contenuto pubblico"],
   ["settings.publicShare.previewMetrics", "{groups} groupes · {sites} sites", "{groups} grupos · {sites} sitios", "{groups} グループ · {sites} サイト", "{groups}개 그룹 · {sites}개 사이트", "{groups} gruppi · {sites} siti"],
-  ["settings.publicShare.previewBadge", "Lecture seule", "Solo lectura", "読み取り専用", "읽기 전용", "Sola lettura"],
-  ["settings.publicShare.previewUnavailable", "L'aperçu public est indisponible.", "La vista previa pública no está disponible.", "公開プレビューを利用できません。", "공개 미리보기를 사용할 수 없습니다.", "L'anteprima pubblica non è disponibile."],
-  ["settings.publicShare.previewEmpty", "Aucun site ne peut être partagé.", "No hay sitios que puedan compartirse.", "公開できるサイトがありません。", "공개할 수 있는 사이트가 없습니다.", "Nessun sito può essere condiviso."],
+  ["settings.publicShare.previewShow", "Afficher l'aperçu", "Mostrar vista previa", "プレビューを表示", "미리보기 표시", "Mostra anteprima"],
+  ["settings.publicShare.previewHide", "Masquer l'aperçu", "Ocultar vista previa", "プレビューを非表示", "미리보기 숨기기", "Nascondi anteprima"],
+  ["settings.publicShare.previewTextNotice", "Cet aperçu affiche uniquement la structure textuelle. La page publique utilise votre thème, vos icônes et vos couleurs.", "Esta vista previa muestra solo la estructura de texto. La página pública usa tu tema, iconos y colores.", "このプレビューはテキスト構造のみを表示します。公開ページでは、設定したテーマ、アイコン、色が使われます。", "이 미리보기에는 텍스트 구조만 표시됩니다. 공개 페이지에는 설정한 테마, 아이콘과 색상이 적용됩니다.", "Questa anteprima mostra solo la struttura testuale. La pagina pubblica usa il tuo tema, le tue icone e i tuoi colori."],
   ["settings.publicShare.includedTitle", "Périmètre public", "Contenido público", "公開範囲", "공개 범위", "Ambito pubblico"],
   ["settings.publicShare.includedFields", "Inclut le titre, le thème, les groupes et les noms, URL, marques et ordre des sites.", "Incluye título, tema, grupos y nombres, URL, marcas y orden de sitios.", "ホームタイトル、テーマ、グループ、サイト名、URL、マーク、並び順を含みます。", "홈 제목, 테마, 그룹, 사이트 이름, URL, 표시와 순서를 포함합니다.", "Include titolo, tema, gruppi, nomi, URL, segni e ordine dei siti."],
   ["settings.publicShare.excludedFields", "Exclut widgets et config, bannière, arrière-plan, compte, synchro, audit et récupération.", "Excluye widgets y config, banner, fondo, cuenta, sincronización, auditoría y recuperación.", "ウィジェットと設定、バナー、背景、アカウント、同期、監査、復元情報は含みません。", "위젯과 설정, 배너, 배경, 계정, 동기화, 감사와 복구 정보는 제외됩니다.", "Esclude widget e config, banner, sfondo, account, sync, audit e recupero."],
