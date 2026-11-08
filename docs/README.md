@@ -31,8 +31,8 @@
 - `implementation/phase-1/Phase1_17_Implement.md`：Phase 1.17，只读渲染与公开快照分享；记录公开投影、token/hash 合约、分享管理、`/share/` 静态入口、权限边界和上线回归。
 - `implementation/phase-1/Phase1_18_Implement.md`：Phase 1.18，受控服务端与只读后台 Dashboard v1；记录 Edge Function、管理员身份、管理员审计、跨用户只读查询、私有独立 Admin Pages、Cloudflare Access、快照预览、部署和回滚边界。
 - `implementation/phase-2/Phase2_2_RssWidgetDesign.md`：Phase 2.2，RSS 组件设计；记录 `rss.feed` 组件交互、配置与数据边界、`rss-proxy` Edge Function 的抓取限制、共享缓存、限流、埋点和上线步骤（待确认，未实现）。
-- `implementation/phase-2/Phase2_3_AccountDeletionDesign.md`：Phase 2.3，账号删除设计；记录账号数据清单、重新验证与确认流程、同步空间和图片的处理、`account-delete` Edge Function 的执行顺序、删除记录和本机清理（待确认，未实现）。
-- `implementation/phase-2/Phase2_4_EntitlementDesign.md`：Phase 2.4，付费权益设计；记录服务端 `entitlements` 表、额度定义与强制方式、checkout/portal/webhook 三个函数、首页文档 `billing` 字段的处理以及与账号删除的关系（待确认，未实现）。
+- `implementation/phase-2/Phase2_3_AccountDeletionDesign.md`：Phase 2.3，账号删除设计；记录账号数据清单、重新验证与确认流程、同步空间和图片的处理、`account-delete` Edge Function 的执行顺序、删除记录和本机清理（已确认，未实现）。
+- `implementation/phase-2/Phase2_4_EntitlementDesign.md`：Phase 2.4，付费权益设计；记录服务端 `entitlements` 表、额度定义与强制方式、checkout/portal/webhook 三个函数、首页文档 `billing` 字段的处理以及与账号删除的关系（支付用 Stripe 已确认，收费项目待定，未实现）。
 
 ## Tech Stack
 
